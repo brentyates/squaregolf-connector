@@ -1,0 +1,4 @@
+vendor
+dist/
+*.tar.gz
+*.zip
