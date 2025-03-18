@@ -55,11 +55,17 @@ func (nm *NavigationManager) GetContent() fyne.CanvasObject {
 
 func (nm *NavigationManager) UpdateSidebar() {
 	// Create navigation buttons with icons
+	alignmentBtn := createNavButton("Alignment", theme.SettingsIcon(), "alignment", nm)
+	alignmentBtn.Disable() // Disable alignment button
+
+	rangeBtn := createNavButton("Range", theme.StorageIcon(), "range", nm)
+	rangeBtn.Disable() // Disable range button
+
 	buttons := container.NewVBox(
 		createNavButton("Dashboard", theme.HomeIcon(), "dashboard", nm),
-		createNavButton("Alignment", theme.SettingsIcon(), "alignment", nm),
+		alignmentBtn,
 		createNavButton("GSPro", theme.ComputerIcon(), "gspro", nm),
-		createNavButton("Range", theme.StorageIcon(), "range", nm),
+		rangeBtn,
 		createNavButton("Settings", theme.SettingsIcon(), "settings", nm),
 	)
 
