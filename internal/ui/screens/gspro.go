@@ -64,7 +64,7 @@ func (s *GSProScreen) Initialize() {
 	}
 	s.portBinding.Set(savedPort)
 
-	// Create settings section first so we can access the entries in the connect button
+	// Create IP and port entries
 	ipEntry := widget.NewEntryWithData(s.ipBinding)
 	ipEntry.SetPlaceHolder("GSPro IP Address")
 
@@ -83,14 +83,6 @@ func (s *GSProScreen) Initialize() {
 			s.preferences.SetInt("gspro_port", port)
 		}
 	}))
-
-	// Create settings form
-	settings := widget.NewCard("Connection Settings", "",
-		container.NewVBox(
-			ipEntry,
-			portEntry,
-		),
-	)
 
 	// Create connection controls with bound enabled state
 	connectBtn := widget.NewButton("Connect to GSPro", func() {
@@ -190,22 +182,17 @@ func (s *GSProScreen) Initialize() {
 		}
 	})
 
-	// Create status section
-	statusCard := widget.NewCard("Connection Status", "",
-		container.NewVBox(
-			status,
-			widget.NewSeparator(),
-			container.NewHBox(connectBtn, disconnectBtn),
-		),
-	)
-
 	// Create the main content
 	s.content = container.NewVBox(
-		widget.NewLabel("GSPro Integration"),
+		widget.NewLabel("GSPro Connection"),
 		widget.NewSeparator(),
-		settings,
+		ipEntry,
 		widget.NewSeparator(),
-		statusCard,
+		portEntry,
+		widget.NewSeparator(),
+		status,
+		widget.NewSeparator(),
+		container.NewHBox(connectBtn, disconnectBtn),
 	)
 }
 
