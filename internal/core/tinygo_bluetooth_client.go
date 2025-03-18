@@ -221,8 +221,6 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 		foundDevice := false
 
 		err := t.adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
-			log.Printf("Scan found device: %s [%s]", device.LocalName(), device.Address.String())
-
 			if (targetName != "" && device.LocalName() == targetName) ||
 				(targetAddress != "" && device.Address.String() == targetAddress) {
 				log.Printf("Found target device: %s [%s]", device.LocalName(), device.Address.String())

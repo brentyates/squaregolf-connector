@@ -63,9 +63,9 @@ func (nm *NavigationManager) UpdateSidebar() {
 
 	buttons := container.NewVBox(
 		createNavButton("Dashboard", theme.HomeIcon(), "dashboard", nm),
-		alignmentBtn,
 		createNavButton("GSPro", theme.ComputerIcon(), "gspro", nm),
 		rangeBtn,
+		alignmentBtn,
 		createNavButton("Settings", theme.SettingsIcon(), "settings", nm),
 	)
 

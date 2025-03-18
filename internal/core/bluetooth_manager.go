@@ -412,14 +412,6 @@ func (bm *BluetoothManager) connectToDevice() error {
 	return nil
 }
 
-// handleDisconnect handles device disconnection
-func (bm *BluetoothManager) handleDisconnect() {
-	bm.connectMutex.Lock()
-	defer bm.connectMutex.Unlock()
-
-	bm.stateManager.SetConnectionStatus(ConnectionStatusDisconnected)
-}
-
 // StartScan starts scanning for SquareGolf devices
 func (bm *BluetoothManager) StartScan() error {
 	if bm.bluetoothClient == nil {

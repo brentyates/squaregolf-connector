@@ -63,7 +63,7 @@ func (d *Dashboard) Initialize() {
 	// Create device selection dropdown
 	deviceSelect := widget.NewSelect([]string{}, func(deviceName string) {
 		d.config.DeviceName = deviceName
-		core.GetPreferences().SetLastDeviceName(deviceName)
+		fyne.CurrentApp().Preferences().SetString("device_name", deviceName)
 	})
 
 	// Create scan button
@@ -142,7 +142,7 @@ func (d *Dashboard) Initialize() {
 	// Start initial scan if no device is selected
 	if d.config.DeviceName == "" {
 		// Try to get the last used device from preferences
-		lastDevice := core.GetPreferences().GetLastDeviceName()
+		lastDevice := fyne.CurrentApp().Preferences().String("device_name")
 		if lastDevice != "" {
 			d.config.DeviceName = lastDevice
 			deviceSelect.SetSelected(lastDevice)
