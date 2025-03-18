@@ -127,7 +127,7 @@ const (
 	WindowTitle = AppName + " - Unofficial Launch Monitor Connector"
 
 	// Navigation screen names
-	ScreenDashboard = "Dashboard"
+	ScreenDevice    = "Device"
 	ScreenAlignment = "Alignment"
 	ScreenGSPro     = "GSPro"
 	ScreenRange     = "Range"

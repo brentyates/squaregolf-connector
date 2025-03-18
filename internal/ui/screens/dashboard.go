@@ -57,7 +57,7 @@ func (d *Dashboard) Initialize() {
 	d.metricsCard.RegisterCallbacks(d.stateManager, d.window)
 
 	// Create header with connection controls
-	title := widget.NewLabel(core.AppName)
+	title := widget.NewLabel("Device")
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
 	// Create device selection dropdown
