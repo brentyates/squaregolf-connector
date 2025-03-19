@@ -146,7 +146,10 @@ func (d *Dashboard) Initialize() {
 		if lastDevice != "" {
 			d.config.DeviceName = lastDevice
 			deviceSelect.SetSelected(lastDevice)
-			go d.bluetoothManager.StartBluetoothConnection(lastDevice, "")
+			// Only auto-connect if the setting is enabled
+			if fyne.CurrentApp().Preferences().BoolWithFallback("auto_connect", true) {
+				go d.bluetoothManager.StartBluetoothConnection(lastDevice, "")
+			}
 		} else {
 			go func() {
 				if err := d.bluetoothManager.StartScan(); err != nil {
