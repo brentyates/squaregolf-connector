@@ -131,3 +131,11 @@ func (sc *StatusCard) RegisterCallbacks(stateManager *core.StateManager, window 
 func (sc *StatusCard) GetCard() *widget.Card {
 	return sc.card
 }
+
+func (sc *StatusCard) GetDeviceLabel() *widget.Label {
+	return sc.deviceLabel
+}
+
+func (sc *StatusCard) GetBatteryLabel() *widget.Label {
+	return sc.batteryLabel
+}

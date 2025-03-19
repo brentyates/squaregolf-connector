@@ -133,10 +133,22 @@ func (d *Dashboard) Initialize() {
 		}
 	})
 
-	// Create main content area with a grid layout
-	content := container.NewGridWithColumns(2,
-		d.statusCard.GetCard(),
-		d.metricsCard.GetCard(),
+	// Create main content area with a vertical layout
+	content := container.NewVBox(
+		widget.NewLabel("Device Information"),
+		widget.NewSeparator(),
+		container.NewVBox(
+			d.statusCard.GetDeviceLabel(),
+			d.statusCard.GetBatteryLabel(),
+		),
+		widget.NewSeparator(),
+		widget.NewLabel("Ball Status"),
+		widget.NewSeparator(),
+		container.NewVBox(d.statusCard.GetCard().Content.(*fyne.Container).Objects[2].(*fyne.Container).Objects[2:]...),
+		widget.NewSeparator(),
+		widget.NewLabel("System Status"),
+		widget.NewSeparator(),
+		container.NewVBox(d.statusCard.GetCard().Content.(*fyne.Container).Objects[4].(*fyne.Container).Objects[2:]...),
 	)
 
 	// Create the main content with connection controls at the top
