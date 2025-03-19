@@ -6,7 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.5.4
 	github.com/apex/log v1.9.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	tinygo.org/x/bluetooth v0.11.0
+	tinygo.org/x/bluetooth v0.10.0 // VERY IMPORTANT: v0.11.0 has a bug on enable indications on windows only
 )
 
 require (
