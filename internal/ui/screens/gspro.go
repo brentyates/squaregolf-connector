@@ -41,18 +41,25 @@ func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchM
 func (s *GSProScreen) Initialize() {
 	// Create data bindings
 	statusText := binding.NewString()
+	errorText := binding.NewString()
 	connectEnabled := binding.NewBool()
 	disconnectEnabled := binding.NewBool()
 
 	// Set initial values
 	statusText.Set("Disconnected")
+	errorText.Set("")
 	connectEnabled.Set(true)
 	disconnectEnabled.Set(false)
 
-	// Create connection status
+	// Create connection status and error labels
 	status := widget.NewLabelWithData(statusText)
 	status.Alignment = fyne.TextAlignCenter
 	status.TextStyle = fyne.TextStyle{Bold: true}
+
+	errorLabel := widget.NewLabelWithData(errorText)
+	errorLabel.Alignment = fyne.TextAlignCenter
+	errorLabel.TextStyle = fyne.TextStyle{Bold: true}
+	errorLabel.Hide()
 
 	// Initialize IP and port bindings with saved values
 	savedIP := s.preferences.String("gspro_ip")
@@ -160,6 +167,8 @@ func (s *GSProScreen) Initialize() {
 		switch newValue {
 		case core.GSProStatusConnected:
 			statusText.Set("Connected")
+			errorText.Set("")
+			errorLabel.Hide()
 			connectEnabled.Set(false)
 			disconnectEnabled.Set(true)
 			ipEntry.Disable()
@@ -172,16 +181,18 @@ func (s *GSProScreen) Initialize() {
 			portEntry.Disable()
 		case core.GSProStatusDisconnected:
 			statusText.Set("Disconnected")
+			errorText.Set("")
+			errorLabel.Hide()
 			// Only enable connect if there's no active integration
 			connectEnabled.Set(s.gsproIntegration == nil)
 			disconnectEnabled.Set(false)
 			ipEntry.Enable()
 			portEntry.Enable()
 		case core.GSProStatusError:
+			statusText.Set("Connecting (retrying)...")
 			if err := s.stateManager.GetGSProError(); err != nil {
-				statusText.Set(fmt.Sprintf("Error: %v", err))
-			} else {
-				statusText.Set("Connection Error")
+				errorText.Set(fmt.Sprintf("Error: %v", err))
+				errorLabel.Show()
 			}
 			// Only enable connect if there's no active integration
 			connectEnabled.Set(s.gsproIntegration == nil)
@@ -202,6 +213,7 @@ func (s *GSProScreen) Initialize() {
 		autoConnectCheck,
 		widget.NewSeparator(),
 		status,
+		errorLabel,
 		widget.NewSeparator(),
 		container.NewHBox(connectBtn, disconnectBtn),
 	)

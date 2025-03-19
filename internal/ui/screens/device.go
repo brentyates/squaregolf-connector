@@ -28,6 +28,7 @@ type Device struct {
 	connectEnabled    binding.Bool
 	disconnectEnabled binding.Bool
 	statusText        binding.String
+	errorText         binding.String
 }
 
 type AppConfig struct {
@@ -47,6 +48,7 @@ func NewDevice(window fyne.Window, stateManager *core.StateManager, bluetoothMan
 		connectEnabled:    binding.NewBool(),
 		disconnectEnabled: binding.NewBool(),
 		statusText:        binding.NewString(),
+		errorText:         binding.NewString(),
 	}
 }
 
@@ -66,11 +68,18 @@ func (d *Device) Initialize() {
 	d.connectEnabled.Set(true)
 	d.disconnectEnabled.Set(false)
 	d.statusText.Set("Disconnected")
+	d.errorText.Set("")
 
 	// Create status label with data binding
 	status := widget.NewLabelWithData(d.statusText)
 	status.Alignment = fyne.TextAlignCenter
 	status.TextStyle = fyne.TextStyle{Bold: true}
+
+	// Create error label with data binding
+	errorLabel := widget.NewLabelWithData(d.errorText)
+	errorLabel.Alignment = fyne.TextAlignCenter
+	errorLabel.TextStyle = fyne.TextStyle{Bold: true}
+	errorLabel.Hide()
 
 	// Create connection controls with bound enabled state
 	connectBtn := widget.NewButton("Connect to Device", func() {
@@ -112,6 +121,8 @@ func (d *Device) Initialize() {
 		switch newValue {
 		case core.ConnectionStatusConnected:
 			d.statusText.Set("Connected")
+			d.errorText.Set("")
+			errorLabel.Hide()
 			d.connectEnabled.Set(false)
 			d.disconnectEnabled.Set(true)
 		case core.ConnectionStatusConnecting:
@@ -120,13 +131,15 @@ func (d *Device) Initialize() {
 			d.disconnectEnabled.Set(false)
 		case core.ConnectionStatusDisconnected:
 			d.statusText.Set("Disconnected")
+			d.errorText.Set("")
+			errorLabel.Hide()
 			d.connectEnabled.Set(true)
 			d.disconnectEnabled.Set(false)
 		case core.ConnectionStatusError:
+			d.statusText.Set("Connecting (retrying)...")
 			if err := d.stateManager.GetLastError(); err != nil {
-				d.statusText.Set(fmt.Sprintf("Error: %v", err))
-			} else {
-				d.statusText.Set("Connection Error")
+				d.errorText.Set(fmt.Sprintf("Error: %v", err))
+				errorLabel.Show()
 			}
 			d.connectEnabled.Set(true)
 			d.disconnectEnabled.Set(false)
@@ -156,6 +169,7 @@ func (d *Device) Initialize() {
 		widget.NewLabel("Device Connection"),
 		widget.NewSeparator(),
 		status,
+		errorLabel,
 		widget.NewSeparator(),
 		container.NewHBox(connectBtn, disconnectBtn),
 		widget.NewSeparator(),
