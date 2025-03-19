@@ -6,7 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -16,15 +16,18 @@ import (
 )
 
 type Dashboard struct {
-	window           fyne.Window
-	stateManager     *core.StateManager
-	bluetoothManager *core.BluetoothManager
-	launchMonitor    *core.LaunchMonitor
-	connectionStatus *components.ConnectionStatus
-	statusCard       *components.StatusCard
-	metricsCard      *components.MetricsCard
-	config           AppConfig
-	content          fyne.CanvasObject
+	window            fyne.Window
+	stateManager      *core.StateManager
+	bluetoothManager  *core.BluetoothManager
+	launchMonitor     *core.LaunchMonitor
+	connectionStatus  *components.ConnectionStatus
+	statusCard        *components.StatusCard
+	metricsCard       *components.MetricsCard
+	config            AppConfig
+	content           fyne.CanvasObject
+	connectEnabled    binding.Bool
+	disconnectEnabled binding.Bool
+	statusText        binding.String
 }
 
 type AppConfig struct {
@@ -36,11 +39,14 @@ type AppConfig struct {
 
 func NewDashboard(window fyne.Window, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, config AppConfig) *Dashboard {
 	return &Dashboard{
-		window:           window,
-		stateManager:     stateManager,
-		bluetoothManager: bluetoothManager,
-		launchMonitor:    launchMonitor,
-		config:           config,
+		window:            window,
+		stateManager:      stateManager,
+		bluetoothManager:  bluetoothManager,
+		launchMonitor:     launchMonitor,
+		config:            config,
+		connectEnabled:    binding.NewBool(),
+		disconnectEnabled: binding.NewBool(),
+		statusText:        binding.NewString(),
 	}
 }
 
@@ -56,40 +62,18 @@ func (d *Dashboard) Initialize() {
 	d.statusCard.RegisterCallbacks(d.stateManager, d.window)
 	d.metricsCard.RegisterCallbacks(d.stateManager, d.window)
 
-	// Create header with connection controls
-	title := widget.NewLabel("Device")
-	title.TextStyle = fyne.TextStyle{Bold: true}
+	// Set initial states
+	d.connectEnabled.Set(true)
+	d.disconnectEnabled.Set(false)
+	d.statusText.Set("Disconnected")
 
-	// Create device selection dropdown
-	deviceSelect := widget.NewSelect([]string{}, func(deviceName string) {
-		d.config.DeviceName = deviceName
-		fyne.CurrentApp().Preferences().SetString("device_name", deviceName)
-	})
+	// Create status label with data binding
+	status := widget.NewLabelWithData(d.statusText)
+	status.Alignment = fyne.TextAlignCenter
+	status.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Create scan button
-	scanBtn := widget.NewButton("Scan", func() {
-		go func() {
-			if err := d.bluetoothManager.StartScan(); err != nil {
-				dialog.ShowError(err, d.window)
-				return
-			}
-
-			// Wait for scan to complete
-			time.Sleep(5 * time.Second)
-			d.bluetoothManager.StopScan()
-
-			// Update device list
-			devices := d.bluetoothManager.GetDiscoveredDevices()
-			deviceSelect.Options = devices
-			if len(devices) > 0 {
-				deviceSelect.SetSelected(devices[0])
-			}
-		}()
-	})
-	scanBtn.SetIcon(theme.SearchIcon())
-
-	// Create connection controls with better styling
-	connectBtn := widget.NewButton("Connect", func() {
+	// Create connection controls with bound enabled state
+	connectBtn := widget.NewButton("Connect to Device", func() {
 		if d.config.DeviceName == "" {
 			dialog.ShowError(fmt.Errorf("no device selected"), d.window)
 			return
@@ -98,25 +82,56 @@ func (d *Dashboard) Initialize() {
 	})
 	connectBtn.Importance = widget.HighImportance
 	connectBtn.SetIcon(theme.ConfirmIcon())
+	connectBtn.Disable()
+	go d.connectEnabled.AddListener(binding.NewDataListener(func() {
+		enabled, _ := d.connectEnabled.Get()
+		if enabled {
+			connectBtn.Enable()
+		} else {
+			connectBtn.Disable()
+		}
+	}))
 
-	disconnectBtn := widget.NewButton("Disconnect", func() {
+	disconnectBtn := widget.NewButton("Disconnect from Device", func() {
 		go d.bluetoothManager.DisconnectBluetooth()
 	})
 	disconnectBtn.Importance = widget.MediumImportance
 	disconnectBtn.SetIcon(theme.CancelIcon())
+	disconnectBtn.Disable()
+	go d.disconnectEnabled.AddListener(binding.NewDataListener(func() {
+		enabled, _ := d.disconnectEnabled.Get()
+		if enabled {
+			disconnectBtn.Enable()
+		} else {
+			disconnectBtn.Disable()
+		}
+	}))
 
-	// Create a container for device selection and connection controls with proper spacing
-	connectionControls := container.NewHBox(
-		deviceSelect,
-		scanBtn,
-		connectBtn,
-		disconnectBtn,
-		widget.NewSeparator(),
-		d.connectionStatus.GetContainer(),
-	)
-
-	// Create header with title and connection controls
-	header := container.NewBorder(nil, nil, title, connectionControls, layout.NewSpacer())
+	// Register callback for connection status changes
+	d.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue core.ConnectionStatus) {
+		switch newValue {
+		case core.ConnectionStatusConnected:
+			d.statusText.Set("Connected")
+			d.connectEnabled.Set(false)
+			d.disconnectEnabled.Set(true)
+		case core.ConnectionStatusConnecting:
+			d.statusText.Set("Connecting...")
+			d.connectEnabled.Set(false)
+			d.disconnectEnabled.Set(false)
+		case core.ConnectionStatusDisconnected:
+			d.statusText.Set("Disconnected")
+			d.connectEnabled.Set(true)
+			d.disconnectEnabled.Set(false)
+		case core.ConnectionStatusError:
+			if err := d.stateManager.GetLastError(); err != nil {
+				d.statusText.Set(fmt.Sprintf("Error: %v", err))
+			} else {
+				d.statusText.Set("Connection Error")
+			}
+			d.connectEnabled.Set(true)
+			d.disconnectEnabled.Set(false)
+		}
+	})
 
 	// Create main content area with a grid layout
 	content := container.NewGridWithColumns(2,
@@ -124,9 +139,13 @@ func (d *Dashboard) Initialize() {
 		d.metricsCard.GetCard(),
 	)
 
-	// Create the main content
+	// Create the main content with connection controls at the top
 	d.content = container.NewVBox(
-		header,
+		widget.NewLabel("Device Connection"),
+		widget.NewSeparator(),
+		status,
+		widget.NewSeparator(),
+		container.NewHBox(connectBtn, disconnectBtn),
 		widget.NewSeparator(),
 		content,
 	)
@@ -145,7 +164,6 @@ func (d *Dashboard) Initialize() {
 		lastDevice := fyne.CurrentApp().Preferences().String("device_name")
 		if lastDevice != "" {
 			d.config.DeviceName = lastDevice
-			deviceSelect.SetSelected(lastDevice)
 			// Only auto-connect if the setting is enabled
 			if fyne.CurrentApp().Preferences().BoolWithFallback("auto_connect", true) {
 				go d.bluetoothManager.StartBluetoothConnection(lastDevice, "")
@@ -160,13 +178,6 @@ func (d *Dashboard) Initialize() {
 				// Wait for scan to complete
 				time.Sleep(5 * time.Second)
 				d.bluetoothManager.StopScan()
-
-				// Update device list
-				devices := d.bluetoothManager.GetDiscoveredDevices()
-				deviceSelect.Options = devices
-				if len(devices) > 0 {
-					deviceSelect.SetSelected(devices[0])
-				}
 			}()
 		}
 	}

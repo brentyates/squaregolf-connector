@@ -14,8 +14,6 @@ type StatusCard struct {
 	card              *widget.Card
 	batteryLabel      *widget.Label
 	deviceLabel       *widget.Label
-	clubLabel         *widget.Label
-	handednessLabel   *widget.Label
 	ballDetectedLabel *widget.Label
 	ballReadyLabel    *widget.Label
 	ballPositionLabel *widget.Label
@@ -42,8 +40,6 @@ func NewStatusCard() *StatusCard {
 		widget.NewSeparator(),
 		createLabel("Device: N/A"),
 		createLabel("Battery: N/A"),
-		createLabel("Club: N/A"),
-		createLabel("Handedness: N/A"),
 	)
 
 	// Ball status section
@@ -77,8 +73,6 @@ func NewStatusCard() *StatusCard {
 		card:              card,
 		batteryLabel:      deviceInfo.Objects[2].(*widget.Label),
 		deviceLabel:       deviceInfo.Objects[3].(*widget.Label),
-		clubLabel:         deviceInfo.Objects[4].(*widget.Label),
-		handednessLabel:   deviceInfo.Objects[5].(*widget.Label),
 		ballDetectedLabel: ballStatus.Objects[2].(*widget.Label),
 		ballReadyLabel:    ballStatus.Objects[3].(*widget.Label),
 		ballPositionLabel: ballStatus.Objects[4].(*widget.Label),
@@ -103,28 +97,6 @@ func (sc *StatusCard) RegisterCallbacks(stateManager *core.StateManager, window 
 			sc.deviceLabel.SetText("Device: N/A")
 		}
 		window.Canvas().Refresh(sc.deviceLabel)
-	})
-
-	stateManager.RegisterClubCallback(func(oldValue, newValue *core.ClubType) {
-		if newValue != nil {
-			sc.clubLabel.SetText(fmt.Sprintf("Club: %s", newValue.RegularCode))
-		} else {
-			sc.clubLabel.SetText("Club: N/A")
-		}
-		window.Canvas().Refresh(sc.clubLabel)
-	})
-
-	stateManager.RegisterHandednessCallback(func(oldValue, newValue *core.HandednessType) {
-		if newValue != nil {
-			handedness := "Right"
-			if *newValue == core.LeftHanded {
-				handedness = "Left"
-			}
-			sc.handednessLabel.SetText(fmt.Sprintf("Handedness: %s", handedness))
-		} else {
-			sc.handednessLabel.SetText("Handedness: N/A")
-		}
-		window.Canvas().Refresh(sc.handednessLabel)
 	})
 
 	stateManager.RegisterBallDetectedCallback(func(oldValue, newValue bool) {
