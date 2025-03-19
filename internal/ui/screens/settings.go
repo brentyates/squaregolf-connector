@@ -94,6 +94,13 @@ func (ss *SettingsScreen) Initialize() {
 		}
 	})
 
+	// Register callback for device name changes
+	ss.stateManager.RegisterDeviceDisplayNameCallback(func(oldValue, newValue *string) {
+		if newValue != nil {
+			ss.deviceName.Set(*newValue)
+		}
+	})
+
 	// Create the main content
 	ss.content = container.NewVBox(
 		widget.NewLabel("Settings"),

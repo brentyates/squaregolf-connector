@@ -83,10 +83,6 @@ func (d *Device) Initialize() {
 
 	// Create connection controls with bound enabled state
 	connectBtn := widget.NewButton("Connect to Device", func() {
-		if d.config.DeviceName == "" {
-			dialog.ShowError(fmt.Errorf("no device selected"), d.window)
-			return
-		}
 		go d.bluetoothManager.StartBluetoothConnection(d.config.DeviceName, "")
 	})
 	connectBtn.Importance = widget.HighImportance
@@ -128,7 +124,7 @@ func (d *Device) Initialize() {
 		case core.ConnectionStatusConnecting:
 			d.statusText.Set("Connecting...")
 			d.connectEnabled.Set(false)
-			d.disconnectEnabled.Set(false)
+			d.disconnectEnabled.Set(true)
 		case core.ConnectionStatusDisconnected:
 			d.statusText.Set("Disconnected")
 			d.errorText.Set("")
@@ -142,7 +138,14 @@ func (d *Device) Initialize() {
 				errorLabel.Show()
 			}
 			d.connectEnabled.Set(true)
-			d.disconnectEnabled.Set(false)
+			d.disconnectEnabled.Set(true)
+		}
+	})
+
+	// Register callback for device name changes to update preferences
+	d.stateManager.RegisterDeviceDisplayNameCallback(func(oldValue, newValue *string) {
+		if newValue != nil {
+			fyne.CurrentApp().Preferences().SetString("device_name", *newValue)
 		}
 	})
 

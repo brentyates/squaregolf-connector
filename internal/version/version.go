@@ -7,7 +7,7 @@ import (
 
 var (
 	// Version is the current version of the application
-	Version = "0.1.0-alpha.3"
+	Version = "0.1.0-alpha.4"
 
 	// BuildTime is the time the binary was built
 	BuildTime = "unknown"

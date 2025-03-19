@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,6 +78,7 @@ type TinyGoBluetoothClient struct {
 	mutex                sync.Mutex
 	characteristics      map[string]*bluetooth.DeviceCharacteristic
 	notificationHandlers map[string]func([]byte)
+	connectedDeviceName  string // Store the name of the connected device
 
 	// New fields for scan management
 	scanning    bool
@@ -177,6 +179,13 @@ func (t *TinyGoBluetoothClient) GetScanResults() map[string]bluetooth.ScanResult
 	return results
 }
 
+// GetConnectedDeviceName returns the name of the currently connected device
+func (t *TinyGoBluetoothClient) GetConnectedDeviceName() string {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	return t.connectedDeviceName
+}
+
 // Connect connects to the BLE device
 func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error {
 	t.mutex.Lock()
@@ -197,7 +206,8 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 	// Check if we have the device in our scan results
 	for _, result := range t.scanResults {
 		if (targetName != "" && result.LocalName() == targetName) ||
-			(targetAddress != "" && result.Address.String() == targetAddress) {
+			(targetAddress != "" && result.Address.String() == targetAddress) ||
+			(targetName == "" && strings.HasPrefix(result.LocalName(), BluetoothDevicePrefix)) {
 			deviceToConnect = result
 			found = true
 			break
@@ -222,7 +232,8 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 
 		err := t.adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
 			if (targetName != "" && device.LocalName() == targetName) ||
-				(targetAddress != "" && device.Address.String() == targetAddress) {
+				(targetAddress != "" && device.Address.String() == targetAddress) ||
+				(targetName == "" && strings.HasPrefix(device.LocalName(), BluetoothDevicePrefix)) {
 				log.Printf("Found target device: %s [%s]", device.LocalName(), device.Address.String())
 				adapter.StopScan()
 				deviceToConnect = device
@@ -257,6 +268,7 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 	}
 	log.Println("Successfully connected to device")
 	t.device = &device
+	t.connectedDeviceName = deviceToConnect.LocalName() // Store the connected device name
 
 	// Discover services and characteristics
 	log.Println("Discovering services...")

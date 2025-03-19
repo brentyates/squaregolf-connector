@@ -272,6 +272,13 @@ func (s *SimulatorBluetoothClient) GetDiscoveredDevices() []string {
 	return devices
 }
 
+// GetConnectedDeviceName returns the name of the currently connected device
+func (s *SimulatorBluetoothClient) GetConnectedDeviceName() string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.deviceName
+}
+
 // Private helper methods
 
 // simulateBatteryDrain simulates battery drain over time

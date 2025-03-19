@@ -132,4 +132,7 @@ const (
 	ScreenGSPro     = "GSPro"
 	ScreenRange     = "Range"
 	ScreenSettings  = "Settings"
+
+	// BluetoothDevicePrefix is the prefix used to identify SquareGolf devices
+	BluetoothDevicePrefix = "SquareGolf"
 )

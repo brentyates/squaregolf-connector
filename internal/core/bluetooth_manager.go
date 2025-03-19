@@ -235,11 +235,13 @@ func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, devic
 		return fmt.Errorf("failed to connect to device: %w", err)
 	}
 
-	log.Printf("BluetoothManager: Successfully connected to device: %s", deviceName)
+	// Get the actual connected device name from the client
+	connectedDeviceName := bm.bluetoothClient.GetConnectedDeviceName()
+	log.Printf("BluetoothManager: Successfully connected to device: %s", connectedDeviceName)
 
 	// Update state with device name
 	bm.stateManager.SetConnectionStatus(ConnectionStatusConnected)
-	bm.stateManager.SetDeviceDisplayName(&deviceName)
+	bm.stateManager.SetDeviceDisplayName(&connectedDeviceName)
 
 	// Read battery level
 	batteryLevel, err := bm.ReadBatteryLevel()

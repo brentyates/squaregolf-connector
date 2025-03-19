@@ -17,6 +17,7 @@ type BluetoothClient interface {
 	StartScan(prefix string) error
 	StopScan() error
 	GetDiscoveredDevices() []string
+	GetConnectedDeviceName() string
 }
 
 // WriteHistory represents a single write operation with its metadata
@@ -38,6 +39,7 @@ type MockBluetoothClient struct {
 	writeError     error
 	writeCount     int            // Track number of writes
 	writeHistory   []WriteHistory // Track history of all writes
+	deviceName     string         // Store the connected device name
 }
 
 // NewMockBluetoothClient creates a new mock Bluetooth client
@@ -52,6 +54,7 @@ func NewMockBluetoothClient() *MockBluetoothClient {
 // Connect simulates connecting to a device
 func (m *MockBluetoothClient) Connect(deviceName, deviceAddress string) error {
 	m.connected = true
+	m.deviceName = deviceName
 	return nil
 }
 
@@ -143,4 +146,9 @@ func (m *MockBluetoothClient) StopScan() error {
 // GetDiscoveredDevices returns a list of discovered devices
 func (m *MockBluetoothClient) GetDiscoveredDevices() []string {
 	return []string{"SquareGolf(****)"}
+}
+
+// GetConnectedDeviceName returns the name of the currently connected device
+func (m *MockBluetoothClient) GetConnectedDeviceName() string {
+	return m.deviceName
 }
