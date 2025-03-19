@@ -2,6 +2,7 @@ package screens
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -21,6 +22,7 @@ type GSProScreen struct {
 	preferences      fyne.Preferences
 	ipBinding        binding.String
 	portBinding      binding.String
+	autoConnect      binding.Bool
 }
 
 func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, config AppConfig) *GSProScreen {
@@ -32,6 +34,7 @@ func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchM
 		preferences:   fyne.CurrentApp().Preferences(),
 		ipBinding:     binding.NewString(),
 		portBinding:   binding.NewString(),
+		autoConnect:   binding.NewBool(),
 	}
 }
 
@@ -64,6 +67,9 @@ func (s *GSProScreen) Initialize() {
 	}
 	s.portBinding.Set(savedPort)
 
+	// Initialize auto-connect binding with saved value (default to false)
+	s.autoConnect.Set(s.preferences.BoolWithFallback("gspro_auto_connect", false))
+
 	// Create IP and port entries
 	ipEntry := widget.NewEntryWithData(s.ipBinding)
 	ipEntry.SetPlaceHolder("GSPro IP Address")
@@ -84,20 +90,23 @@ func (s *GSProScreen) Initialize() {
 		}
 	}))
 
+	// Create auto-connect checkbox with data binding
+	autoConnectCheck := widget.NewCheckWithData("Connect automatically on start", s.autoConnect)
+
+	// Save auto-connect when changed
+	s.autoConnect.AddListener(binding.NewDataListener(func() {
+		value, _ := s.autoConnect.Get()
+		s.preferences.SetBool("gspro_auto_connect", value)
+	}))
+
 	// Create connection controls with bound enabled state
 	connectBtn := widget.NewButton("Connect to GSPro", func() {
-		// Parse port number
-		port, err := strconv.Atoi(portEntry.Text)
+		// Get IP and port from bindings
+		ip, _ := s.ipBinding.Get()
+		portStr, _ := s.portBinding.Get()
+		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			// Create integration if it doesn't exist
-			if s.gsproIntegration == nil {
-				s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, "", 0)
-			}
-			// Start the integration and let it handle the error state
-			go func() {
-				s.gsproIntegration.Start()
-				s.gsproIntegration.Connect(ipEntry.Text, port)
-			}()
+			log.Printf("Invalid port number: %v", err)
 			return
 		}
 
@@ -109,7 +118,7 @@ func (s *GSProScreen) Initialize() {
 		// Start the integration and connect in a goroutine
 		go func() {
 			s.gsproIntegration.Start()
-			s.gsproIntegration.Connect(ipEntry.Text, port)
+			s.gsproIntegration.Connect(ip, port)
 		}()
 	})
 	connectBtn.Importance = widget.HighImportance
@@ -190,10 +199,35 @@ func (s *GSProScreen) Initialize() {
 		widget.NewSeparator(),
 		portEntry,
 		widget.NewSeparator(),
+		autoConnectCheck,
+		widget.NewSeparator(),
 		status,
 		widget.NewSeparator(),
 		container.NewHBox(connectBtn, disconnectBtn),
 	)
+
+	// Check if auto-connect is enabled and attempt to connect
+	if s.preferences.BoolWithFallback("gspro_auto_connect", false) {
+		// Get IP and port from bindings
+		ip, _ := s.ipBinding.Get()
+		portStr, _ := s.portBinding.Get()
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			log.Printf("Invalid port number for auto-connect: %v", err)
+			return
+		}
+
+		// Create integration if it doesn't exist
+		if s.gsproIntegration == nil {
+			s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, "", 0)
+		}
+
+		// Start the integration and connect in a goroutine
+		go func() {
+			s.gsproIntegration.Start()
+			s.gsproIntegration.Connect(ip, port)
+		}()
+	}
 }
 
 func (s *GSProScreen) GetContent() fyne.CanvasObject {
