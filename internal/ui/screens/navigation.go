@@ -62,7 +62,7 @@ func (nm *NavigationManager) UpdateSidebar() {
 	rangeBtn.Disable() // Disable range button
 
 	buttons := container.NewVBox(
-		createNavButton("Device", theme.RadioButtonIcon(), "dashboard", nm),
+		createNavButton("Device", theme.RadioButtonIcon(), "device", nm),
 		createNavButton("GSPro", theme.ComputerIcon(), "gspro", nm),
 		rangeBtn,
 		alignmentBtn,

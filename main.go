@@ -169,13 +169,13 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	navManager := screens.NewNavigationManager(w)
 
 	// Create and initialize screens
-	dashboard := screens.NewDashboard(w, stateManager, bluetoothManager, launchMonitor, screens.AppConfig{
+	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, screens.AppConfig{
 		DeviceName:  config.DeviceName,
 		EnableGSPro: config.EnableGSPro,
 		GSProIP:     config.GSProIP,
 		GSProPort:   config.GSProPort,
 	})
-	dashboard.Initialize()
+	device.Initialize()
 
 	alignment := screens.NewAlignmentScreen(w, stateManager)
 	alignment.Initialize()
@@ -195,7 +195,7 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	settings.Initialize()
 
 	// Add screens to navigation manager
-	navManager.AddScreen("dashboard", dashboard)
+	navManager.AddScreen("device", device)
 	navManager.AddScreen("alignment", alignment)
 	navManager.AddScreen("gspro", gspro)
 	navManager.AddScreen("range", rangeScreen)
@@ -221,8 +221,8 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 		bluetoothManager.DisconnectBluetooth()
 	})
 
-	// Show dashboard by default
-	navManager.ShowScreen("dashboard")
+	// Show device by default
+	navManager.ShowScreen("device")
 
 	w.ShowAndRun()
 }
