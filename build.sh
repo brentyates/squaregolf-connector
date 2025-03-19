@@ -73,6 +73,21 @@ fyne-cross windows -arch=amd64 \
     -icon="icon.png" \
     -output="squaregolf-connector" || print_error "Windows amd64 build failed" \
 
+# Create zip archives for macOS builds
+print_status "Creating zip archives for macOS builds..."
+
+# Create zip for macOS (arm64)
+print_status "Zipping macOS (arm64) app bundle..."
+cd fyne-cross/dist/darwin-arm64 && \
+zip -r squaregolf-connector-macos-arm64.zip squaregolf-connector.app && \
+cd ../../../ || print_error "Failed to create zip for macOS arm64"
+
+# Create zip for macOS (amd64)
+print_status "Zipping macOS (amd64) app bundle..."
+cd fyne-cross/dist/darwin-amd64 && \
+zip -r squaregolf-connector-macos-amd64.zip squaregolf-connector.app && \
+cd ../../../ || print_error "Failed to create zip for macOS amd64"
+
 print_status "Build completed successfully!"
 print_status "Build artifacts can be found in the fyne-cross/dist directory"
 
