@@ -195,7 +195,7 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	rangeScreen := screens.NewRangeScreen(w, stateManager)
 	rangeScreen.Initialize()
 
-	settings := screens.NewSettingsScreen(w, stateManager)
+	settings := screens.NewSettingsScreen(w, stateManager, chimeManager)
 	settings.Initialize()
 
 	// Add screens to navigation manager

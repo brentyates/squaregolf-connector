@@ -8,7 +8,7 @@ set -euo pipefail
 
 PACKAGE_NAME="github.com/brentyates/squaregolf-connector"
 APP_ID="com.brentyates.squaregolf-connector"
-VERSION="0.1.0-alpha.5"
+VERSION="0.1.0-alpha.6"
 # Create a simplified version without the alpha suffix for fyne-cross compatibility
 SIMPLE_VERSION="${VERSION%%-*}"  # Removes everything after the first '-'
 # Print colored output

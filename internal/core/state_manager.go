@@ -28,6 +28,7 @@ type AppState struct {
 	GSProError        error
 	SpinMode          *SpinMode
 	ChimeVolume       float64
+	ChimeSound        string
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -52,6 +53,7 @@ type StateManager struct {
 		GSProError        []StateCallback[error]
 		SpinMode          []StateCallback[*SpinMode]
 		ChimeVolume       []StateCallback[float64]
+		ChimeSound        []StateCallback[string]
 	}
 	mu sync.RWMutex
 }
@@ -78,6 +80,7 @@ func (sm *StateManager) initialize() {
 		BallReady:        false,
 		GSProStatus:      GSProStatusDisconnected,
 		ChimeVolume:      0.75,
+		ChimeSound:       "ready1.mp3",
 	}
 }
 
@@ -483,5 +486,32 @@ func (sm *StateManager) SetChimeVolume(value float64) {
 func (sm *StateManager) RegisterChimeVolumeCallback(callback StateCallback[float64]) {
 	sm.mu.Lock()
 	sm.callbacks.ChimeVolume = append(sm.callbacks.ChimeVolume, callback)
+	sm.mu.Unlock()
+}
+
+// GetChimeSound returns the chime sound
+func (sm *StateManager) GetChimeSound() string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.ChimeSound
+}
+
+// SetChimeSound sets the chime sound
+func (sm *StateManager) SetChimeSound(value string) {
+	sm.mu.Lock()
+	oldValue := sm.state.ChimeSound
+	sm.state.ChimeSound = value
+	callbacks := sm.callbacks.ChimeSound
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterChimeSoundCallback registers a callback for chime sound changes
+func (sm *StateManager) RegisterChimeSoundCallback(callback StateCallback[string]) {
+	sm.mu.Lock()
+	sm.callbacks.ChimeSound = append(sm.callbacks.ChimeSound, callback)
 	sm.mu.Unlock()
 }
