@@ -198,9 +198,10 @@ func (lm *LaunchMonitor) ActivateBallDetection() error {
 		return fmt.Errorf("not connected to device")
 	}
 
-	// Get current club and handedness from state
+	// Get current club, handedness, and spin mode from state
 	club := lm.stateManager.GetClub()
 	handedness := lm.stateManager.GetHandedness()
+	spinMode := lm.stateManager.GetSpinMode()
 
 	// Default to right-handed driver if not set
 	if club == nil {
@@ -210,6 +211,10 @@ func (lm *LaunchMonitor) ActivateBallDetection() error {
 	if handedness == nil {
 		defaultHandedness := RightHanded
 		handedness = &defaultHandedness
+	}
+	if spinMode == nil {
+		defaultSpinMode := Advanced
+		spinMode = &defaultSpinMode
 	}
 
 	// Send club command
@@ -223,7 +228,7 @@ func (lm *LaunchMonitor) ActivateBallDetection() error {
 
 	// Send detect ball command
 	seq = lm.getNextSequence()
-	detectCommand := DetectBallCommand(seq, Activate, Advanced)
+	detectCommand := DetectBallCommand(seq, Activate, *spinMode)
 
 	err = lm.SendCommand(detectCommand)
 	if err != nil {
@@ -239,8 +244,15 @@ func (lm *LaunchMonitor) DeactivateBallDetection() error {
 		return fmt.Errorf("not connected to device")
 	}
 
+	// Get current spin mode from state
+	spinMode := lm.stateManager.GetSpinMode()
+	if spinMode == nil {
+		defaultSpinMode := Advanced
+		spinMode = &defaultSpinMode
+	}
+
 	seq := lm.getNextSequence()
-	detectCommand := DetectBallCommand(seq, Deactivate, Advanced)
+	detectCommand := DetectBallCommand(seq, Deactivate, *spinMode)
 
 	err := lm.SendCommand(detectCommand)
 	if err != nil {

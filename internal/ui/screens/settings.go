@@ -13,7 +13,6 @@ type SettingsScreen struct {
 	stateManager *core.StateManager
 	content      fyne.CanvasObject
 	preferences  fyne.Preferences
-	spinMode     binding.String
 	deviceName   binding.String
 	autoConnect  binding.Bool
 }
@@ -23,7 +22,6 @@ func NewSettingsScreen(w fyne.Window, stateManager *core.StateManager) *Settings
 		window:       w,
 		stateManager: stateManager,
 		preferences:  fyne.CurrentApp().Preferences(),
-		spinMode:     binding.NewString(),
 		deviceName:   binding.NewString(),
 		autoConnect:  binding.NewBool(),
 	}
@@ -36,13 +34,6 @@ func (ss *SettingsScreen) Initialize() {
 
 	// Initialize auto-connect binding with saved value (default to true)
 	ss.autoConnect.Set(ss.preferences.BoolWithFallback("auto_connect", true))
-
-	// Initialize spin mode binding with saved value
-	savedMode := ss.preferences.String("spin_mode")
-	if savedMode == "" {
-		savedMode = "Advanced"
-	}
-	ss.spinMode.Set(savedMode)
 
 	// Create device name entry with data binding
 	deviceNameEntry := widget.NewEntryWithData(ss.deviceName)
@@ -69,16 +60,28 @@ func (ss *SettingsScreen) Initialize() {
 		ss.preferences.SetBool("auto_connect", value)
 	}))
 
-	// Create spin mode radio group with data binding
+	// Create spin mode radio group
 	spinModeRadio := widget.NewRadioGroup([]string{"Standard", "Advanced"}, func(value string) {
-		ss.spinMode.Set(value)
-		ss.preferences.SetString("spin_mode", value)
+		var spinMode core.SpinMode
+		if value == "Standard" {
+			spinMode = core.Standard
+		} else {
+			spinMode = core.Advanced
+		}
+		ss.stateManager.SetSpinMode(&spinMode)
 	})
 
-	// Set initial selection
-	if value, err := ss.spinMode.Get(); err == nil {
-		spinModeRadio.SetSelected(value)
+	// Set initial selection based on state
+	if spinMode := ss.stateManager.GetSpinMode(); spinMode != nil {
+		if *spinMode == core.Standard {
+			spinModeRadio.SetSelected("Standard")
+		} else {
+			spinModeRadio.SetSelected("Advanced")
+		}
 	} else {
+		// Default to Advanced if not set
+		defaultSpinMode := core.Advanced
+		ss.stateManager.SetSpinMode(&defaultSpinMode)
 		spinModeRadio.SetSelected("Advanced")
 	}
 

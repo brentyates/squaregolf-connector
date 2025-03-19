@@ -26,6 +26,7 @@ type AppState struct {
 	Handedness        *HandednessType
 	GSProStatus       GSProConnectionStatus
 	GSProError        error
+	SpinMode          *SpinMode
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -48,6 +49,7 @@ type StateManager struct {
 		Handedness        []StateCallback[*HandednessType]
 		GSProStatus       []StateCallback[GSProConnectionStatus]
 		GSProError        []StateCallback[error]
+		SpinMode          []StateCallback[*SpinMode]
 	}
 	mu sync.RWMutex
 }
@@ -425,4 +427,31 @@ func (sm *StateManager) RegisterGSProErrorCallback(callback StateCallback[error]
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.GSProError = append(sm.callbacks.GSProError, callback)
+}
+
+// GetSpinMode returns the current spin mode
+func (sm *StateManager) GetSpinMode() *SpinMode {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.SpinMode
+}
+
+// SetSpinMode sets the current spin mode
+func (sm *StateManager) SetSpinMode(value *SpinMode) {
+	sm.mu.Lock()
+	oldValue := sm.state.SpinMode
+	sm.state.SpinMode = value
+	callbacks := sm.callbacks.SpinMode
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterSpinModeCallback registers a callback for spin mode changes
+func (sm *StateManager) RegisterSpinModeCallback(callback StateCallback[*SpinMode]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.SpinMode = append(sm.callbacks.SpinMode, callback)
 }
