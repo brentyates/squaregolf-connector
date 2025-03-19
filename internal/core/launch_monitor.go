@@ -343,4 +343,7 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 		// Call the LaunchMonitor's NotificationHandler with the client
 		lm.NotificationHandler(uuid, data)
 	})
+
+	// Start the heartbeat task to maintain connection
+	lm.startHeartbeatTask()
 }
