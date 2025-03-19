@@ -168,6 +168,10 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	// Create navigation manager
 	navManager := screens.NewNavigationManager(w)
 
+	// Create and initialize the chime manager
+	chimeManager := core.NewChimeManager(stateManager)
+	chimeManager.Initialize()
+
 	// Create and initialize screens
 	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, screens.AppConfig{
 		DeviceName:  config.DeviceName,

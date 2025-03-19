@@ -453,20 +453,14 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			// Continue with simulation
 		}
 
-		// Check if ball detection is active
-		s.lock.RLock()
-		deviceState := s.deviceState
-		ballState := s.ballState
-		s.lock.RUnlock()
-
-		if deviceState != DeviceStateBallDetection {
+		if s.deviceState != DeviceStateBallDetection {
 			// If not in ball detection mode, exit the simulation
 			log.Println("Simulator: Ball detection deactivated, stopping simulation")
 			return
 		}
 
 		// If we're already in a ball state other than none, wait for it to be reset
-		if ballState != BallStateNone {
+		if s.ballState != BallStateNone {
 			select {
 			case <-ctx.Done():
 				return
@@ -483,11 +477,7 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			// Continue with simulation
 		}
 
-		// Check if we're still in ball detection mode
-		s.lock.RLock()
-		deviceState = s.deviceState
-		s.lock.RUnlock()
-		if deviceState != DeviceStateBallDetection {
+		if s.deviceState != DeviceStateBallDetection {
 			log.Println("Simulator: Ball detection deactivated while waiting for ball placement")
 			return // Ball detection was deactivated while waiting
 		}
@@ -497,8 +487,8 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 		s.ballState = BallStateDetected
 		s.lock.Unlock()
 
-		sensorData := s.generateSensorData(ballState)
-		handler, _ := s.notifyHandlers[NotificationCharUUID]
+		sensorData := s.generateSensorData(s.ballState)
+		handler := s.notifyHandlers[NotificationCharUUID]
 		handler(sensorData)
 
 		// Simulate the time it takes for the ball to become ready (1.5 seconds)
@@ -509,11 +499,7 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			// Continue with simulation
 		}
 
-		// Check if we're still in ball detection mode
-		s.lock.RLock()
-		deviceState = s.deviceState
-		s.lock.RUnlock()
-		if deviceState != DeviceStateBallDetection {
+		if s.deviceState != DeviceStateBallDetection {
 			log.Println("Simulator: Ball detection deactivated while waiting for ball to be ready")
 			return // Ball detection was deactivated while waiting
 		}
@@ -523,8 +509,8 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 		s.ballState = BallStateReady
 		s.lock.Unlock()
 
-		sensorData = s.generateSensorData(ballState)
-		handler, _ = s.notifyHandlers[NotificationCharUUID]
+		sensorData = s.generateSensorData(s.ballState)
+		handler = s.notifyHandlers[NotificationCharUUID]
 		handler(sensorData)
 
 		// Simulate the time it takes for a golfer to take a shot (4 seconds)
@@ -535,18 +521,12 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			// Continue with simulation
 		}
 
-		// Check if we're still in ball detection mode and the ball is still ready
-		s.lock.RLock()
-		deviceState = s.deviceState
-		ballState = s.ballState
-		s.lock.RUnlock()
-
-		if deviceState != DeviceStateBallDetection || ballState != BallStateReady {
+		if s.deviceState != DeviceStateBallDetection || s.ballState != BallStateReady {
 			return // Ball detection was deactivated or ball state changed while waiting
 		}
 
 		// Ball is hit
-		handler, _ = s.notifyHandlers[NotificationCharUUID]
+		handler = s.notifyHandlers[NotificationCharUUID]
 		s.sendBallMetrics(handler)
 
 		s.lock.Lock()

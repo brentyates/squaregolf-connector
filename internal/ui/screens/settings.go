@@ -101,6 +101,20 @@ func (ss *SettingsScreen) Initialize() {
 		}
 	})
 
+	chimeVolumePreference := ss.preferences.FloatWithFallback("chime_volume", ss.stateManager.GetChimeVolume())
+	chimeVolume := binding.BindFloat(&chimeVolumePreference)
+	ss.stateManager.SetChimeVolume(chimeVolumePreference)
+	chimeVolumeSlider := widget.NewSliderWithData(0.0, 1.0, chimeVolume)
+	chimeVolumeSlider.Step = 0.05
+	chimeVolumeSlider.OnChanged = func(value float64) {
+		ss.stateManager.SetChimeVolume(value)
+		ss.preferences.SetFloat("chime_volume", value)
+	}
+
+	ss.stateManager.RegisterChimeVolumeCallback(func(oldValue, newValue float64) {
+		chimeVolume.Set(newValue)
+	})
+
 	// Create the main content
 	ss.content = container.NewVBox(
 		widget.NewLabel("Settings"),
@@ -112,6 +126,9 @@ func (ss *SettingsScreen) Initialize() {
 		widget.NewSeparator(),
 		widget.NewLabel("Spin Detection Mode:"),
 		spinModeRadio,
+		widget.NewSeparator(),
+		widget.NewLabel("Ball Ready Chime Volume:"),
+		chimeVolumeSlider,
 	)
 }
 
