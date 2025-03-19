@@ -216,6 +216,16 @@ func (s *GSProScreen) Initialize() {
 		errorLabel,
 		widget.NewSeparator(),
 		container.NewHBox(connectBtn, disconnectBtn),
+		widget.NewSeparator(),
+		widget.NewAccordion(
+			widget.NewAccordionItem("Troubleshooting", container.NewVBox(
+				widget.NewLabel("If the launch monitor will not go into ball detection mode:"),
+				widget.NewLabel("1. Try changing the club in GSPro"),
+				widget.NewLabel("2. If still not working, restart GSPconnect:"),
+				widget.NewLabel("   • Go to Settings -> System -> Reset GSPro Connect"),
+				widget.NewLabel("   • This app will automatically reconnect"),
+			)),
+		),
 	)
 
 	// Check if auto-connect is enabled and attempt to connect
