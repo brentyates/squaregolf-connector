@@ -37,6 +37,7 @@ jobs:
 
       - name: Build for Windows
         run: |
+          go install fyne.io/fyne/v2/cmd/fyne@latest
           fyne package -os windows
 
   build-darwin:
@@ -50,15 +51,10 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Build for Darwin ARM64
+      - name: Build for Mac
         run: |
+          go install fyne.io/fyne/v2/cmd/fyne@latest
           fyne package -os darwin
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: darwin-amd64-build
-          path: fyne-cross/bin/darwin-amd64/*.app
 
   release:
     needs: [build-windows, build-darwin]
