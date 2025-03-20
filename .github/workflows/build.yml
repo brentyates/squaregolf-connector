@@ -24,27 +24,9 @@ jobs:
           go test -v -mod=vendor ./...
           go build -v -mod=vendor ./...
 
-  build:
+  build-windows:
     needs: test
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            target: windows
-            artifact: windows-amd64/*.exe
-            image: fyneio/fyne-cross-windows:latest
-          - os: macos-latest
-            target: darwin
-            artifact: darwin-amd64/*.app
-            image: fyneio/fyne-cross-darwin:latest
-          - os: macos-latest
-            target: darwin
-            artifact: darwin-arm64/*.app
-            image: fyneio/fyne-cross-darwin:latest
-    runs-on: ${{ matrix.os }}
-    env:
-      FYNE_CROSS_DEBUG: 1
-      FYNE_CROSS_ARCH: amd64
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -53,22 +35,33 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Install dependencies
+      - name: Build for Windows
         run: |
-          go install github.com/fyne-io/fyne-cross@latest
+          fyne package -os windows -icon icon.png
 
-      - name: Build for ${{ matrix.target }}
+  build-darwin-amd64:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build for Darwin ARM64
         run: |
-          fyne-cross ${{ matrix.target }} -release -debug
+          fyne package -os darwin -icon icon.png
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-build
-          path: fyne-cross/bin/${{ matrix.artifact }}
+          name: darwin-amd64-build
+          path: fyne-cross/bin/darwin-amd64/*.app
 
   release:
-    needs: build
+    needs: [build-windows, build-darwin-amd64, build-darwin-arm64]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,8 +80,8 @@ jobs:
         with:
           files: |
             artifacts/windows-build/*.exe
-            artifacts/darwin-build/*.app
-            artifacts/linux-build/*
+            artifacts/darwin-amd64-build/*.app
+            artifacts/darwin-arm64-build/*.app
           draft: true  # Always create as draft first
           prerelease: false
           name: Release ${{ github.ref_name }}
