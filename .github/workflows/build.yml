@@ -38,6 +38,7 @@ jobs:
       - name: Build for Windows
         run: |
           go install fyne.io/fyne/v2/cmd/fyne@latest
+          fyne build -os windows --release
           fyne package -os windows
 
   build-darwin:
@@ -54,6 +55,7 @@ jobs:
       - name: Build for Mac
         run: |
           go install fyne.io/fyne/v2/cmd/fyne@latest
+          fyne build -os darwin --release
           fyne package -os darwin
 
   release:
