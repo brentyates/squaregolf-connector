@@ -29,19 +29,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: ubuntu-latest
             target: windows
             artifact: windows-amd64/*.exe
-          - os: macos-latest
+            image: fyneio/fyne-cross-windows:latest
+          - os: ubuntu-latest
             target: darwin
             artifact: darwin-amd64/*.app
-          - os: macos-latest
+            image: fyneio/fyne-cross-darwin:latest
+          - os: ubuntu-latest
             target: darwin
             artifact: darwin-arm64/*.app
+            image: fyneio/fyne-cross-darwin:latest
     runs-on: ${{ matrix.os }}
     env:
       FYNE_CROSS_DEBUG: 1
       FYNE_CROSS_ARCH: amd64
+    container:
+      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,11 +54,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-
-      - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install pkg-config
 
       - name: Install dependencies
         run: |
