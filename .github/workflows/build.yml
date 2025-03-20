@@ -39,7 +39,7 @@ jobs:
         run: |
           fyne package -os windows
 
-  build-darwin-amd64:
+  build-darwin:
     needs: test
     runs-on: macos-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
           path: fyne-cross/bin/darwin-amd64/*.app
 
   release:
-    needs: [build-windows, build-darwin-amd64, build-darwin-arm64]
+    needs: [build-windows, build-darwin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
