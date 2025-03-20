@@ -37,7 +37,7 @@ jobs:
 
       - name: Build for Windows
         run: |
-          fyne package -os windows -icon icon.png
+          fyne package -os windows
 
   build-darwin-amd64:
     needs: test
@@ -52,7 +52,7 @@ jobs:
 
       - name: Build for Darwin ARM64
         run: |
-          fyne package -os darwin -icon icon.png
+          fyne package -os darwin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

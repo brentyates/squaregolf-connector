@@ -1,0 +1,8 @@
+Website = "https://github.com/brentyates/squaregolf-connector"
+
+[Details]
+Icon = "icon.png"
+Name = "SquareGolf Connector"
+ID = "com.brentyates.squaregolf-connector"
+Version = "0.1.0"
+Build = 6
