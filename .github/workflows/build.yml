@@ -57,7 +57,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          go install fyne.io/fyne-cross@latest
+          go install github.com/fyne-io/fyne-cross@latest
 
       - name: Build for ${{ matrix.target }}
         run: |
