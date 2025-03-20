@@ -38,8 +38,9 @@ jobs:
       - name: Build for Windows
         run: |
           go install fyne.io/fyne/v2/cmd/fyne@latest
-          fyne build -os windows --release
-          fyne package -os windows
+          fyne package -os windows --release
+          
+
 
   build-darwin:
     needs: test
@@ -55,8 +56,22 @@ jobs:
       - name: Build for Mac
         run: |
           go install fyne.io/fyne/v2/cmd/fyne@latest
-          fyne build -os darwin --release
-          fyne package -os darwin
+          fyne package -os darwin --release
+          
+      - name: Create ZIP archive
+        run: |
+          for app in *.app; do
+            zip -r "${app%.*}.zip" "$app"
+          done
+          
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-build
+          path: '*.zip'
+          retention-days: 5
+
+
 
   release:
     needs: [build-windows, build-darwin]
