@@ -41,12 +41,10 @@ jobs:
             target: darwin
             artifact: darwin-arm64/*.app
             image: fyneio/fyne-cross-darwin:latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
       FYNE_CROSS_DEBUG: 1
       FYNE_CROSS_ARCH: amd64
-    container:
-      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,7 +59,7 @@ jobs:
 
       - name: Build for ${{ matrix.target }}
         run: |
-          fyne-cross ${{ matrix.target }} -arch=amd64 -release -debug
+          docker run --rm -v ${{ github.workspace }}:/app -w /app ${{ matrix.image }} fyne-cross ${{ matrix.target }} -arch=amd64 -release -debug
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
