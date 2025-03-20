@@ -35,9 +35,6 @@ jobs:
           - os: macos-latest
             target: darwin
             artifact: darwin-amd64/*.app
-          - os: ubuntu-latest
-            target: linux
-            artifact: linux-amd64/*
     runs-on: ${{ matrix.os }}
     env:
       FYNE_CROSS_DEBUG: 1
@@ -49,16 +46,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-
-      - name: Install system dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgl1-mesa-dev \
-            xorg-dev \
-            libasound2-dev \
-            pkg-config
 
       - name: Install system dependencies (macOS)
         if: matrix.os == 'macos-latest'
