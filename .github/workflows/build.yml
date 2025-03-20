@@ -1,0 +1,160 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libasound2-dev \
+            pkg-config
+
+      - name: Install dependencies
+        run: |
+          go mod download
+
+      - name: Build and Test
+        run: |
+          go test -v ./...
+          go build -v ./...
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+            artifact: windows-amd64/*.exe
+          - os: macos-latest
+            target: darwin
+            artifact: darwin-amd64/*.app
+          - os: ubuntu-latest
+            target: linux
+            artifact: linux-amd64/*
+    runs-on: ${{ matrix.os }}
+    env:
+      FYNE_CROSS_DEBUG: 1
+      FYNE_CROSS_ARCH: amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libasound2-dev \
+            pkg-config
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install pkg-config
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          go install fyne.io/fyne-cross@latest
+
+      - name: Build for ${{ matrix.target }}
+        run: |
+          fyne-cross ${{ matrix.target }} -arch=amd64 -release -debug
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-build
+          path: fyne-cross/bin/${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: '**/*-build'
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/windows-build/*.exe
+            artifacts/darwin-build/*.app
+            artifacts/linux-build/*
+          draft: true  # Always create as draft first
+          prerelease: false
+          name: Release ${{ github.ref_name }}
+          body: |
+            This is a test release. Please review the contents before publishing.
+            
+            To publish this release:
+            1. Go to the releases page
+            2. Click "Edit" on this release
+            3. Uncheck "Set as draft"
+            4. Click "Update release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup:
+    needs: release
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cleanup == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete draft release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const draftRelease = releases.data.find(release => 
+              release.draft && 
+              release.tag_name === process.env.GITHUB_REF.replace('refs/tags/', '')
+            );
+            
+            if (draftRelease) {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: draftRelease.id
+              });
+              console.log(`Deleted draft release: ${draftRelease.tag_name}`);
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF: ${{ github.ref }} 
