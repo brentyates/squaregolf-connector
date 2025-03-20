@@ -29,19 +29,19 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: windows-latest
             target: windows
             artifact: windows-amd64/*.exe
             image: fyneio/fyne-cross-windows:latest
-          - os: ubuntu-latest
+          - os: macos-latest
             target: darwin
             artifact: darwin-amd64/*.app
             image: fyneio/fyne-cross-darwin:latest
-          - os: ubuntu-latest
+          - os: macos-latest
             target: darwin
             artifact: darwin-arm64/*.app
             image: fyneio/fyne-cross-darwin:latest
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     env:
       FYNE_CROSS_DEBUG: 1
       FYNE_CROSS_ARCH: amd64
