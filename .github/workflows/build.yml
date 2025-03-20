@@ -35,6 +35,9 @@ jobs:
           - os: macos-latest
             target: darwin
             artifact: darwin-amd64/*.app
+          - os: macos-latest
+            target: darwin
+            artifact: darwin-arm64/*.app
     runs-on: ${{ matrix.os }}
     env:
       FYNE_CROSS_DEBUG: 1
@@ -54,7 +57,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          go mod download
           go install fyne.io/fyne-cross@latest
 
       - name: Build for ${{ matrix.target }}
