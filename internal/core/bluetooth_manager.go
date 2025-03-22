@@ -9,6 +9,26 @@ import (
 	"time"
 )
 
+var (
+	bluetoothInstance *BluetoothManager
+	bluetoothOnce     sync.Once
+)
+
+// GetBluetoothInstance returns the singleton instance of BluetoothManager
+func GetBluetoothInstance(stateManager *StateManager) *BluetoothManager {
+	bluetoothOnce.Do(func() {
+		bluetoothInstance = &BluetoothManager{
+			stateManager: stateManager,
+		}
+	})
+	return bluetoothInstance
+}
+
+// NewBluetoothManager is deprecated, use GetBluetoothInstance instead
+func NewBluetoothManager(stateManager *StateManager) *BluetoothManager {
+	return GetBluetoothInstance(stateManager)
+}
+
 // BluetoothManager is responsible for handling Bluetooth connection logic
 type BluetoothManager struct {
 	bluetoothClient     BluetoothClient
@@ -20,13 +40,6 @@ type BluetoothManager struct {
 	connectMutex        sync.Mutex
 	connecting          bool
 	preDisconnectHook   func() // Hook to run before disconnecting
-}
-
-// NewBluetoothManager creates a new BluetoothManager instance
-func NewBluetoothManager(stateManager *StateManager) *BluetoothManager {
-	return &BluetoothManager{
-		stateManager: stateManager,
-	}
 }
 
 // GetClient returns the current Bluetooth client

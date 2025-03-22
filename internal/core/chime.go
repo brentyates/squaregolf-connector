@@ -3,36 +3,48 @@ package core
 import (
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/brentyates/squaregolf-connector/internal/core/audio"
 )
+
+var (
+	chimeManagerInstance *ChimeManager
+	chimeManagerOnce     sync.Once
+)
+
+// GetChimeManagerInstance returns the singleton instance of ChimeManager
+func GetChimeManagerInstance(stateManager *StateManager) *ChimeManager {
+	chimeManagerOnce.Do(func() {
+		audioPlayer, err := audio.NewAudioPlayer()
+		if err != nil {
+			// Log the error but continue without audio
+			log.Printf("Error initializing audio player: %v - application will run without sound capabilities", err)
+			chimeManagerInstance = &ChimeManager{
+				stateManager: stateManager,
+				volume:       stateManager.GetChimeVolume(),
+			}
+		} else {
+			chimeManagerInstance = &ChimeManager{
+				audioPlayer:  audioPlayer,
+				stateManager: stateManager,
+				volume:       stateManager.GetChimeVolume(),
+			}
+		}
+	})
+	return chimeManagerInstance
+}
+
+// NewChimeManager is deprecated, use GetChimeManagerInstance instead
+func NewChimeManager(stateManager *StateManager) *ChimeManager {
+	return GetChimeManagerInstance(stateManager)
+}
 
 // ChimeManager handles the chime functionality
 type ChimeManager struct {
 	audioPlayer  *audio.AudioPlayer
 	stateManager *StateManager
 	volume       float64
-}
-
-// NewChimeManager creates a new chime manager
-func NewChimeManager(stateManager *StateManager) *ChimeManager {
-	audioPlayer, err := audio.NewAudioPlayer()
-	if err != nil {
-		// Log the error but continue without audio
-		log.Printf("Error initializing audio player: %v - application will run without sound capabilities", err)
-		return &ChimeManager{
-			stateManager: stateManager,
-			volume:       stateManager.GetChimeVolume(),
-		}
-	}
-
-	cm := &ChimeManager{
-		audioPlayer:  audioPlayer,
-		stateManager: stateManager,
-		volume:       stateManager.GetChimeVolume(),
-	}
-
-	return cm
 }
 
 // Initialize sets up the chime manager and registers callbacks
@@ -95,7 +107,7 @@ func (cm *ChimeManager) GetSoundDisplayName(fileName string) string {
 	// Handle conversion from file names to display names
 	// For example: "ready1.mp3" -> "Ready 1"
 	fileName = strings.TrimSuffix(fileName, ".mp3")
-	
+
 	switch fileName {
 	case "ready1":
 		return "Ready 1"

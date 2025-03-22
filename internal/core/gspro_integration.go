@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+var (
+	gsproInstance *GSProIntegration
+	gsproOnce     sync.Once
+)
+
 // GSProMessage represents the base message structure from GSPro
 type GSProMessage struct {
 	Message string `json:"Message"`
@@ -86,27 +91,33 @@ type GSProIntegration struct {
 	wg             sync.WaitGroup
 }
 
-// NewGSProIntegration creates a new GSProIntegration instance
+// GetGSProInstance returns the singleton instance of GSProIntegration
+func GetGSProInstance(stateManager *StateManager, launchMonitor *LaunchMonitor, host string, port int) *GSProIntegration {
+	gsproOnce.Do(func() {
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if port == 0 {
+			port = 921
+		}
+
+		gsproInstance = &GSProIntegration{
+			stateManager:  stateManager,
+			launchMonitor: launchMonitor,
+			host:          host,
+			port:          port,
+			shotListeners: make([]func(GSProShotData), 0),
+		}
+
+		// Register state listeners
+		gsproInstance.registerStateListeners()
+	})
+	return gsproInstance
+}
+
+// NewGSProIntegration is deprecated, use GetGSProInstance instead
 func NewGSProIntegration(stateManager *StateManager, launchMonitor *LaunchMonitor, host string, port int) *GSProIntegration {
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	if port == 0 {
-		port = 921
-	}
-
-	gspro := &GSProIntegration{
-		stateManager:  stateManager,
-		launchMonitor: launchMonitor,
-		host:          host,
-		port:          port,
-		shotListeners: make([]func(GSProShotData), 0),
-	}
-
-	// Register state listeners
-	gspro.registerStateListeners()
-
-	return gspro
+	return GetGSProInstance(stateManager, launchMonitor, host, port)
 }
 
 // Register state listeners

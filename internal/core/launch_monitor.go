@@ -10,6 +10,28 @@ import (
 	"time"
 )
 
+var (
+	launchMonitorInstance *LaunchMonitor
+	launchMonitorOnce     sync.Once
+)
+
+// GetLaunchMonitorInstance returns the singleton instance of LaunchMonitor
+func GetLaunchMonitorInstance(sm *StateManager, btManager *BluetoothManager) *LaunchMonitor {
+	launchMonitorOnce.Do(func() {
+		launchMonitorInstance = &LaunchMonitor{
+			stateManager:    sm,
+			sequence:        0,
+			bluetoothClient: btManager.GetClient(),
+		}
+	})
+	return launchMonitorInstance
+}
+
+// NewLaunchMonitor is deprecated, use GetLaunchMonitorInstance instead
+func NewLaunchMonitor(sm *StateManager, btManager *BluetoothManager) *LaunchMonitor {
+	return GetLaunchMonitorInstance(sm, btManager)
+}
+
 // LaunchMonitor encapsulates the launch monitor functionality
 type LaunchMonitor struct {
 	stateManager      *StateManager
@@ -20,13 +42,9 @@ type LaunchMonitor struct {
 	bluetoothClient   BluetoothClient
 }
 
-// NewLaunchMonitor creates a new launch monitor instance
-func NewLaunchMonitor(sm *StateManager, bluetoothClient BluetoothClient) *LaunchMonitor {
-	return &LaunchMonitor{
-		stateManager:    sm,
-		sequence:        0,
-		bluetoothClient: bluetoothClient,
-	}
+// UpdateBluetoothClient updates the bluetooth client reference
+func (lm *LaunchMonitor) UpdateBluetoothClient(client BluetoothClient) {
+	lm.bluetoothClient = client
 }
 
 // NotificationHandler handles BLE notifications

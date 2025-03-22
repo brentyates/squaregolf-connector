@@ -20,23 +20,29 @@ type GSProScreen struct {
 	gsproPort        int
 	gsproIntegration *core.GSProIntegration
 	launchMonitor    *core.LaunchMonitor
+	bluetoothManager *core.BluetoothManager
 	preferences      fyne.Preferences
 	ipBinding        binding.String
 	portBinding      binding.String
 	autoConnect      binding.Bool
 }
 
-func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, gsproIP string, gsproPort int) *GSProScreen {
+func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, gsproIP string, gsproPort int) *GSProScreen {
+	// Get the singleton launch monitor instance
+	launchMonitor := core.GetLaunchMonitorInstance(stateManager, bluetoothManager)
+
 	return &GSProScreen{
-		window:        window,
-		stateManager:  stateManager,
-		launchMonitor: launchMonitor,
-		gsproIP:       gsproIP,
-		gsproPort:     gsproPort,
-		preferences:   fyne.CurrentApp().Preferences(),
-		ipBinding:     binding.NewString(),
-		portBinding:   binding.NewString(),
-		autoConnect:   binding.NewBool(),
+		window:           window,
+		stateManager:     stateManager,
+		bluetoothManager: bluetoothManager,
+		launchMonitor:    launchMonitor,
+		gsproIP:          gsproIP,
+		gsproPort:        gsproPort,
+		preferences:      fyne.CurrentApp().Preferences(),
+		ipBinding:        binding.NewString(),
+		portBinding:      binding.NewString(),
+		autoConnect:      binding.NewBool(),
+		gsproIntegration: core.GetGSProInstance(stateManager, launchMonitor, gsproIP, gsproPort),
 	}
 }
 
@@ -117,11 +123,6 @@ func (s *GSProScreen) Initialize() {
 		if err != nil {
 			log.Printf("Invalid port number: %v", err)
 			return
-		}
-
-		// Create integration if it doesn't exist
-		if s.gsproIntegration == nil {
-			s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, ip, port)
 		}
 
 		// Start the integration and connect in a goroutine
@@ -233,11 +234,6 @@ func (s *GSProScreen) Initialize() {
 		if err != nil {
 			log.Printf("Invalid port number for auto-connect: %v", err)
 			return
-		}
-
-		// Create integration if it doesn't exist
-		if s.gsproIntegration == nil {
-			s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, "", 0)
 		}
 
 		// Start the integration and connect in a goroutine

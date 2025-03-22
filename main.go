@@ -64,14 +64,14 @@ func initializeBackend(config AppConfig) (*core.StateManager, *core.BluetoothMan
 		}
 	}
 
-	// Create a bluetooth manager with just the state manager
-	bluetoothManager := core.NewBluetoothManager(stateManager)
+	// Get the singleton bluetooth manager instance
+	bluetoothManager := core.GetBluetoothInstance(stateManager)
 
 	// Set the bluetooth client on the bluetooth manager
 	bluetoothManager.SetClient(bleClient)
 
-	// Create a launch monitor instance
-	launchMonitor := core.NewLaunchMonitor(stateManager, bleClient)
+	// Get the singleton launch monitor instance
+	launchMonitor := core.GetLaunchMonitorInstance(stateManager, bluetoothManager)
 
 	// Set up launch monitor to handle notifications from the bluetooth manager
 	launchMonitor.SetupNotifications(bluetoothManager)
@@ -168,8 +168,8 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	// Create navigation manager
 	navManager := screens.NewNavigationManager(w)
 
-	// Create and initialize the chime manager
-	chimeManager := core.NewChimeManager(stateManager)
+	// Get the singleton chime manager instance
+	chimeManager := core.GetChimeManagerInstance(stateManager)
 	chimeManager.Initialize()
 
 	// Create and initialize screens
@@ -179,7 +179,7 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	alignment := screens.NewAlignmentScreen(w, stateManager)
 	alignment.Initialize()
 
-	gspro := screens.NewGSProScreen(w, stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+	gspro := screens.NewGSProScreen(w, stateManager, bluetoothManager, config.GSProIP, config.GSProPort)
 	gspro.Initialize()
 
 	rangeScreen := screens.NewRangeScreen(w, stateManager)
