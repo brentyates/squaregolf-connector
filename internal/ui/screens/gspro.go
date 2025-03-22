@@ -16,7 +16,8 @@ type GSProScreen struct {
 	window           fyne.Window
 	stateManager     *core.StateManager
 	content          fyne.CanvasObject
-	config           AppConfig
+	gsproIP          string
+	gsproPort        int
 	gsproIntegration *core.GSProIntegration
 	launchMonitor    *core.LaunchMonitor
 	preferences      fyne.Preferences
@@ -25,12 +26,13 @@ type GSProScreen struct {
 	autoConnect      binding.Bool
 }
 
-func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, config AppConfig) *GSProScreen {
+func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, gsproIP string, gsproPort int) *GSProScreen {
 	return &GSProScreen{
 		window:        window,
 		stateManager:  stateManager,
 		launchMonitor: launchMonitor,
-		config:        config,
+		gsproIP:       gsproIP,
+		gsproPort:     gsproPort,
 		preferences:   fyne.CurrentApp().Preferences(),
 		ipBinding:     binding.NewString(),
 		portBinding:   binding.NewString(),
@@ -64,13 +66,13 @@ func (s *GSProScreen) Initialize() {
 	// Initialize IP and port bindings with saved values
 	savedIP := s.preferences.String("gspro_ip")
 	if savedIP == "" {
-		savedIP = s.config.GSProIP
+		savedIP = s.gsproIP
 	}
 	s.ipBinding.Set(savedIP)
 
 	savedPort := fmt.Sprintf("%d", s.preferences.Int("gspro_port"))
 	if savedPort == "0" {
-		savedPort = fmt.Sprintf("%d", s.config.GSProPort)
+		savedPort = fmt.Sprintf("%d", s.gsproPort)
 	}
 	s.portBinding.Set(savedPort)
 
@@ -119,7 +121,7 @@ func (s *GSProScreen) Initialize() {
 
 		// Create integration if it doesn't exist
 		if s.gsproIntegration == nil {
-			s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, "", 0)
+			s.gsproIntegration = core.NewGSProIntegration(s.stateManager, s.launchMonitor, ip, port)
 		}
 
 		// Start the integration and connect in a goroutine
@@ -141,13 +143,8 @@ func (s *GSProScreen) Initialize() {
 
 	disconnectBtn := widget.NewButton("Disconnect from GSPro", func() {
 		if s.gsproIntegration != nil {
-			// Get a reference to the integration before clearing it
-			integration := s.gsproIntegration
-			// Clear the integration reference first so status updates see it as nil
-			s.gsproIntegration = nil
-			// Stop the integration in a goroutine to prevent UI blocking
 			go func() {
-				integration.Stop()
+				s.gsproIntegration.Stop()
 			}()
 		}
 	})
@@ -184,7 +181,7 @@ func (s *GSProScreen) Initialize() {
 			errorText.Set("")
 			errorLabel.Hide()
 			// Only enable connect if there's no active integration
-			connectEnabled.Set(s.gsproIntegration == nil)
+			connectEnabled.Set(true)
 			disconnectEnabled.Set(false)
 			ipEntry.Enable()
 			portEntry.Enable()
@@ -194,9 +191,8 @@ func (s *GSProScreen) Initialize() {
 				errorText.Set(fmt.Sprintf("Error: %v", err))
 				errorLabel.Show()
 			}
-			// Only enable connect if there's no active integration
-			connectEnabled.Set(s.gsproIntegration == nil)
-			disconnectEnabled.Set(s.gsproIntegration != nil)
+			connectEnabled.Set(true)
+			disconnectEnabled.Set(false)
 			ipEntry.Enable()
 			portEntry.Enable()
 		}

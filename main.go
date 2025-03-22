@@ -173,23 +173,13 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	chimeManager.Initialize()
 
 	// Create and initialize screens
-	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, screens.AppConfig{
-		DeviceName:  config.DeviceName,
-		EnableGSPro: config.EnableGSPro,
-		GSProIP:     config.GSProIP,
-		GSProPort:   config.GSProPort,
-	})
+	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, config.DeviceName)
 	device.Initialize()
 
 	alignment := screens.NewAlignmentScreen(w, stateManager)
 	alignment.Initialize()
 
-	gspro := screens.NewGSProScreen(w, stateManager, launchMonitor, screens.AppConfig{
-		DeviceName:  config.DeviceName,
-		EnableGSPro: config.EnableGSPro,
-		GSProIP:     config.GSProIP,
-		GSProPort:   config.GSProPort,
-	})
+	gspro := screens.NewGSProScreen(w, stateManager, launchMonitor, config.GSProIP, config.GSProPort)
 	gspro.Initialize()
 
 	rangeScreen := screens.NewRangeScreen(w, stateManager)

@@ -23,7 +23,7 @@ type Device struct {
 	connectionStatus  *components.ConnectionStatus
 	statusCard        *components.StatusCard
 	metricsCard       *components.MetricsCard
-	config            AppConfig
+	deviceName        string
 	content           fyne.CanvasObject
 	connectEnabled    binding.Bool
 	disconnectEnabled binding.Bool
@@ -31,20 +31,13 @@ type Device struct {
 	errorText         binding.String
 }
 
-type AppConfig struct {
-	DeviceName  string
-	EnableGSPro bool
-	GSProIP     string
-	GSProPort   int
-}
-
-func NewDevice(window fyne.Window, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, config AppConfig) *Device {
+func NewDevice(window fyne.Window, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, deviceName string) *Device {
 	return &Device{
 		window:            window,
 		stateManager:      stateManager,
 		bluetoothManager:  bluetoothManager,
 		launchMonitor:     launchMonitor,
-		config:            config,
+		deviceName:        deviceName,
 		connectEnabled:    binding.NewBool(),
 		disconnectEnabled: binding.NewBool(),
 		statusText:        binding.NewString(),
@@ -83,7 +76,7 @@ func (d *Device) Initialize() {
 
 	// Create connection controls with bound enabled state
 	connectBtn := widget.NewButton("Connect to Device", func() {
-		go d.bluetoothManager.StartBluetoothConnection(d.config.DeviceName, "")
+		go d.bluetoothManager.StartBluetoothConnection(d.deviceName, "")
 	})
 	connectBtn.Importance = widget.HighImportance
 	connectBtn.SetIcon(theme.ConfirmIcon())
@@ -179,20 +172,12 @@ func (d *Device) Initialize() {
 		content,
 	)
 
-	gspro := NewGSProScreen(d.window, d.stateManager, d.launchMonitor, AppConfig{
-		DeviceName:  d.config.DeviceName,
-		EnableGSPro: d.config.EnableGSPro,
-		GSProIP:     d.config.GSProIP,
-		GSProPort:   d.config.GSProPort,
-	})
-	gspro.Initialize()
-
 	// Start initial scan if no device is selected
-	if d.config.DeviceName == "" {
+	if d.deviceName == "" {
 		// Try to get the last used device from preferences
 		lastDevice := fyne.CurrentApp().Preferences().String("device_name")
 		if lastDevice != "" {
-			d.config.DeviceName = lastDevice
+			d.deviceName = lastDevice
 			// Only auto-connect if the setting is enabled
 			if fyne.CurrentApp().Preferences().BoolWithFallback("auto_connect", true) {
 				go d.bluetoothManager.StartBluetoothConnection(lastDevice, "")

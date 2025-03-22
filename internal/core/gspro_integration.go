@@ -118,8 +118,12 @@ func (g *GSProIntegration) registerStateListeners() {
 
 // onBallReadyChanged handles ball ready state changed event from state manager
 func (g *GSProIntegration) onBallReadyChanged(oldValue, newValue bool) {
+	if oldValue == newValue {
+		return
+	}
+
 	if !g.connected || g.socket == nil {
-		log.Println("GSPro not connected, skipping ball data send")
+		log.Println("GSPro not connected, skipping ball ready send")
 		return
 	}
 
@@ -148,6 +152,10 @@ func (g *GSProIntegration) onBallReadyChanged(oldValue, newValue bool) {
 
 // onLastBallMetricsChanged handles last ball metrics changed event from state manager
 func (g *GSProIntegration) onLastBallMetricsChanged(oldValue, newValue *BallMetrics) {
+	if oldValue == newValue {
+		return
+	}
+
 	if !g.connected || g.socket == nil {
 		log.Println("GSPro not connected, skipping ball data send")
 		return
@@ -169,6 +177,10 @@ func (g *GSProIntegration) onLastBallMetricsChanged(oldValue, newValue *BallMetr
 
 // onLastClubMetricsChanged handles last club metrics changed event from state manager
 func (g *GSProIntegration) onLastClubMetricsChanged(oldValue, newValue *ClubMetrics) {
+	if oldValue == newValue {
+		return
+	}
+
 	if !g.connected || g.socket == nil {
 		log.Println("GSPro not connected, skipping club data send")
 		return
