@@ -128,6 +128,15 @@ func (bm *BluetoothManager) CancelBluetoothConnection() {
 
 // DisconnectBluetooth disconnects from the current device
 func (bm *BluetoothManager) DisconnectBluetooth() {
+	// First, cancel any in-progress connection attempt
+	bm.connectionMutex.Lock()
+	if bm.currentCancelFunc != nil {
+		log.Println("BluetoothManager: Cancelling in-progress connection attempt")
+		bm.currentCancelFunc()
+		bm.currentCancelFunc = nil
+	}
+	bm.connectionMutex.Unlock()
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -271,9 +280,10 @@ func (bm *BluetoothManager) disconnectDevice() error {
 
 	// Make a local reference to client to ensure it's not nil during operations
 	client := bm.bluetoothClient
+	isConnected := client.IsConnected()
 
-	// Stop notifications first
-	if client.IsConnected() {
+	// Stop notifications first if connected
+	if isConnected {
 		err := client.StopNotifications(NotificationCharUUID)
 		if err != nil {
 			log.Printf("Error stopping main notifications: %v", err)
@@ -285,12 +295,19 @@ func (bm *BluetoothManager) disconnectDevice() error {
 		}
 	}
 
-	// Then disconnect the client
+	// Attempt to disconnect regardless of IsConnected status
+	// This handles cases where we're in the middle of connecting
 	var disconnectErr error
-	if client.IsConnected() {
+	if isConnected {
 		disconnectErr = client.Disconnect()
 		if disconnectErr != nil {
 			log.Printf("Error disconnecting: %v", disconnectErr)
+		}
+	} else {
+		// Even if not fully connected, try to disconnect to clean up any partial connection state
+		disconnectErr = client.Disconnect()
+		if disconnectErr != nil {
+			log.Printf("Error during cleanup: %v", disconnectErr)
 		}
 	}
 
