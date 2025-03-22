@@ -344,6 +344,45 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 		lm.NotificationHandler(uuid, data)
 	})
 
+	// Register pre-disconnect hook to try to deactivate ball detection before disconnection
+	btManager.SetPreDisconnectHook(func() {
+		if lm.bluetoothClient != nil && lm.bluetoothClient.IsConnected() {
+			log.Println("LaunchMonitor: Attempting to deactivate ball detection before disconnection")
+			err := lm.DeactivateBallDetection()
+			if err != nil {
+				log.Printf("LaunchMonitor: Failed to deactivate ball detection: %v", err)
+			} else {
+				log.Println("LaunchMonitor: Successfully deactivated ball detection")
+			}
+		}
+	})
+
+	// Register for connection status changes to handle disconnects
+	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
+		if newValue == ConnectionStatusDisconnected {
+			// When Bluetooth disconnects, reset ball detection state
+			lm.HandleBluetoothDisconnect()
+		}
+	})
+
 	// Start the heartbeat task to maintain connection
 	lm.startHeartbeatTask()
+}
+
+// HandleBluetoothDisconnect handles cleanup when Bluetooth disconnects
+func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
+	log.Println("LaunchMonitor: Bluetooth disconnected - resetting ball detection state")
+
+	// Reset ball detection state in the state manager
+	lm.stateManager.SetBallDetected(false)
+	lm.stateManager.SetBallReady(false)
+	lm.stateManager.SetBallPosition(nil)
+
+	// Stop any heartbeat task
+	lm.heartbeatCancelMu.Lock()
+	if lm.heartbeatCancel != nil {
+		lm.heartbeatCancel()
+		lm.heartbeatCancel = nil
+	}
+	lm.heartbeatCancelMu.Unlock()
 }

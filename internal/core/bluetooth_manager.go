@@ -19,6 +19,7 @@ type BluetoothManager struct {
 	notificationHandler func(uuid string, data []byte)
 	connectMutex        sync.Mutex
 	connecting          bool
+	preDisconnectHook   func() // Hook to run before disconnecting
 }
 
 // NewBluetoothManager creates a new BluetoothManager instance
@@ -144,6 +145,12 @@ func (bm *BluetoothManager) DisconnectBluetooth() {
 				log.Printf("Recovered from panic in Bluetooth disconnection: %v\nStack trace:\n%s", r, stack)
 			}
 		}()
+
+		// Execute pre-disconnect hook if set
+		if bm.preDisconnectHook != nil {
+			log.Println("BluetoothManager: Executing pre-disconnect hook")
+			bm.preDisconnectHook()
+		}
 
 		err := bm.disconnectDevice()
 		if err != nil {
@@ -457,4 +464,9 @@ func (bm *BluetoothManager) GetDiscoveredDevices() []string {
 	}
 
 	return bm.bluetoothClient.GetDiscoveredDevices()
+}
+
+// SetPreDisconnectHook sets a function to be called before disconnecting
+func (bm *BluetoothManager) SetPreDisconnectHook(hook func()) {
+	bm.preDisconnectHook = hook
 }
