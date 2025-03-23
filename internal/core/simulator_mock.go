@@ -21,10 +21,17 @@ type SimulatorBluetoothClient struct {
 	lock                    sync.RWMutex
 	errorRate               float64 // Probability of simulating errors (0.0-1.0)
 	lastActivity            time.Time
-	inactivityMonitorActive bool       // Flag to track if the inactivity monitor is running
-	rand                    *rand.Rand // For deterministic random generation
-	ballDetectionCancel     func()     // Cancel function for the ball detection simulation
-	deviceName              string     // Added to match the new BluetoothClient interface
+	inactivityMonitorActive bool             // Flag to track if the inactivity monitor is running
+	rand                    *rand.Rand       // For deterministic random generation
+	ballDetectionCancel     func()           // Cancel function for the ball detection simulation
+	deviceName              string           // Added to match the new BluetoothClient interface
+	commandChan             chan commandData // Channel for processing commands asynchronously
+}
+
+// commandData represents a command to be processed asynchronously
+type commandData struct {
+	uuid string
+	data []byte
 }
 
 // SimulatorConfig holds configuration for the simulator
@@ -48,6 +55,7 @@ func NewSimulatorBluetoothClient(config SimulatorConfig) *SimulatorBluetoothClie
 		ballState:               BallStateNone,
 		notifyHandlers:          make(map[string]func([]byte)),
 		characteristics:         make(map[string][]byte),
+		commandChan:             make(chan commandData, 10), // Buffer size of 10
 		config:                  config,
 		errorRate:               config.ErrorRate,
 		lastActivity:            time.Now(),
@@ -58,6 +66,9 @@ func NewSimulatorBluetoothClient(config SimulatorConfig) *SimulatorBluetoothClie
 
 	// Initialize default characteristic values
 	sim.characteristics[BatteryLevelCharUUID] = []byte{byte(config.InitialBatteryLevel)}
+
+	// Start the command processor
+	go sim.processCommands()
 
 	return sim
 }
@@ -162,9 +173,16 @@ func (s *SimulatorBluetoothClient) WriteCharacteristic(uuid string, data []byte)
 	}
 
 	// Launch monitor uses command UUID for sending commands
-	// Call this after releasing the lock to prevent deadlock
+	// Instead of handling directly, send to the command channel for async processing
 	if isCommandChar {
-		s.handleCommandData(dataCopy)
+		// Send to command channel for asynchronous processing
+		select {
+		case s.commandChan <- commandData{uuid: uuid, data: dataCopy}:
+			// Successfully sent to command channel
+		default:
+			// Channel is full, but we don't want to block
+			log.Println("Simulator: Command channel is full, dropping command")
+		}
 	}
 
 	return nil
@@ -388,6 +406,19 @@ func (s *SimulatorBluetoothClient) startInactivityMonitor() {
 	}()
 }
 
+// processCommands processes commands from the command channel
+func (s *SimulatorBluetoothClient) processCommands() {
+	for cmd := range s.commandChan {
+		// Process each command from the channel
+		if len(cmd.data) < 1 {
+			continue
+		}
+
+		// Handle command based on its type
+		s.handleCommandData(cmd.data)
+	}
+}
+
 // handleCommandData processes command data sent to the simulator
 func (s *SimulatorBluetoothClient) handleCommandData(data []byte) {
 	if len(data) < 1 {
@@ -400,6 +431,20 @@ func (s *SimulatorBluetoothClient) handleCommandData(data []byte) {
 		s.lock.Lock()
 		s.lastActivity = time.Now()
 		s.lock.Unlock()
+		return
+	}
+
+	// Check if this is a club metrics request command (0x11, 0x87)
+	if len(data) > 1 && data[0] == 0x11 && data[1] == 0x87 {
+		log.Println("Simulator: Received request for club metrics")
+		
+		// Send club metrics in response
+		handler := s.notifyHandlers[NotificationCharUUID]
+		if handler != nil {
+			s.sendClubMetrics(handler)
+		} else {
+			log.Println("Simulator: No notification handler registered for club metrics")
+		}
 		return
 	}
 
@@ -525,17 +570,39 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			return // Ball detection was deactivated or ball state changed while waiting
 		}
 
-		// Ball is hit
+		// Ball is hit - send ball metrics
 		handler = s.notifyHandlers[NotificationCharUUID]
 		s.sendBallMetrics(handler)
+		log.Println("Simulator: Ball metrics sent")
+
+		// After sending ball metrics, wait a short time before changing state
+		// to allow the ball metrics to be received and processed
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
+			// Continue with simulation
+		}
+
+		// The launch monitor would normally send a club metrics request in response
+		// to receiving ball metrics. Since we're simulating both sides, we'll send
+		// club metrics directly after a short delay.
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
+			if handler != nil {
+				s.sendClubMetrics(handler)
+				log.Println("Simulator: Club metrics sent")
+			}
+		}
 
 		s.lock.Lock()
 		s.deviceState = DeviceStateIdle
 		s.ballState = BallStateNone
 		s.lock.Unlock()
 
-		// Wait for the ball metrics to be sent and state to be reset to none
-		// This happens in the notification handler
+		// Wait for the metrics to be processed before continuing
 		select {
 		case <-ctx.Done():
 			return
@@ -628,6 +695,40 @@ func (s *SimulatorBluetoothClient) sendBallMetrics(handler func([]byte)) {
 
 	// Send the ball metrics
 	handler(ballData)
+}
+
+// sendClubMetrics sends simulated club metrics data with realistic values
+func (s *SimulatorBluetoothClient) sendClubMetrics(handler func([]byte)) {
+	s.lock.RLock()
+	if !s.connected {
+		s.lock.RUnlock()
+		return
+	}
+	s.lock.RUnlock()
+
+	log.Println("Simulator: Sending club metrics")
+
+	// Generate realistic club metrics values
+	// Path angle between -5 and 5 degrees
+	pathAngle := int16(s.rand.Intn(1000) - 500)
+	// Face angle between -5 and 5 degrees
+	faceAngle := int16(s.rand.Intn(1000) - 500)
+	// Attack angle between -5 and 5 degrees
+	attackAngle := int16(s.rand.Intn(1000) - 500)
+	// Dynamic loft angle between 5 and 20 degrees
+	loftAngle := int16(500 + s.rand.Intn(1500))
+
+	// Format the club metrics data with the correct header (0x11, 0x07, 0x0f)
+	clubData := []byte{
+		0x11, 0x07, 0x0f, // Header for club data that matches what the launch monitor returns
+		byte(pathAngle & 0xFF), byte((pathAngle >> 8) & 0xFF),
+		byte(faceAngle & 0xFF), byte((faceAngle >> 8) & 0xFF),
+		byte(attackAngle & 0xFF), byte((attackAngle >> 8) & 0xFF),
+		byte(loftAngle & 0xFF), byte((loftAngle >> 8) & 0xFF),
+	}
+
+	// Send the club metrics
+	handler(clubData)
 }
 
 // StartScan simulates starting a scan for BLE devices
