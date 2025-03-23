@@ -1,6 +1,8 @@
 package gspro
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -84,6 +86,68 @@ func (g *Integration) Disconnect() {
 	log.Println("Disconnected from GSPro server")
 }
 
+// isValidJSON checks if a string is valid JSON
+func isValidJSON(s string) bool {
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
+}
+
+// findJSONObjects scans a buffer for valid JSON objects and returns them
+// along with the remaining unconsumed buffer
+func findJSONObjects(data []byte) ([]string, []byte) {
+	var validObjects []string
+	var remaining []byte
+	
+	// Skip any non-JSON leading characters
+	startIdx := bytes.IndexByte(data, '{')
+	if startIdx == -1 {
+		// No JSON object start found
+		return validObjects, data
+	}
+	
+	data = data[startIdx:]
+	remaining = data
+	
+	// Try to find JSON objects by testing increasing slices
+	for i := 1; i <= len(data); i++ {
+		candidateObj := string(data[:i])
+		
+		// Check for balanced braces as a quick heuristic before trying to parse JSON
+		if balancedBraces(candidateObj) && isValidJSON(candidateObj) {
+			validObjects = append(validObjects, candidateObj)
+			
+			// Process the rest of the buffer
+			if i < len(data) {
+				newObjects, newRemaining := findJSONObjects(data[i:])
+				validObjects = append(validObjects, newObjects...)
+				remaining = newRemaining
+				break
+			} else {
+				remaining = nil
+				break
+			}
+		}
+	}
+	
+	return validObjects, remaining
+}
+
+// balancedBraces checks if braces are balanced in a string
+func balancedBraces(s string) bool {
+	var count int
+	for _, c := range s {
+		if c == '{' {
+			count++
+		} else if c == '}' {
+			count--
+			if count < 0 {
+				return false
+			}
+		}
+	}
+	return count == 0
+}
+
 // receiveMessages receives and processes messages from GSPro
 func (g *Integration) receiveMessages() {
 	if g.socket == nil {
@@ -91,7 +155,8 @@ func (g *Integration) receiveMessages() {
 	}
 
 	buffer := make([]byte, 4096)
-
+	var messageBuffer []byte
+	
 	for g.running && g.connected {
 		g.socket.SetReadDeadline(time.Now().Add(10 * time.Second))
 
@@ -114,9 +179,18 @@ func (g *Integration) receiveMessages() {
 			break
 		}
 
-		message := string(buffer[:n])
-		log.Printf("Received message from GSPro: %s", message)
-		g.processMessage(message)
+		// Append the received data to the message buffer
+		messageBuffer = append(messageBuffer, buffer[:n]...)
+		
+		// Find and process complete JSON objects
+		objects, remaining := findJSONObjects(messageBuffer)
+		for _, obj := range objects {
+			log.Printf("Received message from GSPro: %s", obj)
+			g.processMessage(obj)
+		}
+		
+		// Keep the remaining unprocessed data
+		messageBuffer = remaining
 	}
 
 	g.Disconnect()
