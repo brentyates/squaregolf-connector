@@ -28,6 +28,11 @@ func (g *Integration) processMessage(rawMessage string) {
 		g.handlePlayerMessage(&playerInfo)
 		g.handleGSProReadyMessage()
 	case "Ball Data received":
+		// Acknowledge ball data received message
+		log.Printf("Received ball data confirmation from GSPro")
+	case "Club & Ball Data received":
+		// Acknowledge the club and ball data received message
+		log.Printf("Received club and ball data confirmation from GSPro")
 	default:
 		log.Printf("Unknown GSPro message type: %s", baseMsg.Message)
 	}
