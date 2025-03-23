@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 )
 
 type GSProScreen struct {
@@ -18,7 +19,7 @@ type GSProScreen struct {
 	content          fyne.CanvasObject
 	gsproIP          string
 	gsproPort        int
-	gsproIntegration *core.GSProIntegration
+	gsproIntegration *gspro.Integration
 	launchMonitor    *core.LaunchMonitor
 	bluetoothManager *core.BluetoothManager
 	preferences      fyne.Preferences
@@ -42,7 +43,7 @@ func NewGSProScreen(window fyne.Window, stateManager *core.StateManager, bluetoo
 		ipBinding:        binding.NewString(),
 		portBinding:      binding.NewString(),
 		autoConnect:      binding.NewBool(),
-		gsproIntegration: core.GetGSProInstance(stateManager, launchMonitor, gsproIP, gsproPort),
+		gsproIntegration: gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort),
 	}
 }
 

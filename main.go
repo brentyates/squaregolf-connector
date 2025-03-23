@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/container"
 
 	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 	"github.com/brentyates/squaregolf-connector/internal/logging"
 	"github.com/brentyates/squaregolf-connector/internal/ui/screens"
 	"github.com/brentyates/squaregolf-connector/internal/ui/theme"
@@ -254,7 +255,7 @@ func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManage
 	// Setup GSPro integration if enabled
 	if config.EnableGSPro {
 		log.Println("Starting GSPro integration")
-		gsproIntegration := core.NewGSProIntegration(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
 		gsproIntegration.Start()
 	}
 
