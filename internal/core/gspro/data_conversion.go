@@ -87,6 +87,7 @@ func (g *Integration) mapGSProClubToInternal(clubName string) *core.ClubType {
 		"AW": core.ClubApproachWedge,
 		"GW": core.ClubApproachWedge,
 		"SW": core.ClubSandWedge,
+		"LW": core.ClubSandWedge,
 
 		// Putter
 		"PT": core.ClubPutter,
