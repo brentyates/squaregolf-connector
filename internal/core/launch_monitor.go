@@ -91,6 +91,12 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 				lm.HandleShotClubMetrics(bytesList)
 				return
 			}
+			// Check for specific "no club data available" response
+			if bytesList[0] == "11" && bytesList[1] == "07" && bytesList[2] == "00" {
+				// Clear club metrics in state manager to indicate no data is available
+				lm.stateManager.SetLastClubMetrics(nil)
+				return
+			}
 		}
 	}
 }

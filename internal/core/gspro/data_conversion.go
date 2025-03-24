@@ -5,15 +5,18 @@ import (
 )
 
 // convertToGSProShotFormat converts internal shot data format to GSPro format
-func (g *Integration) convertToGSProShotFormat(ballMetrics core.BallMetrics) ShotData {
-	// Increment shot number for each shot
-	g.shotNumber++
+func (g *Integration) convertToGSProShotFormat(ballMetrics core.BallMetrics, incrementShot bool) ShotData {
+	// Increment shot number only when requested (for new ball data)
+	if incrementShot {
+		g.shotNumber++
+		g.lastShotNumber = g.shotNumber
+	}
 
 	return ShotData{
 		DeviceID:   "CustomLaunchMonitor",
 		Units:      "Yards",
 		APIversion: "1",
-		ShotNumber: g.shotNumber,
+		ShotNumber: g.lastShotNumber,
 		ShotDataOptions: ShotOptions{
 			ContainsBallData: true,
 			ContainsClubData: false,

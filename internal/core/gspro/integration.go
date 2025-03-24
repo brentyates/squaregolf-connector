@@ -26,6 +26,7 @@ type Integration struct {
 	running        bool
 	connectMutex   sync.Mutex
 	shotNumber     int
+	lastShotNumber int
 	shotListeners  []func(ShotData)
 	lastPlayerInfo *PlayerInfo
 	wg             sync.WaitGroup

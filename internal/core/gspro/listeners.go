@@ -24,12 +24,12 @@ func (g *Integration) onBallReadyChanged(oldValue, newValue bool) {
 		return
 	}
 
-	// Send empty shot data
+	// Send empty shot data - don't increment shot number for ball ready changes
 	emptyShotData := ShotData{
 		DeviceID:   "CustomLaunchMonitor",
 		Units:      "Yards",
 		APIversion: "1",
-		ShotNumber: g.shotNumber,
+		ShotNumber: g.lastShotNumber, // Use the last shot number instead of incrementing
 		ShotDataOptions: ShotOptions{
 			ContainsBallData:          false,
 			ContainsClubData:          false,
@@ -63,7 +63,7 @@ func (g *Integration) onLastBallMetricsChanged(oldValue, newValue *core.BallMetr
 	}
 
 	try := func() error {
-		gsproShotData := g.convertToGSProShotFormat(*newValue)
+		gsproShotData := g.convertToGSProShotFormat(*newValue, true)
 		return g.sendData(gsproShotData)
 	}
 
@@ -83,13 +83,40 @@ func (g *Integration) onLastClubMetricsChanged(oldValue, newValue *core.ClubMetr
 		return
 	}
 
+	// Handle the case where club metrics are nil, which means no club data was available
 	if newValue == nil {
+		// Send zeroed club data to GSPro
+		zeroedClubData := &ClubData{
+			Speed:                0,
+			AngleOfAttack:        0,
+			FaceToTarget:         0,
+			Lie:                  0,
+			Loft:                 0,
+			Path:                 0,
+			SpeedAtImpact:        0,
+			VerticalFaceImpact:   0,
+			HorizontalFaceImpact: 0,
+			ClosureRate:          0,
+		}
+
+		try := func() error {
+			gsproShotData := g.convertToGSProShotFormat(core.BallMetrics{}, false) // Don't increment shot number
+			gsproShotData.ShotDataOptions.ContainsBallData = false
+			gsproShotData.ShotDataOptions.ContainsClubData = true
+			gsproShotData.ClubData = zeroedClubData
+			return g.sendData(gsproShotData)
+		}
+
+		if err := try(); err != nil {
+			log.Printf("Error sending zeroed club data to GSPro: %v", err)
+		}
 		return
 	}
 
 	// Update the last shot data with club metrics
 	try := func() error {
-		gsproShotData := g.convertToGSProShotFormat(core.BallMetrics{})
+		gsproShotData := g.convertToGSProShotFormat(core.BallMetrics{}, false) // Don't increment shot number for club data
+		gsproShotData.ShotDataOptions.ContainsBallData = false
 		gsproShotData.ShotDataOptions.ContainsClubData = true
 		gsproShotData.ClubData = g.convertClubDataToGSPro(*newValue)
 		return g.sendData(gsproShotData)
