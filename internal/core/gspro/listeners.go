@@ -20,7 +20,6 @@ func (g *Integration) onBallReadyChanged(oldValue, newValue bool) {
 	}
 
 	if !g.connected || g.socket == nil {
-		log.Println("GSPro not connected, skipping ball ready send")
 		return
 	}
 
@@ -54,7 +53,6 @@ func (g *Integration) onLastBallMetricsChanged(oldValue, newValue *core.BallMetr
 	}
 
 	if !g.connected || g.socket == nil {
-		log.Println("GSPro not connected, skipping ball data send")
 		return
 	}
 
@@ -79,7 +77,6 @@ func (g *Integration) onLastClubMetricsChanged(oldValue, newValue *core.ClubMetr
 	}
 
 	if !g.connected || g.socket == nil {
-		log.Println("GSPro not connected, skipping club data send")
 		return
 	}
 
