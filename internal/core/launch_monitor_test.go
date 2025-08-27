@@ -2,15 +2,33 @@ package core
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestNewLaunchMonitor(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+func resetSingletonsForTest(t *testing.T) {
+	launchMonitorOnce = sync.Once{}
+	launchMonitorInstance = nil
+	bluetoothOnce = sync.Once{}
+	bluetoothInstance = nil
+	once = sync.Once{}
+	instance = nil
+}
 
-	lm := NewLaunchMonitor(sm, mockClient)
+func newTestLaunchMonitor(t *testing.T) (*StateManager, *LaunchMonitor, *MockBluetoothClient, *BluetoothManager) {
+	resetSingletonsForTest(t)
+	sm := GetInstance()
+	btManager := NewBluetoothManager(sm)
+	mockClient := NewMockBluetoothClient()
+	btManager.SetClient(mockClient)
+	lm := NewLaunchMonitor(sm, btManager)
+	lm.UpdateBluetoothClient(mockClient)
+	return sm, lm, mockClient, btManager
+}
+
+func TestNewLaunchMonitor(t *testing.T) {
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 
 	if lm == nil || lm.stateManager != sm || lm.bluetoothClient != mockClient || lm.sequence != 0 {
 		t.Error("LaunchMonitor not properly initialized")
@@ -18,10 +36,8 @@ func TestNewLaunchMonitor(t *testing.T) {
 }
 
 func TestNotificationHandler_BatteryLevel(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test battery level notification
 	batteryData := []byte{75} // 75% battery
@@ -34,10 +50,8 @@ func TestNotificationHandler_BatteryLevel(t *testing.T) {
 }
 
 func TestNotificationHandler_EmptyData(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set initial battery level
 	initialBatteryLevel := 75
@@ -54,9 +68,7 @@ func TestNotificationHandler_EmptyData(t *testing.T) {
 }
 
 func TestGetNextSequence(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
-	lm := NewLaunchMonitor(sm, mockClient)
+	_, lm, _, _ := newTestLaunchMonitor(t)
 
 	// Test sequence increment
 	seq1 := lm.getNextSequence()
@@ -80,10 +92,8 @@ func TestGetNextSequence(t *testing.T) {
 }
 
 func TestSendCommand(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test successful command send
 	command := "1101"
@@ -107,11 +117,9 @@ func TestSendCommand(t *testing.T) {
 }
 
 func TestReadBatteryLevel(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
 	mockClient.readReturnData = []byte{85} // 85% battery
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test successful battery read
 	batteryLevel, err := lm.ReadBatteryLevel()
@@ -137,10 +145,8 @@ func TestReadBatteryLevel(t *testing.T) {
 }
 
 func TestActivateBallDetection(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set default club and handedness
 	club := ClubDriver
@@ -189,10 +195,8 @@ func TestActivateBallDetection(t *testing.T) {
 }
 
 func TestDeactivateBallDetection(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test successful deactivation
 	err := lm.DeactivateBallDetection()
@@ -212,10 +216,8 @@ func TestDeactivateBallDetection(t *testing.T) {
 }
 
 func TestManageHeartbeat(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test successful heartbeat management
 	err := lm.ManageHeartbeat()
@@ -235,10 +237,8 @@ func TestManageHeartbeat(t *testing.T) {
 }
 
 func TestNotificationHandler_SensorData(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test sensor notification data
 	// Format: 11 01 (sensor data) with ball detected, ready, and position
@@ -273,10 +273,8 @@ func TestNotificationHandler_SensorData(t *testing.T) {
 }
 
 func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test shot ball metrics notification
 	// Format: 11 02 37 (shot metrics - full shot)
@@ -331,9 +329,7 @@ func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
 }
 
 func TestNotificationHandler_ShotClubMetrics(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
-	lm := NewLaunchMonitor(sm, mockClient)
+	sm, lm, _, _ := newTestLaunchMonitor(t)
 
 	// Test shot club metrics notification
 	// Format: 11 07 0f (club metrics)
@@ -368,10 +364,8 @@ func TestNotificationHandler_ShotClubMetrics(t *testing.T) {
 }
 
 func TestStartHeartbeatTask(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set initial UUID to ensure we can detect the heartbeat
 	mockClient.lastWriteUUID = CommandCharUUID
@@ -397,10 +391,8 @@ func TestStartHeartbeatTask(t *testing.T) {
 }
 
 func TestStartHeartbeatTask_CancelAndRestart(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set initial UUID to ensure we can detect the heartbeat
 	mockClient.lastWriteUUID = CommandCharUUID
@@ -435,9 +427,7 @@ func TestStartHeartbeatTask_CancelAndRestart(t *testing.T) {
 }
 
 func TestNotificationHandler_Heartbeat(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
-	lm := NewLaunchMonitor(sm, mockClient)
+	_, lm, _, _ := newTestLaunchMonitor(t)
 
 	// Test heartbeat notification
 	// Format: 11 03 (heartbeat)
@@ -448,14 +438,8 @@ func TestNotificationHandler_Heartbeat(t *testing.T) {
 }
 
 func TestSetupNotifications(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, btManager := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
-
-	// Create a mock Bluetooth manager
-	btManager := NewBluetoothManager(sm)
-	btManager.SetClient(mockClient)
 
 	// Connect the mock client
 	err := mockClient.Connect("", "")
@@ -601,9 +585,7 @@ func TestSetupNotifications(t *testing.T) {
 }
 
 func TestNotificationHandler_InvalidSensorData(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
-	lm := NewLaunchMonitor(sm, mockClient)
+	sm, lm, _, _ := newTestLaunchMonitor(t)
 
 	// Test invalid sensor data (too short)
 	invalidData := []byte{
@@ -628,10 +610,8 @@ func TestNotificationHandler_InvalidSensorData(t *testing.T) {
 }
 
 func TestNotificationHandler_InvalidBallMetrics(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test invalid ball metrics data (too short)
 	invalidData := []byte{
@@ -655,9 +635,7 @@ func TestNotificationHandler_InvalidBallMetrics(t *testing.T) {
 }
 
 func TestNotificationHandler_InvalidClubMetrics(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
-	lm := NewLaunchMonitor(sm, mockClient)
+	sm, lm, _, _ := newTestLaunchMonitor(t)
 
 	// Test invalid club metrics data (too short)
 	invalidData := []byte{
@@ -676,10 +654,8 @@ func TestNotificationHandler_InvalidClubMetrics(t *testing.T) {
 }
 
 func TestActivateBallDetection_Putter(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set putter and right-handed
 	club := ClubPutter
@@ -721,10 +697,8 @@ func TestActivateBallDetection_Putter(t *testing.T) {
 }
 
 func TestActivateBallDetection_LeftHanded(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Set driver and left-handed
 	club := ClubDriver
@@ -766,10 +740,8 @@ func TestActivateBallDetection_LeftHanded(t *testing.T) {
 }
 
 func TestDeactivateBallDetection_ExactBytes(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	// Test successful deactivation
 	err := lm.DeactivateBallDetection()
@@ -795,10 +767,8 @@ func TestDeactivateBallDetection_ExactBytes(t *testing.T) {
 }
 
 func TestSwingStickCommand_ExactBytes(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	testCases := []struct {
 		name       string
@@ -852,10 +822,8 @@ func TestSwingStickCommand_ExactBytes(t *testing.T) {
 }
 
 func TestAlignmentStickCommand_ExactBytes(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	testCases := []struct {
 		name       string
@@ -900,10 +868,8 @@ func TestAlignmentStickCommand_ExactBytes(t *testing.T) {
 }
 
 func TestRequestClubMetricsCommand_ExactBytes(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	testCases := []struct {
 		name     string
@@ -953,10 +919,8 @@ func TestRequestClubMetricsCommand_ExactBytes(t *testing.T) {
 }
 
 func TestHeartbeatCommand_ExactBytes(t *testing.T) {
-	sm := GetInstance()
-	mockClient := NewMockBluetoothClient()
+	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
-	lm := NewLaunchMonitor(sm, mockClient)
 
 	testCases := []struct {
 		name     string
