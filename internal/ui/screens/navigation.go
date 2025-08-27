@@ -58,13 +58,9 @@ func (nm *NavigationManager) UpdateSidebar() {
 	alignmentBtn := createNavButton("Alignment", theme.SettingsIcon(), "alignment", nm)
 	alignmentBtn.Disable() // Disable alignment button
 
-	rangeBtn := createNavButton("Range", theme.StorageIcon(), "range", nm)
-	rangeBtn.Disable() // Disable range button
-
 	buttons := container.NewVBox(
 		createNavButton("Device", theme.RadioButtonIcon(), "device", nm),
 		createNavButton("GSPro", theme.ComputerIcon(), "gspro", nm),
-		rangeBtn,
 		alignmentBtn,
 		createNavButton("Settings", theme.SettingsIcon(), "settings", nm),
 	)

@@ -183,9 +183,6 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	gspro := screens.NewGSProScreen(w, stateManager, bluetoothManager, config.GSProIP, config.GSProPort)
 	gspro.Initialize()
 
-	rangeScreen := screens.NewRangeScreen(w, stateManager)
-	rangeScreen.Initialize()
-
 	settings := screens.NewSettingsScreen(w, stateManager, chimeManager)
 	settings.Initialize()
 
@@ -193,7 +190,6 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	navManager.AddScreen("device", device)
 	navManager.AddScreen("alignment", alignment)
 	navManager.AddScreen("gspro", gspro)
-	navManager.AddScreen("range", rangeScreen)
 	navManager.AddScreen("settings", settings)
 
 	// Update navigation sidebar
