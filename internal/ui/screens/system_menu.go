@@ -14,26 +14,9 @@ import (
 
 	"github.com/brentyates/squaregolf-connector/internal/core"
 	"github.com/brentyates/squaregolf-connector/internal/logging"
+	"github.com/brentyates/squaregolf-connector/internal/ui/components"
 	"github.com/brentyates/squaregolf-connector/internal/version"
 )
-
-// showThemedDialog shows a dialog with proper theming
-func showThemedDialog(title, message string, window fyne.Window) {
-	content := container.NewVBox(
-		widget.NewLabelWithStyle(
-			message,
-			fyne.TextAlignLeading,
-			fyne.TextStyle{},
-		),
-	)
-	d := dialog.NewCustom(title, "OK", content, window)
-	d.Show()
-}
-
-// showThemedError shows an error dialog with proper theming
-func showThemedError(err error, window fyne.Window) {
-	showThemedDialog("Error", err.Error(), window)
-}
 
 // SystemMenu represents the system menu that combines Help and About functionality
 type SystemMenu struct {
@@ -51,13 +34,9 @@ func NewSystemMenu(w fyne.Window) *SystemMenu {
 func (sm *SystemMenu) OpenLogDirectory() {
 	logDir := logging.GetLogDirectory()
 
-	// Debug information
-	fmt.Printf("Log directory: %s\n", logDir)
-	fmt.Printf("Log file: %s\n", logging.LogFile)
-
 	// Check if directory exists
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
-		showThemedError(fmt.Errorf("log directory does not exist: %s", logDir), sm.window)
+		components.ShowThemedError(fmt.Errorf("log directory does not exist: %s", logDir), sm.window)
 		return
 	}
 
@@ -70,12 +49,12 @@ func (sm *SystemMenu) OpenLogDirectory() {
 	case "linux":
 		cmd = exec.Command("xdg-open", logDir)
 	default:
-		showThemedError(fmt.Errorf("unsupported operating system"), sm.window)
+		components.ShowThemedError(fmt.Errorf("unsupported operating system"), sm.window)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		showThemedError(fmt.Errorf("failed to open log directory: %v", err), sm.window)
+		components.ShowThemedError(fmt.Errorf("failed to open log directory: %v", err), sm.window)
 	}
 }
 
@@ -88,7 +67,7 @@ func (sm *SystemMenu) submitBugReport(description string) {
 	// Read the log file
 	logContent, err := os.ReadFile(logging.LogFile)
 	if err != nil {
-		showThemedError(fmt.Errorf("failed to read log file: %v", err), sm.window)
+		components.ShowThemedError(fmt.Errorf("failed to read log file: %v", err), sm.window)
 		return
 	}
 
@@ -98,7 +77,7 @@ func (sm *SystemMenu) submitBugReport(description string) {
 
 	// Write the bug report
 	if err := os.WriteFile(bugReportPath, []byte(bugReport), 0644); err != nil {
-		showThemedError(fmt.Errorf("failed to write bug report: %v", err), sm.window)
+		components.ShowThemedError(fmt.Errorf("failed to write bug report: %v", err), sm.window)
 		return
 	}
 
@@ -112,16 +91,16 @@ func (sm *SystemMenu) submitBugReport(description string) {
 	case "linux":
 		cmd = exec.Command("xdg-open", bugReportPath)
 	default:
-		showThemedError(fmt.Errorf("unsupported operating system"), sm.window)
+		components.ShowThemedError(fmt.Errorf("unsupported operating system"), sm.window)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		showThemedError(fmt.Errorf("failed to open bug report: %v", err), sm.window)
+		components.ShowThemedError(fmt.Errorf("failed to open bug report: %v", err), sm.window)
 		return
 	}
 
-	showThemedDialog(
+	components.ShowThemedDialog(
 		"Bug Report Created",
 		"A bug report has been created and opened in your default text editor.\nPlease review it and send it to the developer.",
 		sm.window,
@@ -137,7 +116,7 @@ func (sm *SystemMenu) ShowBugReport() {
 	// Create submit button
 	submitButton := widget.NewButton("Submit", func() {
 		if bugReportEntry.Text == "" {
-			showThemedDialog(
+			components.ShowThemedDialog(
 				"Error",
 				"Please provide a description of what happened.",
 				sm.window,

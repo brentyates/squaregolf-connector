@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const protocolReservedByte byte = 0x00
+
 // SimulatorBluetoothClient implements a more sophisticated mock
 type SimulatorBluetoothClient struct {
 	connected               bool
@@ -437,7 +439,7 @@ func (s *SimulatorBluetoothClient) handleCommandData(data []byte) {
 	// Check if this is a club metrics request command (0x11, 0x87)
 	if len(data) > 1 && data[0] == 0x11 && data[1] == 0x87 {
 		log.Println("Simulator: Received request for club metrics")
-		
+
 		// Send club metrics in response
 		handler := s.notifyHandlers[NotificationCharUUID]
 		if handler != nil {
@@ -630,13 +632,12 @@ func (s *SimulatorBluetoothClient) generateSensorData(ballState BallState) []byt
 	// Generate realistic ball position
 	var posX, posY, posZ int32
 
-	if ballState == BallStateDetected {
-		// Ball is detected but not perfectly positioned
+	switch ballState {
+	case BallStateDetected:
 		posX = int32(-50 + s.rand.Intn(100))
 		posY = int32(-50 + s.rand.Intn(100))
 		posZ = int32(s.rand.Intn(20))
-	} else if ballState == BallStateReady {
-		// Ball is properly positioned
+	case BallStateReady:
 		posX = int32(-10 + s.rand.Intn(20))
 		posY = int32(-10 + s.rand.Intn(20))
 		posZ = int32(s.rand.Intn(10))
@@ -645,9 +646,9 @@ func (s *SimulatorBluetoothClient) generateSensorData(ballState BallState) []byt
 	// Convert to bytes (simplified format for the mock)
 	data := []byte{
 		0x11, 0x01, // Header (indexes 0-1)
-		0x00,         // Placeholder at index 2
-		ballReady,    // Ball ready flag at index 3
-		ballDetected, // Ball detection flag at index 4
+		protocolReservedByte, // Reserved protocol byte at index 2
+		ballReady,            // Ball ready flag at index 3
+		ballDetected,         // Ball detection flag at index 4
 		byte(posX & 0xFF), byte((posX >> 8) & 0xFF), byte((posX >> 16) & 0xFF), byte((posX >> 24) & 0xFF),
 		byte(posY & 0xFF), byte((posY >> 8) & 0xFF), byte((posY >> 16) & 0xFF), byte((posY >> 24) & 0xFF),
 		byte(posZ & 0xFF), byte((posZ >> 8) & 0xFF), byte((posZ >> 16) & 0xFF), byte((posZ >> 24) & 0xFF),
