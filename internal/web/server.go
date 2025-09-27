@@ -1,0 +1,452 @@
+package web
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"path/filepath"
+	"time"
+
+	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+)
+
+type Server struct {
+	stateManager     *core.StateManager
+	bluetoothManager *core.BluetoothManager
+	launchMonitor    *core.LaunchMonitor
+	gsproIntegration *gspro.Integration
+	chimeManager     *core.ChimeManager
+	upgrader         websocket.Upgrader
+	clients          map[*websocket.Conn]bool
+	broadcast        chan []byte
+}
+
+type WSMessage struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
+type DeviceStatus struct {
+	ConnectionStatus string               `json:"connectionStatus"`
+	DeviceName       *string              `json:"deviceName"`
+	BatteryLevel     *int                 `json:"batteryLevel"`
+	BallDetected     bool                 `json:"ballDetected"`
+	BallReady        bool                 `json:"ballReady"`
+	BallPosition     *core.BallPosition   `json:"ballPosition"`
+	Club             *core.ClubType       `json:"club"`
+	Handedness       *core.HandednessType `json:"handedness"`
+	LastError        string               `json:"lastError"`
+	LastBallMetrics  *core.BallMetrics    `json:"lastBallMetrics"`
+	LastClubMetrics  *core.ClubMetrics    `json:"lastClubMetrics"`
+}
+
+type GSProStatus struct {
+	ConnectionStatus string `json:"connectionStatus"`
+	IP               string `json:"ip"`
+	Port             int    `json:"port"`
+	AutoConnect      bool   `json:"autoConnect"`
+	LastError        string `json:"lastError"`
+}
+
+type AppSettings struct {
+	DeviceName       string  `json:"deviceName"`
+	AutoConnect      bool    `json:"autoConnect"`
+	SpinMode         string  `json:"spinMode"`
+	ChimeSound       string  `json:"chimeSound"`
+	ChimeVolume      float64 `json:"chimeVolume"`
+	GSProIP          string  `json:"gsproIP"`
+	GSProPort        int     `json:"gsproPort"`
+	GSProAutoConnect bool    `json:"gsproAutoConnect"`
+}
+
+func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, gsproIP string, gsproPort int) *Server {
+	// Get the singleton chime manager instance
+	chimeManager := core.GetChimeManagerInstance(stateManager)
+	chimeManager.Initialize()
+
+	// Get GSPro integration
+	gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
+
+	server := &Server{
+		stateManager:     stateManager,
+		bluetoothManager: bluetoothManager,
+		launchMonitor:    launchMonitor,
+		gsproIntegration: gsproIntegration,
+		chimeManager:     chimeManager,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true // Allow all origins for development
+			},
+		},
+		clients:   make(map[*websocket.Conn]bool),
+		broadcast: make(chan []byte),
+	}
+
+	server.setupCallbacks()
+	go server.handleMessages()
+
+	return server
+}
+
+func (s *Server) setupCallbacks() {
+	// Register all state callbacks to broadcast updates via WebSocket
+	s.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue core.ConnectionStatus) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterDeviceDisplayNameCallback(func(oldValue, newValue *string) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterBatteryLevelCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterBallDetectedCallback(func(oldValue, newValue bool) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterBallReadyCallback(func(oldValue, newValue bool) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterBallPositionCallback(func(oldValue, newValue *core.BallPosition) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterClubCallback(func(oldValue, newValue *core.ClubType) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterHandednessCallback(func(oldValue, newValue *core.HandednessType) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterLastErrorCallback(func(oldValue, newValue error) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterLastBallMetricsCallback(func(oldValue, newValue *core.BallMetrics) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterLastClubMetricsCallback(func(oldValue, newValue *core.ClubMetrics) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterGSProStatusCallback(func(oldValue, newValue core.GSProConnectionStatus) {
+		s.broadcastGSProStatus()
+	})
+}
+
+func (s *Server) handleMessages() {
+	for {
+		message := <-s.broadcast
+		for client := range s.clients {
+			select {
+			case <-time.After(time.Second):
+				delete(s.clients, client)
+			default:
+				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
+					delete(s.clients, client)
+					client.Close()
+				}
+			}
+		}
+	}
+}
+
+func (s *Server) broadcastDeviceStatus() {
+	status := s.getDeviceStatus()
+	msg := WSMessage{Type: "deviceStatus", Data: status}
+	data, _ := json.Marshal(msg)
+	s.broadcast <- data
+}
+
+func (s *Server) broadcastGSProStatus() {
+	status := s.getGSProStatus()
+	msg := WSMessage{Type: "gsproStatus", Data: status}
+	data, _ := json.Marshal(msg)
+	s.broadcast <- data
+}
+
+func (s *Server) getDeviceStatus() DeviceStatus {
+	var lastErrorStr string
+	if err := s.stateManager.GetLastError(); err != nil {
+		lastErrorStr = err.Error()
+	}
+
+	connectionStatus := "disconnected"
+	switch s.stateManager.GetConnectionStatus() {
+	case core.ConnectionStatusConnected:
+		connectionStatus = "connected"
+	case core.ConnectionStatusConnecting:
+		connectionStatus = "connecting"
+	case core.ConnectionStatusError:
+		connectionStatus = "error"
+	}
+
+	return DeviceStatus{
+		ConnectionStatus: connectionStatus,
+		DeviceName:       s.stateManager.GetDeviceDisplayName(),
+		BatteryLevel:     s.stateManager.GetBatteryLevel(),
+		BallDetected:     s.stateManager.GetBallDetected(),
+		BallReady:        s.stateManager.GetBallReady(),
+		BallPosition:     s.stateManager.GetBallPosition(),
+		Club:             s.stateManager.GetClub(),
+		Handedness:       s.stateManager.GetHandedness(),
+		LastError:        lastErrorStr,
+		LastBallMetrics:  s.stateManager.GetLastBallMetrics(),
+		LastClubMetrics:  s.stateManager.GetLastClubMetrics(),
+	}
+}
+
+func (s *Server) getGSProStatus() GSProStatus {
+	var lastErrorStr string
+	if err := s.stateManager.GetGSProError(); err != nil {
+		lastErrorStr = err.Error()
+	}
+
+	connectionStatus := "disconnected"
+	switch s.stateManager.GetGSProStatus() {
+	case core.GSProStatusConnected:
+		connectionStatus = "connected"
+	case core.GSProStatusConnecting:
+		connectionStatus = "connecting"
+	case core.GSProStatusError:
+		connectionStatus = "error"
+	}
+
+	// Get current GSPro settings from integration
+	ip, port := s.gsproIntegration.GetConnectionInfo()
+
+	return GSProStatus{
+		ConnectionStatus: connectionStatus,
+		IP:               ip,
+		Port:             port,
+		AutoConnect:      false, // TODO: Get from preferences
+		LastError:        lastErrorStr,
+	}
+}
+
+func (s *Server) Start(port int) error {
+	router := mux.NewRouter()
+
+	// Serve static files
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
+
+	// API routes
+	api := router.PathPrefix("/api").Subrouter()
+
+	// Device endpoints
+	api.HandleFunc("/device/status", s.handleDeviceStatus).Methods("GET")
+	api.HandleFunc("/device/connect", s.handleDeviceConnect).Methods("POST")
+	api.HandleFunc("/device/disconnect", s.handleDeviceDisconnect).Methods("POST")
+
+	// GSPro endpoints
+	api.HandleFunc("/gspro/status", s.handleGSProStatus).Methods("GET")
+	api.HandleFunc("/gspro/connect", s.handleGSProConnect).Methods("POST")
+	api.HandleFunc("/gspro/disconnect", s.handleGSProDisconnect).Methods("POST")
+	api.HandleFunc("/gspro/config", s.handleGSProConfig).Methods("GET", "POST")
+
+	// Settings endpoints
+	api.HandleFunc("/settings", s.handleSettings).Methods("GET", "POST")
+	api.HandleFunc("/settings/chime/sounds", s.handleChimeSounds).Methods("GET")
+	api.HandleFunc("/settings/chime/play", s.handleChimePlay).Methods("POST")
+
+	// WebSocket endpoint
+	router.HandleFunc("/ws", s.handleWebSocket)
+
+	// Serve index.html for all non-API routes (SPA support)
+	router.PathPrefix("/").HandlerFunc(s.handleIndex)
+
+	log.Printf("Web server starting on port %d", port)
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	indexPath := filepath.Join("web", "index.html")
+	http.ServeFile(w, r, indexPath)
+}
+
+func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	s.clients[conn] = true
+
+	// Send initial status
+	s.sendInitialStatus(conn)
+
+	// Keep connection alive and handle client messages
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			delete(s.clients, conn)
+			break
+		}
+	}
+}
+
+func (s *Server) sendInitialStatus(conn *websocket.Conn) {
+	// Send device status
+	deviceStatus := s.getDeviceStatus()
+	msg := WSMessage{Type: "deviceStatus", Data: deviceStatus}
+	data, _ := json.Marshal(msg)
+	conn.WriteMessage(websocket.TextMessage, data)
+
+	// Send GSPro status
+	gsproStatus := s.getGSProStatus()
+	msg = WSMessage{Type: "gsproStatus", Data: gsproStatus}
+	data, _ = json.Marshal(msg)
+	conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func (s *Server) handleDeviceStatus(w http.ResponseWriter, r *http.Request) {
+	status := s.getDeviceStatus()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+func (s *Server) handleDeviceConnect(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		DeviceName string `json:"deviceName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	go s.bluetoothManager.StartBluetoothConnection(req.DeviceName, "")
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleDeviceDisconnect(w http.ResponseWriter, r *http.Request) {
+	go s.bluetoothManager.DisconnectBluetooth()
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleGSProStatus(w http.ResponseWriter, r *http.Request) {
+	status := s.getGSProStatus()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+func (s *Server) handleGSProConnect(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	go func() {
+		s.gsproIntegration.Start()
+		s.gsproIntegration.Connect(req.IP, req.Port)
+	}()
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleGSProDisconnect(w http.ResponseWriter, r *http.Request) {
+	go s.gsproIntegration.Stop()
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleGSProConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		ip, port := s.gsproIntegration.GetConnectionInfo()
+		config := struct {
+			IP          string `json:"ip"`
+			Port        int    `json:"port"`
+			AutoConnect bool   `json:"autoConnect"`
+		}{
+			IP:          ip,
+			Port:        port,
+			AutoConnect: false, // TODO: Get from preferences
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(config)
+	} else {
+		var config struct {
+			IP          string `json:"ip"`
+			Port        int    `json:"port"`
+			AutoConnect bool   `json:"autoConnect"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		// TODO: Save preferences
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		spinMode := "advanced"
+		if sm := s.stateManager.GetSpinMode(); sm != nil && *sm == core.Standard {
+			spinMode = "standard"
+		}
+
+		settings := AppSettings{
+			DeviceName:  "",   // TODO: Get from preferences
+			AutoConnect: true, // TODO: Get from preferences
+			SpinMode:    spinMode,
+			ChimeSound:  s.stateManager.GetChimeSound(),
+			ChimeVolume: s.stateManager.GetChimeVolume(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(settings)
+	} else {
+		var settings AppSettings
+		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Update spin mode
+		var spinMode core.SpinMode
+		if settings.SpinMode == "standard" {
+			spinMode = core.Standard
+		} else {
+			spinMode = core.Advanced
+		}
+		s.stateManager.SetSpinMode(&spinMode)
+
+		// Update chime settings
+		s.stateManager.SetChimeSound(settings.ChimeSound)
+		s.stateManager.SetChimeVolume(settings.ChimeVolume)
+
+		// TODO: Save other settings to preferences
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handleChimeSounds(w http.ResponseWriter, r *http.Request) {
+	sounds := s.chimeManager.GetAvailableSounds()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sounds)
+}
+
+func (s *Server) handleChimePlay(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Sound string `json:"sound"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	s.chimeManager.PlaySound(req.Sound)
+	w.WriteHeader(http.StatusOK)
+}

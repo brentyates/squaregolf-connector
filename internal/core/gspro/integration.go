@@ -1,11 +1,9 @@
 package gspro
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/brentyates/squaregolf-connector/internal/core"
 )
@@ -76,23 +74,19 @@ func (g *Integration) Start() {
 
 // Stop stops the GSPro integration
 func (g *Integration) Stop() {
-	log.Println("Stopping GSPro integration...")
+	g.connectMutex.Lock()
+	defer g.connectMutex.Unlock()
+
+	if !g.running {
+		return
+	}
+
 	g.running = false
 	g.Disconnect()
+	g.wg.Wait()
+}
 
-	// Wait for all goroutines to complete with a timeout
-	done := make(chan struct{})
-	go func() {
-		g.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		log.Println("GSPro integration stopped gracefully")
-	case <-time.After(10 * time.Second):
-		log.Println("Timeout waiting for GSPro integration to stop")
-		g.stateManager.SetGSProError(fmt.Errorf("timeout waiting for integration to stop"))
-		g.stateManager.SetGSProStatus(core.GSProStatusError)
-	}
+// GetConnectionInfo returns the current host and port configuration
+func (g *Integration) GetConnectionInfo() (string, int) {
+	return g.host, g.port
 }
