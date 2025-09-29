@@ -265,6 +265,7 @@ func (s *Server) Start(port int) error {
 	router.PathPrefix("/").HandlerFunc(s.handleIndex)
 
 	log.Printf("Web server starting on port %d", port)
+	log.Printf("Access via: http://localhost:%d", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), router)
 }
 

@@ -609,6 +609,38 @@ body {
     }
 }
 
+/* WebSocket Status (debug indicator) */
+.websocket-status {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 1000;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+.websocket-status:hover {
+    opacity: 1;
+}
+
+.ws-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fc8181;
+    transition: background-color 0.3s ease;
+}
+
+.ws-indicator.connected {
+    background: #68d391;
+}
+
+.ws-indicator.connecting {
+    background: #fbb6ce;
+    animation: pulse 1.5s infinite;
+}
+
 /* Utility classes */
 .hidden {
     display: none !important;

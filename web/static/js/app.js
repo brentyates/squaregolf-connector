@@ -133,17 +133,43 @@ class SquareGolfApp {
     }
 
     updateConnectionIndicator(connected) {
+        // Update the small WebSocket debug indicator
+        const wsIndicator = document.querySelector('.ws-indicator');
+        if (wsIndicator) {
+            if (connected) {
+                wsIndicator.classList.add('connected');
+                wsIndicator.classList.remove('connecting');
+                wsIndicator.title = 'WebSocket Connected';
+            } else {
+                wsIndicator.classList.remove('connected', 'connecting');
+                wsIndicator.title = 'WebSocket Disconnected';
+                console.log('WebSocket disconnected - attempting reconnection...');
+            }
+        }
+    }
+
+    updateDeviceConnectionIndicator(deviceStatus) {
         const indicator = document.getElementById('connectionIndicator');
         const dot = indicator.querySelector('.status-dot');
         const text = indicator.querySelector('.status-text');
         
-        if (connected) {
-            dot.classList.add('connected');
-            dot.classList.remove('connecting');
-            text.textContent = 'Connected';
-        } else {
-            dot.classList.remove('connected', 'connecting');
-            text.textContent = 'Disconnected';
+        switch (deviceStatus) {
+            case 'connected':
+                dot.classList.remove('connecting');
+                dot.classList.add('connected');
+                text.textContent = 'Device Connected';
+                break;
+            case 'connecting':
+                dot.classList.remove('connected');
+                dot.classList.add('connecting');
+                text.textContent = 'Connecting...';
+                break;
+            case 'disconnected':
+            case 'error':
+            default:
+                dot.classList.remove('connected', 'connecting');
+                text.textContent = 'Device Disconnected';
+                break;
         }
     }
 
@@ -201,6 +227,9 @@ class SquareGolfApp {
 
     updateDeviceStatus(status) {
         this.deviceStatus = status;
+        
+        // Update the main navigation device connection indicator
+        this.updateDeviceConnectionIndicator(status.connectionStatus);
         
         // Update connection status
         const statusElement = document.getElementById('deviceStatus');

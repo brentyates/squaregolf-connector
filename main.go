@@ -26,6 +26,7 @@ type AppConfig struct {
 	DeviceName  string
 	Headless    bool
 	WebMode     bool
+	DesktopMode bool
 	WebPort     int
 	GSProIP     string
 	GSProPort   int
@@ -318,7 +319,7 @@ func main() {
 	useMock := flag.String("mock", "", "Mock mode: 'stub' for basic mock, 'simulate' for simulated device with realistic behavior, or empty for real hardware")
 	deviceName := flag.String("device", "", "Name of the Bluetooth device to connect to")
 	headless := flag.Bool("headless", false, "Run in headless CLI mode without UI")
-	webMode := flag.Bool("web", false, "Run in web server mode instead of desktop UI")
+	desktopMode := flag.Bool("desktop", false, "Run in desktop UI mode instead of web")
 	webPort := flag.Int("web-port", 8080, "Port for web server")
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
@@ -330,7 +331,8 @@ func main() {
 		UseMock:     core.MockMode(*useMock),
 		DeviceName:  *deviceName,
 		Headless:    *headless,
-		WebMode:     *webMode,
+		WebMode:     !*desktopMode && !*headless, // Web is default unless desktop or headless specified
+		DesktopMode: *desktopMode,
 		WebPort:     *webPort,
 		GSProIP:     *gsproIP,
 		GSProPort:   *gsproPort,
@@ -343,9 +345,11 @@ func main() {
 	// Launch the appropriate interface based on mode
 	if config.Headless {
 		startCLI(config, stateManager, bluetoothManager, launchMonitor)
-	} else if config.WebMode {
-		startWebServer(config, stateManager, bluetoothManager, launchMonitor)
-	} else {
+	} else if config.DesktopMode {
+		// Only use Fyne UI if explicitly requested with -desktop flag
 		startUI(config, stateManager, bluetoothManager, launchMonitor)
+	} else {
+		// Web mode is now the default
+		startWebServer(config, stateManager, bluetoothManager, launchMonitor)
 	}
 }
