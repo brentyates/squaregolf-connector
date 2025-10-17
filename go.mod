@@ -5,11 +5,15 @@ go 1.23
 require (
 	fyne.io/fyne/v2 v2.5.4
 	github.com/apex/log v1.9.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.3
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	tinygo.org/x/bluetooth v0.13.0
 )
 
 require (
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/hajimehoshi/oto/v2 v2.4.2
 )

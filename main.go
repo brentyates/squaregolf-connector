@@ -17,6 +17,7 @@ import (
 	"github.com/brentyates/squaregolf-connector/internal/logging"
 	"github.com/brentyates/squaregolf-connector/internal/ui/screens"
 	"github.com/brentyates/squaregolf-connector/internal/ui/theme"
+	"github.com/brentyates/squaregolf-connector/internal/web"
 )
 
 // Application configuration
@@ -24,6 +25,9 @@ type AppConfig struct {
 	UseMock     core.MockMode
 	DeviceName  string
 	Headless    bool
+	WebMode     bool
+	DesktopMode bool
+	WebPort     int
 	GSProIP     string
 	GSProPort   int
 	EnableGSPro bool
@@ -271,11 +275,52 @@ func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManage
 	log.Println("Application stopped")
 }
 
+// startWebServer initializes and runs the web server
+func startWebServer(config AppConfig, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor) {
+	// Create web server
+	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, config.GSProIP, config.GSProPort)
+
+	// Setup GSPro integration if enabled
+	if config.EnableGSPro {
+		log.Println("GSPro integration enabled for web mode")
+		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+		go func() {
+			gsproIntegration.Start()
+			gsproIntegration.Connect(config.GSProIP, config.GSProPort)
+		}()
+	}
+
+	// Start auto-connect if device name is provided
+	if config.DeviceName != "" {
+		log.Printf("Auto-connecting to device: %s", config.DeviceName)
+		go bluetoothManager.StartBluetoothConnection(config.DeviceName, "")
+	}
+
+	// Set up graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Println("Shutting down web server...")
+		bluetoothManager.DisconnectBluetooth()
+		os.Exit(0)
+	}()
+
+	// Start the web server
+	log.Printf("Starting web server on http://localhost:%d", config.WebPort)
+	if err := server.Start(config.WebPort); err != nil {
+		log.Fatalf("Web server failed to start: %v", err)
+	}
+}
+
 func main() {
 	// Parse command line flags
 	useMock := flag.String("mock", "", "Mock mode: 'stub' for basic mock, 'simulate' for simulated device with realistic behavior, or empty for real hardware")
 	deviceName := flag.String("device", "", "Name of the Bluetooth device to connect to")
 	headless := flag.Bool("headless", false, "Run in headless CLI mode without UI")
+	desktopMode := flag.Bool("desktop", false, "Run in desktop UI mode instead of web")
+	webPort := flag.Int("web-port", 8080, "Port for web server")
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
 	enableGSPro := flag.Bool("enable-gspro", false, "Enable GSPro integration")
@@ -286,6 +331,9 @@ func main() {
 		UseMock:     core.MockMode(*useMock),
 		DeviceName:  *deviceName,
 		Headless:    *headless,
+		WebMode:     !*desktopMode && !*headless, // Web is default unless desktop or headless specified
+		DesktopMode: *desktopMode,
+		WebPort:     *webPort,
 		GSProIP:     *gsproIP,
 		GSProPort:   *gsproPort,
 		EnableGSPro: *enableGSPro,
@@ -297,7 +345,11 @@ func main() {
 	// Launch the appropriate interface based on mode
 	if config.Headless {
 		startCLI(config, stateManager, bluetoothManager, launchMonitor)
-	} else {
+	} else if config.DesktopMode {
+		// Only use Fyne UI if explicitly requested with -desktop flag
 		startUI(config, stateManager, bluetoothManager, launchMonitor)
+	} else {
+		// Web mode is now the default
+		startWebServer(config, stateManager, bluetoothManager, launchMonitor)
 	}
 }
