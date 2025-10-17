@@ -27,8 +27,6 @@ type AppState struct {
 	GSProStatus       GSProConnectionStatus
 	GSProError        error
 	SpinMode          *SpinMode
-	ChimeVolume       float64
-	ChimeSound        string
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -52,8 +50,6 @@ type StateManager struct {
 		GSProStatus       []StateCallback[GSProConnectionStatus]
 		GSProError        []StateCallback[error]
 		SpinMode          []StateCallback[*SpinMode]
-		ChimeVolume       []StateCallback[float64]
-		ChimeSound        []StateCallback[string]
 	}
 	mu sync.RWMutex
 }
@@ -79,8 +75,6 @@ func (sm *StateManager) initialize() {
 		BallDetected:     false,
 		BallReady:        false,
 		GSProStatus:      GSProStatusDisconnected,
-		ChimeVolume:      0.75,
-		ChimeSound:       "ready1.mp3",
 	}
 }
 
@@ -460,58 +454,4 @@ func (sm *StateManager) RegisterSpinModeCallback(callback StateCallback[*SpinMod
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.SpinMode = append(sm.callbacks.SpinMode, callback)
-}
-
-// GetChimeVolume returns the chime volume
-func (sm *StateManager) GetChimeVolume() float64 {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-	return sm.state.ChimeVolume
-}
-
-// SetChimeVolume sets the chime volume
-func (sm *StateManager) SetChimeVolume(value float64) {
-	sm.mu.Lock()
-	oldValue := sm.state.ChimeVolume
-	sm.state.ChimeVolume = value
-	callbacks := sm.callbacks.ChimeVolume
-	sm.mu.Unlock()
-
-	for _, callback := range callbacks {
-		callback(oldValue, value)
-	}
-}
-
-// RegisterChimeVolumeCallback registers a callback for chime volume changes
-func (sm *StateManager) RegisterChimeVolumeCallback(callback StateCallback[float64]) {
-	sm.mu.Lock()
-	sm.callbacks.ChimeVolume = append(sm.callbacks.ChimeVolume, callback)
-	sm.mu.Unlock()
-}
-
-// GetChimeSound returns the chime sound
-func (sm *StateManager) GetChimeSound() string {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-	return sm.state.ChimeSound
-}
-
-// SetChimeSound sets the chime sound
-func (sm *StateManager) SetChimeSound(value string) {
-	sm.mu.Lock()
-	oldValue := sm.state.ChimeSound
-	sm.state.ChimeSound = value
-	callbacks := sm.callbacks.ChimeSound
-	sm.mu.Unlock()
-
-	for _, callback := range callbacks {
-		callback(oldValue, value)
-	}
-}
-
-// RegisterChimeSoundCallback registers a callback for chime sound changes
-func (sm *StateManager) RegisterChimeSoundCallback(callback StateCallback[string]) {
-	sm.mu.Lock()
-	sm.callbacks.ChimeSound = append(sm.callbacks.ChimeSound, callback)
-	sm.mu.Unlock()
 }

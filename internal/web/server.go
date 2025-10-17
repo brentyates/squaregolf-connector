@@ -19,7 +19,6 @@ type Server struct {
 	bluetoothManager *core.BluetoothManager
 	launchMonitor    *core.LaunchMonitor
 	gsproIntegration *gspro.Integration
-	chimeManager     *core.ChimeManager
 	upgrader         websocket.Upgrader
 	clients          map[*websocket.Conn]bool
 	broadcast        chan []byte
@@ -53,21 +52,15 @@ type GSProStatus struct {
 }
 
 type AppSettings struct {
-	DeviceName       string  `json:"deviceName"`
-	AutoConnect      bool    `json:"autoConnect"`
-	SpinMode         string  `json:"spinMode"`
-	ChimeSound       string  `json:"chimeSound"`
-	ChimeVolume      float64 `json:"chimeVolume"`
-	GSProIP          string  `json:"gsproIP"`
-	GSProPort        int     `json:"gsproPort"`
-	GSProAutoConnect bool    `json:"gsproAutoConnect"`
+	DeviceName       string `json:"deviceName"`
+	AutoConnect      bool   `json:"autoConnect"`
+	SpinMode         string `json:"spinMode"`
+	GSProIP          string `json:"gsproIP"`
+	GSProPort        int    `json:"gsproPort"`
+	GSProAutoConnect bool   `json:"gsproAutoConnect"`
 }
 
 func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, gsproIP string, gsproPort int) *Server {
-	// Get the singleton chime manager instance
-	chimeManager := core.GetChimeManagerInstance(stateManager)
-	chimeManager.Initialize()
-
 	// Get GSPro integration
 	gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
 
@@ -76,7 +69,6 @@ func NewServer(stateManager *core.StateManager, bluetoothManager *core.Bluetooth
 		bluetoothManager: bluetoothManager,
 		launchMonitor:    launchMonitor,
 		gsproIntegration: gsproIntegration,
-		chimeManager:     chimeManager,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for development
@@ -255,8 +247,6 @@ func (s *Server) Start(port int) error {
 
 	// Settings endpoints
 	api.HandleFunc("/settings", s.handleSettings).Methods("GET", "POST")
-	api.HandleFunc("/settings/chime/sounds", s.handleChimeSounds).Methods("GET")
-	api.HandleFunc("/settings/chime/play", s.handleChimePlay).Methods("POST")
 
 	// WebSocket endpoint
 	router.HandleFunc("/ws", s.handleWebSocket)
@@ -403,8 +393,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			DeviceName:  "",   // TODO: Get from preferences
 			AutoConnect: true, // TODO: Get from preferences
 			SpinMode:    spinMode,
-			ChimeSound:  s.stateManager.GetChimeSound(),
-			ChimeVolume: s.stateManager.GetChimeVolume(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(settings)
@@ -424,30 +412,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		s.stateManager.SetSpinMode(&spinMode)
 
-		// Update chime settings
-		s.stateManager.SetChimeSound(settings.ChimeSound)
-		s.stateManager.SetChimeVolume(settings.ChimeVolume)
-
-		// TODO: Save other settings to preferences
 		w.WriteHeader(http.StatusOK)
 	}
-}
-
-func (s *Server) handleChimeSounds(w http.ResponseWriter, r *http.Request) {
-	sounds := s.chimeManager.GetAvailableSounds()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sounds)
-}
-
-func (s *Server) handleChimePlay(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Sound string `json:"sound"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	s.chimeManager.PlaySound(req.Sound)
-	w.WriteHeader(http.StatusOK)
 }

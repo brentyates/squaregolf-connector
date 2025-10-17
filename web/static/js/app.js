@@ -6,7 +6,6 @@ class SquareGolfApp {
         this.deviceStatus = null;
         this.gsproStatus = null;
         this.settings = {};
-        this.availableChimeSounds = [];
         
         this.init();
     }
@@ -15,7 +14,6 @@ class SquareGolfApp {
         this.setupEventListeners();
         this.connectWebSocket();
         this.loadSettings();
-        this.loadChimeSounds();
     }
 
     setupEventListeners() {
@@ -46,18 +44,12 @@ class SquareGolfApp {
 
         // Settings controls
         document.getElementById('forgetDeviceBtn').addEventListener('click', () => this.forgetDevice());
-        document.getElementById('playChimeBtn').addEventListener('click', () => this.playChime());
         
         // Settings changes
         document.getElementById('settingsDeviceName').addEventListener('change', () => this.saveSettings());
         document.getElementById('settingsAutoConnect').addEventListener('change', () => this.saveSettings());
         document.querySelectorAll('input[name="spinMode"]').forEach(radio => {
             radio.addEventListener('change', () => this.saveSettings());
-        });
-        document.getElementById('chimeSound').addEventListener('change', () => this.saveSettings());
-        document.getElementById('chimeVolume').addEventListener('input', () => {
-            this.updateVolumeDisplay();
-            this.saveSettings();
         });
 
         // Metrics tabs
@@ -542,33 +534,19 @@ class SquareGolfApp {
         document.getElementById('settingsDeviceName').value = this.settings.deviceName || '';
         document.getElementById('settingsAutoConnect').checked = this.settings.autoConnect || false;
         
-        // Set spin mode
         const spinMode = this.settings.spinMode || 'advanced';
         document.querySelector(`input[name="spinMode"][value="${spinMode}"]`).checked = true;
-        
-        // Set chime settings
-        if (this.settings.chimeSound) {
-            document.getElementById('chimeSound').value = this.settings.chimeSound;
-        }
-        
-        const volume = this.settings.chimeVolume || 0.8;
-        document.getElementById('chimeVolume').value = volume;
-        this.updateVolumeDisplay();
     }
 
     async saveSettings() {
         const deviceName = document.getElementById('settingsDeviceName').value.trim();
         const autoConnect = document.getElementById('settingsAutoConnect').checked;
         const spinMode = document.querySelector('input[name="spinMode"]:checked').value;
-        const chimeSound = document.getElementById('chimeSound').value;
-        const chimeVolume = parseFloat(document.getElementById('chimeVolume').value);
         
         const settings = {
             deviceName,
             autoConnect,
-            spinMode,
-            chimeSound,
-            chimeVolume
+            spinMode
         };
         
         try {
@@ -592,54 +570,6 @@ class SquareGolfApp {
         document.getElementById('settingsDeviceName').value = '';
         this.saveSettings();
         this.showToast('Device forgotten', 'success');
-    }
-
-    async loadChimeSounds() {
-        try {
-            const response = await fetch('/api/settings/chime/sounds');
-            if (response.ok) {
-                this.availableChimeSounds = await response.json();
-                this.populateChimeSounds();
-            }
-        } catch (error) {
-            console.error('Failed to load chime sounds:', error);
-        }
-    }
-
-    populateChimeSounds() {
-        const select = document.getElementById('chimeSound');
-        select.innerHTML = '';
-        
-        this.availableChimeSounds.forEach(sound => {
-            const option = document.createElement('option');
-            option.value = sound;
-            option.textContent = sound;
-            select.appendChild(option);
-        });
-    }
-
-    async playChime() {
-        const sound = document.getElementById('chimeSound').value;
-        
-        try {
-            const response = await fetch('/api/settings/chime/play', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sound })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to play sound: ${response.statusText}`);
-            }
-        } catch (error) {
-            this.showToast(`Failed to play chime: ${error.message}`, 'error');
-        }
-    }
-
-    updateVolumeDisplay() {
-        const volume = document.getElementById('chimeVolume').value;
-        const percentage = Math.round(volume * 100);
-        document.getElementById('volumeValue').textContent = `${percentage}%`;
     }
 
     // Utility functions

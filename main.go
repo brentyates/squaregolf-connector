@@ -173,10 +173,6 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	// Create navigation manager
 	navManager := screens.NewNavigationManager(w)
 
-	// Get the singleton chime manager instance
-	chimeManager := core.GetChimeManagerInstance(stateManager)
-	chimeManager.Initialize()
-
 	// Create and initialize screens
 	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, config.DeviceName)
 	device.Initialize()
@@ -187,7 +183,7 @@ func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager
 	gspro := screens.NewGSProScreen(w, stateManager, bluetoothManager, config.GSProIP, config.GSProPort)
 	gspro.Initialize()
 
-	settings := screens.NewSettingsScreen(w, stateManager, chimeManager)
+	settings := screens.NewSettingsScreen(w, stateManager)
 	settings.Initialize()
 
 	// Add screens to navigation manager
