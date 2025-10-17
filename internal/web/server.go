@@ -342,6 +342,8 @@ func (s *Server) handleGSProConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
+		s.gsproIntegration.ResetReconnectionState()
+		s.gsproIntegration.EnableAutoReconnect()
 		s.gsproIntegration.Start()
 		s.gsproIntegration.Connect(req.IP, req.Port)
 	}()
@@ -349,7 +351,10 @@ func (s *Server) handleGSProConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGSProDisconnect(w http.ResponseWriter, r *http.Request) {
-	go s.gsproIntegration.Stop()
+	go func() {
+		s.gsproIntegration.DisableAutoReconnect()
+		s.gsproIntegration.Disconnect()
+	}()
 	w.WriteHeader(http.StatusOK)
 }
 

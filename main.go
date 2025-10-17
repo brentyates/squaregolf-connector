@@ -178,6 +178,7 @@ func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManage
 	if config.EnableGSPro {
 		log.Println("Starting GSPro integration")
 		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+		gsproIntegration.EnableAutoReconnect()
 		gsproIntegration.Start()
 	}
 
@@ -207,6 +208,7 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 		log.Println("GSPro integration enabled for web mode")
 		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
 		go func() {
+			gsproIntegration.EnableAutoReconnect()
 			gsproIntegration.Start()
 			gsproIntegration.Connect(config.GSProIP, config.GSProPort)
 		}()

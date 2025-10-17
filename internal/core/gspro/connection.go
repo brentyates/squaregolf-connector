@@ -24,23 +24,51 @@ func (g *Integration) Connect(host string, port int) {
 	g.host = host
 	g.port = port
 
+	// Force cleanup of any existing socket
+	if g.socket != nil {
+		log.Println("Forcing cleanup of stale socket before reconnection")
+		g.socket.Close()
+		g.socket = nil
+	}
+
 	// Set connecting state
 	g.stateManager.SetGSProStatus(core.GSProStatusConnecting)
+	g.lastConnectAttempt = time.Now()
 
 	addr := net.JoinHostPort(g.host, fmt.Sprintf("%d", g.port))
-	log.Printf("Connecting to GSPro server at %s", addr)
+	log.Printf("Connecting to GSPro server at %s (attempt %d, backoff: %v)", addr, g.reconnectAttempts+1, g.backoffDuration)
 
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
-		log.Printf("Error connecting to GSPro server: %v", err)
+		g.reconnectAttempts++
+		log.Printf("Error connecting to GSPro server: %v (attempt %d/%d)", err, g.reconnectAttempts, maxFailedAttempts)
 		g.stateManager.SetGSProError(fmt.Errorf("failed to connect: %v", err))
 		g.stateManager.SetGSProStatus(core.GSProStatusError)
+
+		// Exponential backoff
+		g.backoffDuration *= 2
+		if g.backoffDuration > maxBackoff {
+			g.backoffDuration = maxBackoff
+		}
+
 		return
+	}
+
+	// Enable TCP keepalive for better connection health detection
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		log.Println("TCP keepalive enabled on GSPro connection")
 	}
 
 	g.socket = conn
 	g.connected = true
-	log.Printf("Connected to GSPro server at %s", addr)
+
+	// Reset reconnection state on successful connection
+	g.reconnectAttempts = 0
+	g.backoffDuration = initialBackoff
+
+	log.Printf("Successfully connected to GSPro server at %s", addr)
 
 	// Start receiving messages in a goroutine
 	g.wg.Add(1)
@@ -97,25 +125,25 @@ func isValidJSON(s string) bool {
 func findJSONObjects(data []byte) ([]string, []byte) {
 	var validObjects []string
 	var remaining []byte
-	
+
 	// Skip any non-JSON leading characters
 	startIdx := bytes.IndexByte(data, '{')
 	if startIdx == -1 {
 		// No JSON object start found
 		return validObjects, data
 	}
-	
+
 	data = data[startIdx:]
 	remaining = data
-	
+
 	// Try to find JSON objects by testing increasing slices
 	for i := 1; i <= len(data); i++ {
 		candidateObj := string(data[:i])
-		
+
 		// Check for balanced braces as a quick heuristic before trying to parse JSON
 		if balancedBraces(candidateObj) && isValidJSON(candidateObj) {
 			validObjects = append(validObjects, candidateObj)
-			
+
 			// Process the rest of the buffer
 			if i < len(data) {
 				newObjects, newRemaining := findJSONObjects(data[i:])
@@ -128,7 +156,7 @@ func findJSONObjects(data []byte) ([]string, []byte) {
 			}
 		}
 	}
-	
+
 	return validObjects, remaining
 }
 
@@ -156,7 +184,7 @@ func (g *Integration) receiveMessages() {
 
 	buffer := make([]byte, 4096)
 	var messageBuffer []byte
-	
+
 	for g.running && g.connected {
 		g.socket.SetReadDeadline(time.Now().Add(10 * time.Second))
 
@@ -181,14 +209,14 @@ func (g *Integration) receiveMessages() {
 
 		// Append the received data to the message buffer
 		messageBuffer = append(messageBuffer, buffer[:n]...)
-		
+
 		// Find and process complete JSON objects
 		objects, remaining := findJSONObjects(messageBuffer)
 		for _, obj := range objects {
 			log.Printf("Received message from GSPro: %s", obj)
 			g.processMessage(obj)
 		}
-		
+
 		// Keep the remaining unprocessed data
 		messageBuffer = remaining
 	}
@@ -198,12 +226,59 @@ func (g *Integration) receiveMessages() {
 
 // connectionThread manages connection to GSPro
 func (g *Integration) connectionThread() {
+	firstAttemptTime := time.Now()
+
 	for g.running {
-		if !g.connected {
+		g.connectMutex.Lock()
+		connected := g.connected
+		autoReconnect := g.autoReconnect
+		reconnectAttempts := g.reconnectAttempts
+		backoff := g.backoffDuration
+		lastAttempt := g.lastConnectAttempt
+		g.connectMutex.Unlock()
+
+		if !connected && autoReconnect {
+			// Check if we've exceeded the maximum reconnection time
+			if time.Since(firstAttemptTime) > maxReconnectTime {
+				log.Printf("GSPro reconnection timeout: exceeded %v of reconnection attempts", maxReconnectTime)
+				log.Println("GSPro auto-reconnect disabled. Please reconnect manually via the web UI.")
+				g.DisableAutoReconnect()
+				g.stateManager.SetGSProError(fmt.Errorf("reconnection timeout: please reconnect manually"))
+				g.stateManager.SetGSProStatus(core.GSProStatusDisconnected)
+				continue
+			}
+
+			// Check if we've exceeded the maximum failed attempts
+			if reconnectAttempts >= maxFailedAttempts {
+				log.Printf("GSPro reconnection failed: exceeded %d connection attempts", maxFailedAttempts)
+				log.Println("GSPro auto-reconnect disabled. Please reconnect manually via the web UI.")
+				g.DisableAutoReconnect()
+				g.stateManager.SetGSProError(fmt.Errorf("too many failed attempts: please reconnect manually"))
+				g.stateManager.SetGSProStatus(core.GSProStatusDisconnected)
+				continue
+			}
+
+			// Apply exponential backoff
+			if !lastAttempt.IsZero() && time.Since(lastAttempt) < backoff {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// Attempt to connect
 			g.Connect(g.host, g.port)
+
+			// Reset timer if we successfully connected
+			g.connectMutex.Lock()
+			if g.connected {
+				firstAttemptTime = time.Now()
+			}
+			g.connectMutex.Unlock()
+		} else if connected {
+			// Reset timer when connected
+			firstAttemptTime = time.Now()
 		}
 
-		// Check connection every 5 seconds
-		time.Sleep(5 * time.Second)
+		// Check connection status regularly
+		time.Sleep(1 * time.Second)
 	}
 }

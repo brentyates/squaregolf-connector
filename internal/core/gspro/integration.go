@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/brentyates/squaregolf-connector/internal/core"
 )
@@ -15,20 +16,31 @@ var (
 
 // Integration handles communication with GSPro
 type Integration struct {
-	stateManager   *core.StateManager
-	launchMonitor  *core.LaunchMonitor
-	host           string
-	port           int
-	socket         net.Conn
-	connected      bool
-	running        bool
-	connectMutex   sync.Mutex
-	shotNumber     int
-	lastShotNumber int
-	shotListeners  []func(ShotData)
-	lastPlayerInfo *PlayerInfo
-	wg             sync.WaitGroup
+	stateManager       *core.StateManager
+	launchMonitor      *core.LaunchMonitor
+	host               string
+	port               int
+	socket             net.Conn
+	connected          bool
+	running            bool
+	autoReconnect      bool
+	connectMutex       sync.Mutex
+	shotNumber         int
+	lastShotNumber     int
+	shotListeners      []func(ShotData)
+	lastPlayerInfo     *PlayerInfo
+	wg                 sync.WaitGroup
+	reconnectAttempts  int
+	lastConnectAttempt time.Time
+	backoffDuration    time.Duration
 }
+
+const (
+	initialBackoff    = 5 * time.Second
+	maxBackoff        = 30 * time.Minute
+	maxReconnectTime  = 20 * time.Minute
+	maxFailedAttempts = 20
+)
 
 // GetInstance returns the singleton instance of GSProIntegration
 func GetInstance(stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, host string, port int) *Integration {
@@ -41,11 +53,13 @@ func GetInstance(stateManager *core.StateManager, launchMonitor *core.LaunchMoni
 		}
 
 		gsproInstance = &Integration{
-			stateManager:  stateManager,
-			launchMonitor: launchMonitor,
-			host:          host,
-			port:          port,
-			shotListeners: make([]func(ShotData), 0),
+			stateManager:    stateManager,
+			launchMonitor:   launchMonitor,
+			host:            host,
+			port:            port,
+			shotListeners:   make([]func(ShotData), 0),
+			autoReconnect:   true,
+			backoffDuration: initialBackoff,
 		}
 
 		// Register state listeners
@@ -89,4 +103,32 @@ func (g *Integration) Stop() {
 // GetConnectionInfo returns the current host and port configuration
 func (g *Integration) GetConnectionInfo() (string, int) {
 	return g.host, g.port
+}
+
+// EnableAutoReconnect enables automatic reconnection
+func (g *Integration) EnableAutoReconnect() {
+	g.connectMutex.Lock()
+	defer g.connectMutex.Unlock()
+	g.autoReconnect = true
+	g.reconnectAttempts = 0
+	g.backoffDuration = initialBackoff
+	log.Println("GSPro auto-reconnect enabled")
+}
+
+// DisableAutoReconnect disables automatic reconnection
+func (g *Integration) DisableAutoReconnect() {
+	g.connectMutex.Lock()
+	defer g.connectMutex.Unlock()
+	g.autoReconnect = false
+	log.Println("GSPro auto-reconnect disabled")
+}
+
+// ResetReconnectionState resets the reconnection attempt counter and backoff
+func (g *Integration) ResetReconnectionState() {
+	g.connectMutex.Lock()
+	defer g.connectMutex.Unlock()
+	g.reconnectAttempts = 0
+	g.backoffDuration = initialBackoff
+	g.lastConnectAttempt = time.Time{}
+	log.Println("GSPro reconnection state reset")
 }
