@@ -8,15 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-
 	"github.com/brentyates/squaregolf-connector/internal/core"
 	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 	"github.com/brentyates/squaregolf-connector/internal/logging"
-	"github.com/brentyates/squaregolf-connector/internal/ui/screens"
-	"github.com/brentyates/squaregolf-connector/internal/ui/theme"
 	"github.com/brentyates/squaregolf-connector/internal/web"
 )
 
@@ -26,7 +20,6 @@ type AppConfig struct {
 	DeviceName  string
 	Headless    bool
 	WebMode     bool
-	DesktopMode bool
 	WebPort     int
 	GSProIP     string
 	GSProPort   int
@@ -151,73 +144,6 @@ func setupHeadlessCallbacks(stateManager *core.StateManager) {
 	})
 }
 
-// startUI initializes and runs the graphical user interface
-func startUI(config AppConfig, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor) {
-	a := app.NewWithID("io.github.byates.squaregolf-connector")
-	a.Settings().SetTheme(theme.NewSquareTheme())
-	w := a.NewWindow(core.WindowTitle)
-	w.Resize(fyne.NewSize(800, 600))
-
-	// Create system menu
-	systemMenu := screens.NewSystemMenu(w)
-	mainMenu := fyne.NewMainMenu(
-		fyne.NewMenu("Help",
-			fyne.NewMenuItem("Submit Bug Report", systemMenu.ShowBugReport),
-			fyne.NewMenuItem("Open Log Directory", systemMenu.OpenLogDirectory),
-			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItem("About", systemMenu.ShowAbout),
-		),
-	)
-	w.SetMainMenu(mainMenu)
-
-	// Create navigation manager
-	navManager := screens.NewNavigationManager(w)
-
-	// Create and initialize screens
-	device := screens.NewDevice(w, stateManager, bluetoothManager, launchMonitor, config.DeviceName)
-	device.Initialize()
-
-	alignment := screens.NewAlignmentScreen(w, stateManager)
-	alignment.Initialize()
-
-	gspro := screens.NewGSProScreen(w, stateManager, bluetoothManager, config.GSProIP, config.GSProPort)
-	gspro.Initialize()
-
-	settings := screens.NewSettingsScreen(w, stateManager)
-	settings.Initialize()
-
-	// Add screens to navigation manager
-	navManager.AddScreen("device", device)
-	navManager.AddScreen("alignment", alignment)
-	navManager.AddScreen("gspro", gspro)
-	navManager.AddScreen("settings", settings)
-
-	// Update navigation sidebar
-	navManager.UpdateSidebar()
-
-	// Create main layout
-	mainContent := container.NewBorder(
-		nil,
-		nil, // Removed footer
-		navManager.GetSidebar(),
-		nil,
-		navManager.GetContent(),
-	)
-
-	// Set window content
-	w.SetContent(mainContent)
-
-	// Handle window close
-	w.SetOnClosed(func() {
-		bluetoothManager.DisconnectBluetooth()
-	})
-
-	// Show device by default
-	navManager.ShowScreen("device")
-
-	w.ShowAndRun()
-}
-
 // startCLI initializes and runs the command-line interface
 func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor) {
 	// Setup callbacks for headless mode
@@ -315,7 +241,6 @@ func main() {
 	useMock := flag.String("mock", "", "Mock mode: 'stub' for basic mock, 'simulate' for simulated device with realistic behavior, or empty for real hardware")
 	deviceName := flag.String("device", "", "Name of the Bluetooth device to connect to")
 	headless := flag.Bool("headless", false, "Run in headless CLI mode without UI")
-	desktopMode := flag.Bool("desktop", false, "Run in desktop UI mode instead of web")
 	webPort := flag.Int("web-port", 8080, "Port for web server")
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
@@ -327,8 +252,7 @@ func main() {
 		UseMock:     core.MockMode(*useMock),
 		DeviceName:  *deviceName,
 		Headless:    *headless,
-		WebMode:     !*desktopMode && !*headless, // Web is default unless desktop or headless specified
-		DesktopMode: *desktopMode,
+		WebMode:     !*headless,
 		WebPort:     *webPort,
 		GSProIP:     *gsproIP,
 		GSProPort:   *gsproPort,
@@ -341,11 +265,7 @@ func main() {
 	// Launch the appropriate interface based on mode
 	if config.Headless {
 		startCLI(config, stateManager, bluetoothManager, launchMonitor)
-	} else if config.DesktopMode {
-		// Only use Fyne UI if explicitly requested with -desktop flag
-		startUI(config, stateManager, bluetoothManager, launchMonitor)
 	} else {
-		// Web mode is now the default
 		startWebServer(config, stateManager, bluetoothManager, launchMonitor)
 	}
 }
