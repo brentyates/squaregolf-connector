@@ -62,7 +62,10 @@ func (m *Manager) onLastBallMetricsChanged(oldValue, newValue *core.BallMetrics)
 		return
 	}
 
-	// New shot detected, tell camera to stop recording and save the clip
-	log.Printf("Shot metrics received (ball speed: %.1f m/s), triggering camera shot-detected", newValue.BallSpeedMPS)
-	go m.ShotDetected() // Run in goroutine to avoid blocking
+	// Get club metrics (may be nil, which is fine)
+	clubMetrics := m.stateManager.GetLastClubMetrics()
+
+	// New shot detected, tell camera to stop recording and save the clip with metrics
+	log.Printf("Shot metrics received (ball speed: %.1f m/s), triggering camera shot-detected with metadata", newValue.BallSpeedMPS)
+	go m.ShotDetected(newValue, clubMetrics) // Run in goroutine to avoid blocking
 }

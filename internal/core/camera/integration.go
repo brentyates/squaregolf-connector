@@ -1,6 +1,8 @@
 package camera
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -133,8 +135,8 @@ func (m *Manager) Arm() error {
 	return nil
 }
 
-// ShotDetected sends the shot-detected command to the camera (fire and forget)
-func (m *Manager) ShotDetected() error {
+// ShotDetected sends the shot-detected command to the camera with ball and club metrics (fire and forget)
+func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics, clubMetrics *core.ClubMetrics) error {
 	m.mu.Lock()
 	baseURL := m.baseURL
 	enabled := m.enabled
@@ -145,8 +147,21 @@ func (m *Manager) ShotDetected() error {
 		return nil // Silent failure
 	}
 
+	// Prepare request payload with metrics
+	payload := ShotDetectedRequest{
+		BallMetrics: convertBallMetrics(ballMetrics),
+		ClubMetrics: convertClubMetrics(clubMetrics),
+	}
+
+	// Marshal payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal shot-detected payload: %v", err)
+		return nil // Silent failure
+	}
+
 	url := fmt.Sprintf("%s/api/lm/shot-detected", baseURL)
-	resp, err := m.httpClient.Post(url, "application/json", nil)
+	resp, err := m.httpClient.Post(url, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		log.Printf("Failed to send shot-detected to camera: %v", err)
 		return nil // Silent failure
@@ -159,7 +174,12 @@ func (m *Manager) ShotDetected() error {
 		return nil // Silent failure
 	}
 
-	log.Println("Camera shot-detected command sent successfully")
+	// Log success with metrics info
+	if payload.BallMetrics != nil {
+		log.Printf("Camera shot-detected command sent successfully with metrics (ball speed: %.1f mph)", payload.BallMetrics.BallSpeedMPH)
+	} else {
+		log.Println("Camera shot-detected command sent successfully (no metrics)")
+	}
 	return nil
 }
 
