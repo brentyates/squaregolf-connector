@@ -23,6 +23,7 @@ type AppState struct {
 	LastClubMetrics   *ClubMetrics
 	LastError         error
 	Club              *ClubType
+	ClubName          *string // Human-readable club name from GSPro (e.g., "Driver", "7-iron")
 	Handedness        *HandednessType
 	GSProStatus       GSProConnectionStatus
 	GSProError        error
@@ -283,6 +284,20 @@ func (sm *StateManager) SetClub(value *ClubType) {
 	for _, callback := range callbacks {
 		callback(oldValue, value)
 	}
+}
+
+// GetClubName returns the human-readable club name
+func (sm *StateManager) GetClubName() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.ClubName
+}
+
+// SetClubName sets the human-readable club name
+func (sm *StateManager) SetClubName(value *string) {
+	sm.mu.Lock()
+	sm.state.ClubName = value
+	sm.mu.Unlock()
 }
 
 // GetHandedness returns the current handedness

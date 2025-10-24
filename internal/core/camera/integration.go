@@ -270,6 +270,11 @@ func (m *Manager) UpdateMetadata(filename string, clubMetrics *core.ClubMetrics)
 		return nil
 	}
 
+	// Add club name from state manager (set by GSPro)
+	if clubName := m.stateManager.GetClubName(); clubName != nil {
+		clubData.ClubType = *clubName
+	}
+
 	// Marshal club data directly (no wrapper object)
 	payloadBytes, err := json.Marshal(clubData)
 	if err != nil {

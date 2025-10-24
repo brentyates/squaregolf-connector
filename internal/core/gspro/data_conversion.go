@@ -98,3 +98,52 @@ func (g *Integration) mapGSProClubToInternal(clubName string) *core.ClubType {
 	}
 	return nil
 }
+
+// mapGSProClubToFriendlyName converts GSPro club codes to short readable names for display
+func mapGSProClubToFriendlyName(clubCode string) string {
+	nameMap := map[string]string{
+		// Drivers and woods
+		"DR": "DR",
+		"W2": "2W",
+		"W3": "3W",
+		"W4": "4W",
+		"W5": "5W",
+		"W6": "6W",
+		"W7": "7W",
+
+		// Hybrids
+		"H2": "2H",
+		"H3": "3H",
+		"H4": "4H",
+		"H5": "5H",
+		"H6": "6H",
+		"H7": "7H",
+
+		// Irons
+		"I1": "1I",
+		"I2": "2I",
+		"I3": "3I",
+		"I4": "4I",
+		"I5": "5I",
+		"I6": "6I",
+		"I7": "7I",
+		"I8": "8I",
+		"I9": "9I",
+
+		// Wedges
+		"PW": "PW",
+		"AW": "AW",
+		"GW": "GW",
+		"SW": "SW",
+		"LW": "LW",
+
+		// Putter
+		"PT": "PUTT",
+	}
+
+	if name, ok := nameMap[clubCode]; ok {
+		return name
+	}
+	// Return the code itself if no mapping found
+	return clubCode
+}
