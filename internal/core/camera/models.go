@@ -17,39 +17,42 @@ type ArmResponse struct {
 	State   string `json:"state"`   // New state after arming
 }
 
-// ShotDetectedRequest represents the request body for POST /api/lm/shot-detected
-// Includes ball and club metrics to be saved with the video clip
-type ShotDetectedRequest struct {
-	BallMetrics *ShotBallMetrics `json:"ball_metrics,omitempty"`
-	ClubMetrics *ShotClubMetrics `json:"club_metrics,omitempty"`
+// BallData represents ball metrics sent to SwingCam (flat structure, camelCase)
+// Sent directly as request body to POST /api/lm/shot-detected
+type BallData struct {
+	BallSpeed       float64 `json:"ballSpeed,omitempty"`       // Ball speed in mph
+	LaunchAngle     float64 `json:"launchAngle,omitempty"`     // Vertical launch angle in degrees
+	LaunchDirection float64 `json:"launchDirection,omitempty"` // Horizontal direction in degrees
+	SpinRate        int     `json:"spinRate,omitempty"`        // Total spin rate in rpm
+	SpinAxis        float64 `json:"spinAxis,omitempty"`        // Spin axis tilt in degrees
+	BackSpin        int     `json:"backSpin,omitempty"`        // Back spin component in rpm
+	SideSpin        int     `json:"sideSpin,omitempty"`        // Side spin component in rpm
+	CarryDistance   float64 `json:"carryDistance,omitempty"`   // Carry distance (yards or meters)
+	TotalDistance   float64 `json:"totalDistance,omitempty"`   // Total distance with roll (yards or meters)
+	MaxHeight       float64 `json:"maxHeight,omitempty"`       // Apex height (yards or meters)
+	LandingAngle    float64 `json:"landingAngle,omitempty"`    // Descent angle at landing in degrees
+	HangTime        float64 `json:"hangTime,omitempty"`        // Time in air in seconds
 }
 
-// ShotBallMetrics represents ball metrics for a shot
-type ShotBallMetrics struct {
-	BallSpeedMPH    float64 `json:"ball_speed_mph,omitempty"`
-	BallSpeedMPS    float64 `json:"ball_speed_mps,omitempty"`
-	VerticalAngle   float64 `json:"vertical_angle,omitempty"`
-	HorizontalAngle float64 `json:"horizontal_angle,omitempty"`
-	TotalSpinRPM    int16   `json:"total_spin_rpm,omitempty"`
-	SpinAxis        float64 `json:"spin_axis,omitempty"`
-	BackspinRPM     int16   `json:"backspin_rpm,omitempty"`
-	SidespinRPM     int16   `json:"sidespin_rpm,omitempty"`
-}
-
-// ShotClubMetrics represents club metrics for a shot
-type ShotClubMetrics struct {
-	PathAngle        float64 `json:"path_angle,omitempty"`
-	FaceAngle        float64 `json:"face_angle,omitempty"`
-	AttackAngle      float64 `json:"attack_angle,omitempty"`
-	DynamicLoftAngle float64 `json:"dynamic_loft_angle,omitempty"`
+// ClubData represents club metrics sent to SwingCam (flat structure, camelCase)
+// Sent directly as request body to PATCH /api/recordings/{filename}/metadata
+type ClubData struct {
+	ClubSpeed    float64 `json:"clubSpeed,omitempty"`    // Club head speed in mph
+	ClubPath     float64 `json:"clubPath,omitempty"`     // Club path in degrees (+ = in-to-out, - = out-to-in)
+	FaceAngle    float64 `json:"faceAngle,omitempty"`    // Face angle at impact in degrees (+ = open, - = closed)
+	FaceToPath   float64 `json:"faceToPath,omitempty"`   // Face to path relationship in degrees
+	AttackAngle  float64 `json:"attackAngle,omitempty"`  // Attack angle in degrees (+ = up, - = down)
+	DynamicLoft  float64 `json:"dynamicLoft,omitempty"`  // Dynamic loft at impact in degrees
+	SmashFactor  float64 `json:"smashFactor,omitempty"`  // Smash factor (ball speed / club speed)
+	LowPoint     float64 `json:"lowPoint,omitempty"`     // Low point position (inches before/after ball)
+	ClubType     string  `json:"clubType,omitempty"`     // Club name (e.g., "Driver", "7-iron")
 }
 
 // ShotResponse represents the response from POST /api/lm/shot-detected
 type ShotResponse struct {
-	Success  bool   `json:"success"`            // Whether the shot detection succeeded
-	Message  string `json:"message"`            // Human-readable message
-	State    string `json:"state"`              // New state after shot detection
+	Status   string `json:"status"`             // Status: "success" or "error"
 	Filename string `json:"filename,omitempty"` // Filename of the saved video clip (if successful)
+	Message  string `json:"message,omitempty"`  // Human-readable message
 }
 
 // CancelResponse represents the response from POST /api/lm/cancel
@@ -59,32 +62,33 @@ type CancelResponse struct {
 	State   string `json:"state"`   // New state after cancellation
 }
 
-// convertBallMetrics converts core.BallMetrics to camera-specific ShotBallMetrics
-func convertBallMetrics(metrics *core.BallMetrics) *ShotBallMetrics {
+// convertBallMetrics converts core.BallMetrics to SwingCam BallData format
+func convertBallMetrics(metrics *core.BallMetrics) *BallData {
 	if metrics == nil {
 		return nil
 	}
-	return &ShotBallMetrics{
-		BallSpeedMPH:    metrics.BallSpeedMPS * 2.23694, // Convert m/s to mph
-		BallSpeedMPS:    metrics.BallSpeedMPS,
-		VerticalAngle:   metrics.VerticalAngle,
-		HorizontalAngle: metrics.HorizontalAngle,
-		TotalSpinRPM:    metrics.TotalspinRPM,
+	return &BallData{
+		BallSpeed:       metrics.BallSpeedMPS * 2.23694, // Convert m/s to mph
+		LaunchAngle:     metrics.VerticalAngle,
+		LaunchDirection: metrics.HorizontalAngle,
+		SpinRate:        int(metrics.TotalspinRPM),
 		SpinAxis:        metrics.SpinAxis,
-		BackspinRPM:     metrics.BackspinRPM,
-		SidespinRPM:     metrics.SidespinRPM,
+		BackSpin:        int(metrics.BackspinRPM),
+		SideSpin:        int(metrics.SidespinRPM),
+		// Note: CarryDistance, TotalDistance, MaxHeight, LandingAngle, HangTime not available from SquareGolf
 	}
 }
 
-// convertClubMetrics converts core.ClubMetrics to camera-specific ShotClubMetrics
-func convertClubMetrics(metrics *core.ClubMetrics) *ShotClubMetrics {
+// convertClubMetrics converts core.ClubMetrics to SwingCam ClubData format
+func convertClubMetrics(metrics *core.ClubMetrics) *ClubData {
 	if metrics == nil {
 		return nil
 	}
-	return &ShotClubMetrics{
-		PathAngle:        metrics.PathAngle,
-		FaceAngle:        metrics.FaceAngle,
-		AttackAngle:      metrics.AttackAngle,
-		DynamicLoftAngle: metrics.DynamicLoftAngle,
+	return &ClubData{
+		ClubPath:    metrics.PathAngle,
+		FaceAngle:   metrics.FaceAngle,
+		AttackAngle: metrics.AttackAngle,
+		DynamicLoft: metrics.DynamicLoftAngle,
+		// Note: ClubSpeed, FaceToPath, SmashFactor, LowPoint, ClubType not available from SquareGolf
 	}
 }

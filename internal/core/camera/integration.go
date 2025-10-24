@@ -138,8 +138,9 @@ func (m *Manager) Arm() error {
 	return nil
 }
 
-// ShotDetected sends the shot-detected command to the camera with ball and club metrics (fire and forget)
-func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics, clubMetrics *core.ClubMetrics) error {
+// ShotDetected sends the shot-detected command to the camera with ball metrics only (fire and forget)
+// Club metrics are sent separately via UpdateMetadata() when they arrive
+func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics) error {
 	m.mu.Lock()
 	baseURL := m.baseURL
 	enabled := m.enabled
@@ -150,16 +151,13 @@ func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics, clubMetrics *core.
 		return nil // Silent failure
 	}
 
-	// Prepare request payload with metrics
-	payload := ShotDetectedRequest{
-		BallMetrics: convertBallMetrics(ballMetrics),
-		ClubMetrics: convertClubMetrics(clubMetrics),
-	}
+	// Convert ball metrics to SwingCam format (flat structure)
+	ballData := convertBallMetrics(ballMetrics)
 
-	// Marshal payload to JSON
-	payloadBytes, err := json.Marshal(payload)
+	// Marshal ball data directly (no wrapper object)
+	payloadBytes, err := json.Marshal(ballData)
 	if err != nil {
-		log.Printf("Failed to marshal shot-detected payload: %v", err)
+		log.Printf("Failed to marshal ball data for shot-detected: %v", err)
 		return nil // Silent failure
 	}
 
@@ -193,10 +191,10 @@ func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics, clubMetrics *core.
 	}
 
 	// Log success with metrics info
-	if payload.BallMetrics != nil {
-		log.Printf("Camera shot-detected command sent successfully with ball metrics (ball speed: %.1f mph)", payload.BallMetrics.BallSpeedMPH)
+	if ballData != nil {
+		log.Printf("Camera shot-detected sent successfully with ball metrics (ball speed: %.1f mph)", ballData.BallSpeed)
 	} else {
-		log.Println("Camera shot-detected command sent successfully (no ball metrics)")
+		log.Println("Camera shot-detected sent successfully (no ball metrics)")
 	}
 	return nil
 }
@@ -232,6 +230,7 @@ func (m *Manager) Cancel() error {
 }
 
 // UpdateMetadata sends club metrics to update the metadata of a recorded video (fire and forget)
+// Sends club data directly (flat structure) via PATCH /api/recordings/{filename}/metadata
 func (m *Manager) UpdateMetadata(filename string, clubMetrics *core.ClubMetrics) error {
 	m.mu.Lock()
 	baseURL := m.baseURL
@@ -253,17 +252,17 @@ func (m *Manager) UpdateMetadata(filename string, clubMetrics *core.ClubMetrics)
 		return nil
 	}
 
-	// Convert club metrics to camera format
+	// Convert club metrics to SwingCam format (flat structure)
 	clubData := convertClubMetrics(clubMetrics)
 	if clubData == nil {
 		log.Println("Failed to convert club metrics")
 		return nil
 	}
 
-	// Marshal club data to JSON
+	// Marshal club data directly (no wrapper object)
 	payloadBytes, err := json.Marshal(clubData)
 	if err != nil {
-		log.Printf("Failed to marshal club metrics for metadata update: %v", err)
+		log.Printf("Failed to marshal club data for metadata update: %v", err)
 		return nil // Silent failure
 	}
 

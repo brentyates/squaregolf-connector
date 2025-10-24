@@ -42,7 +42,7 @@ func (m *Manager) onBallReadyChanged(oldValue, newValue bool) {
 }
 
 // onLastBallMetricsChanged handles last ball metrics changed event from state manager
-// When shot metrics are received, trigger shot-detected to save the recording
+// When shot metrics are received, trigger shot-detected to save the recording with ball data only
 func (m *Manager) onLastBallMetricsChanged(oldValue, newValue *core.BallMetrics) {
 	// Only act when metrics actually change
 	if oldValue == newValue {
@@ -63,12 +63,10 @@ func (m *Manager) onLastBallMetricsChanged(oldValue, newValue *core.BallMetrics)
 		return
 	}
 
-	// Get club metrics (may be nil, which is fine)
-	clubMetrics := m.stateManager.GetLastClubMetrics()
-
-	// New shot detected, tell camera to stop recording and save the clip with metrics
-	log.Printf("Shot metrics received (ball speed: %.1f m/s), triggering camera shot-detected with metadata", newValue.BallSpeedMPS)
-	go m.ShotDetected(newValue, clubMetrics) // Run in goroutine to avoid blocking
+	// New shot detected, tell camera to stop recording and save the clip with ball metrics only
+	// Club metrics will be sent separately via PATCH when they arrive
+	log.Printf("Ball metrics received (ball speed: %.1f m/s), triggering camera shot-detected", newValue.BallSpeedMPS)
+	go m.ShotDetected(newValue) // Run in goroutine to avoid blocking
 }
 
 // onLastClubMetricsChanged handles club metrics changed event from state manager
