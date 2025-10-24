@@ -20,11 +20,12 @@ var (
 
 // Manager handles communication with the swing camera via HTTP REST API
 type Manager struct {
-	stateManager *core.StateManager
-	baseURL      string
-	enabled      bool
-	httpClient   *http.Client
-	mu           sync.Mutex
+	stateManager    *core.StateManager
+	baseURL         string
+	enabled         bool
+	httpClient      *http.Client
+	pendingFilename string // Stores filename from shot-detected to update with club metrics later
+	mu              sync.Mutex
 }
 
 // GetInstance returns the singleton instance of CameraManager
@@ -110,6 +111,8 @@ func (m *Manager) Arm() error {
 	m.mu.Lock()
 	baseURL := m.baseURL
 	enabled := m.enabled
+	// Clear any pending filename from previous shot
+	m.pendingFilename = ""
 	m.mu.Unlock()
 
 	if !enabled {
@@ -174,11 +177,26 @@ func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics, clubMetrics *core.
 		return nil // Silent failure
 	}
 
+	// Parse response to get filename for potential club metrics update later
+	var shotResponse ShotResponse
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Failed to read shot-detected response: %v", err)
+	} else if err := json.Unmarshal(body, &shotResponse); err != nil {
+		log.Printf("Failed to parse shot-detected response: %v", err)
+	} else if shotResponse.Filename != "" {
+		// Store filename for potential club metrics update
+		m.mu.Lock()
+		m.pendingFilename = shotResponse.Filename
+		m.mu.Unlock()
+		log.Printf("Camera shot-detected successful, filename: %s (pending club metrics)", shotResponse.Filename)
+	}
+
 	// Log success with metrics info
 	if payload.BallMetrics != nil {
-		log.Printf("Camera shot-detected command sent successfully with metrics (ball speed: %.1f mph)", payload.BallMetrics.BallSpeedMPH)
+		log.Printf("Camera shot-detected command sent successfully with ball metrics (ball speed: %.1f mph)", payload.BallMetrics.BallSpeedMPH)
 	} else {
-		log.Println("Camera shot-detected command sent successfully (no metrics)")
+		log.Println("Camera shot-detected command sent successfully (no ball metrics)")
 	}
 	return nil
 }
@@ -210,5 +228,66 @@ func (m *Manager) Cancel() error {
 	}
 
 	log.Println("Camera cancel command sent successfully")
+	return nil
+}
+
+// UpdateMetadata sends club metrics to update the metadata of a recorded video (fire and forget)
+func (m *Manager) UpdateMetadata(filename string, clubMetrics *core.ClubMetrics) error {
+	m.mu.Lock()
+	baseURL := m.baseURL
+	enabled := m.enabled
+	m.mu.Unlock()
+
+	if !enabled {
+		log.Println("Camera integration disabled, skipping metadata update")
+		return nil // Silent failure
+	}
+
+	if filename == "" {
+		log.Println("No filename available for metadata update")
+		return nil
+	}
+
+	if clubMetrics == nil {
+		log.Println("No club metrics available for metadata update")
+		return nil
+	}
+
+	// Convert club metrics to camera format
+	clubData := convertClubMetrics(clubMetrics)
+	if clubData == nil {
+		log.Println("Failed to convert club metrics")
+		return nil
+	}
+
+	// Marshal club data to JSON
+	payloadBytes, err := json.Marshal(clubData)
+	if err != nil {
+		log.Printf("Failed to marshal club metrics for metadata update: %v", err)
+		return nil // Silent failure
+	}
+
+	url := fmt.Sprintf("%s/api/recordings/%s/metadata", baseURL, filename)
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		log.Printf("Failed to create metadata update request: %v", err)
+		return nil // Silent failure
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		log.Printf("Failed to send metadata update to camera: %v", err)
+		return nil // Silent failure
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Camera metadata update request failed: %d - %s", resp.StatusCode, string(body))
+		return nil // Silent failure
+	}
+
+	log.Printf("Camera metadata updated successfully for %s with club data", filename)
 	return nil
 }
