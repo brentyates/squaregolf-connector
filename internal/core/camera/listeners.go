@@ -70,7 +70,7 @@ func (m *Manager) onLastBallMetricsChanged(oldValue, newValue *core.BallMetrics)
 }
 
 // onLastClubMetricsChanged handles club metrics changed event from state manager
-// When club metrics are received, update the pending recording's metadata
+// When club metrics are received, update the pending recording's metadata or buffer them
 func (m *Manager) onLastClubMetricsChanged(oldValue, newValue *core.ClubMetrics) {
 	// Only act when metrics actually change
 	if oldValue == newValue {
@@ -92,13 +92,18 @@ func (m *Manager) onLastClubMetricsChanged(oldValue, newValue *core.ClubMetrics)
 		return
 	}
 
-	// Only update if we have a pending filename from a recent shot-detected
+	// Check if we have a filename yet
 	if pendingFilename == "" {
-		log.Println("Club metrics received but no pending filename for metadata update")
+		// Filename not available yet (race condition - club metrics arrived before shot-detected response)
+		// Buffer the metrics for when the filename arrives
+		m.mu.Lock()
+		m.pendingClubMetrics = newValue
+		m.mu.Unlock()
+		log.Println("Club metrics received before filename, buffering for when shot-detected response arrives")
 		return
 	}
 
-	// Send PATCH request to update metadata with club data
+	// We have a filename, send PATCH request to update metadata with club data
 	log.Printf("Club metrics received, updating metadata for %s", pendingFilename)
 	go m.UpdateMetadata(pendingFilename, newValue) // Run in goroutine to avoid blocking
 }

@@ -20,12 +20,13 @@ var (
 
 // Manager handles communication with the swing camera via HTTP REST API
 type Manager struct {
-	stateManager    *core.StateManager
-	baseURL         string
-	enabled         bool
-	httpClient      *http.Client
-	pendingFilename string // Stores filename from shot-detected to update with club metrics later
-	mu              sync.Mutex
+	stateManager        *core.StateManager
+	baseURL             string
+	enabled             bool
+	httpClient          *http.Client
+	pendingFilename     string              // Stores filename from shot-detected to update with club metrics later
+	pendingClubMetrics  *core.ClubMetrics   // Buffers club metrics that arrive before shot-detected response
+	mu                  sync.Mutex
 }
 
 // GetInstance returns the singleton instance of CameraManager
@@ -111,8 +112,9 @@ func (m *Manager) Arm() error {
 	m.mu.Lock()
 	baseURL := m.baseURL
 	enabled := m.enabled
-	// Clear any pending filename from previous shot
+	// Clear any pending state from previous shot
 	m.pendingFilename = ""
+	m.pendingClubMetrics = nil
 	m.mu.Unlock()
 
 	if !enabled {
@@ -183,11 +185,20 @@ func (m *Manager) ShotDetected(ballMetrics *core.BallMetrics) error {
 	} else if err := json.Unmarshal(body, &shotResponse); err != nil {
 		log.Printf("Failed to parse shot-detected response: %v", err)
 	} else if shotResponse.Filename != "" {
-		// Store filename for potential club metrics update
+		// Store filename and check for buffered club metrics
 		m.mu.Lock()
 		m.pendingFilename = shotResponse.Filename
+		bufferedClubMetrics := m.pendingClubMetrics
+		m.pendingClubMetrics = nil // Clear buffer after retrieving
 		m.mu.Unlock()
-		log.Printf("Camera shot-detected successful, filename: %s (pending club metrics)", shotResponse.Filename)
+
+		log.Printf("Camera shot-detected successful, filename: %s", shotResponse.Filename)
+
+		// If club metrics arrived before the filename (race condition), send them now
+		if bufferedClubMetrics != nil {
+			log.Printf("Applying buffered club metrics to %s", shotResponse.Filename)
+			go m.UpdateMetadata(shotResponse.Filename, bufferedClubMetrics)
+		}
 	}
 
 	// Log success with metrics info
