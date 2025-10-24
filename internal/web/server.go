@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/brentyates/squaregolf-connector/internal/config"
 	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/camera"
 	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -19,6 +21,7 @@ type Server struct {
 	bluetoothManager *core.BluetoothManager
 	launchMonitor    *core.LaunchMonitor
 	gsproIntegration *gspro.Integration
+	cameraManager    *camera.Manager
 	upgrader         websocket.Upgrader
 	clients          map[*websocket.Conn]bool
 	broadcast        chan []byte
@@ -51,6 +54,11 @@ type GSProStatus struct {
 	LastError        string `json:"lastError"`
 }
 
+type CameraConfig struct {
+	URL     string `json:"url"`
+	Enabled bool   `json:"enabled"`
+}
+
 type AppSettings struct {
 	DeviceName       string `json:"deviceName"`
 	AutoConnect      bool   `json:"autoConnect"`
@@ -60,7 +68,7 @@ type AppSettings struct {
 	GSProAutoConnect bool   `json:"gsproAutoConnect"`
 }
 
-func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, gsproIP string, gsproPort int) *Server {
+func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, cameraManager *camera.Manager, gsproIP string, gsproPort int) *Server {
 	// Get GSPro integration
 	gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
 
@@ -69,6 +77,7 @@ func NewServer(stateManager *core.StateManager, bluetoothManager *core.Bluetooth
 		bluetoothManager: bluetoothManager,
 		launchMonitor:    launchMonitor,
 		gsproIntegration: gsproIntegration,
+		cameraManager:    cameraManager,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for development
@@ -132,6 +141,14 @@ func (s *Server) setupCallbacks() {
 
 	s.stateManager.RegisterGSProStatusCallback(func(oldValue, newValue core.GSProConnectionStatus) {
 		s.broadcastGSProStatus()
+	})
+
+	s.stateManager.RegisterCameraURLCallback(func(oldValue, newValue *string) {
+		s.broadcastCameraConfig()
+	})
+
+	s.stateManager.RegisterCameraEnabledCallback(func(oldValue, newValue bool) {
+		s.broadcastCameraConfig()
 	})
 }
 
@@ -213,14 +230,15 @@ func (s *Server) getGSProStatus() GSProStatus {
 		connectionStatus = "error"
 	}
 
-	// Get current GSPro settings from integration
+	// Get current GSPro settings from integration and config
 	ip, port := s.gsproIntegration.GetConnectionInfo()
+	settings := config.GetInstance().GetSettings()
 
 	return GSProStatus{
 		ConnectionStatus: connectionStatus,
 		IP:               ip,
 		Port:             port,
-		AutoConnect:      false, // TODO: Get from preferences
+		AutoConnect:      settings.GSProAutoConnect,
 		LastError:        lastErrorStr,
 	}
 }
@@ -244,6 +262,9 @@ func (s *Server) Start(port int) error {
 	api.HandleFunc("/gspro/connect", s.handleGSProConnect).Methods("POST")
 	api.HandleFunc("/gspro/disconnect", s.handleGSProDisconnect).Methods("POST")
 	api.HandleFunc("/gspro/config", s.handleGSProConfig).Methods("GET", "POST")
+
+	// Camera endpoints
+	api.HandleFunc("/camera/config", s.handleCameraConfig).Methods("GET", "POST")
 
 	// Settings endpoints
 	api.HandleFunc("/settings", s.handleSettings).Methods("GET", "POST")
@@ -297,6 +318,12 @@ func (s *Server) sendInitialStatus(conn *websocket.Conn) {
 	// Send GSPro status
 	gsproStatus := s.getGSProStatus()
 	msg = WSMessage{Type: "gsproStatus", Data: gsproStatus}
+	data, _ = json.Marshal(msg)
+	conn.WriteMessage(websocket.TextMessage, data)
+
+	// Send camera config
+	cameraConfig := s.getCameraConfig()
+	msg = WSMessage{Type: "cameraConfig", Data: cameraConfig}
 	data, _ = json.Marshal(msg)
 	conn.WriteMessage(websocket.TextMessage, data)
 }
@@ -361,56 +388,72 @@ func (s *Server) handleGSProDisconnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGSProConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		ip, port := s.gsproIntegration.GetConnectionInfo()
-		config := struct {
+		settings := config.GetInstance().GetSettings()
+		configData := struct {
 			IP          string `json:"ip"`
 			Port        int    `json:"port"`
 			AutoConnect bool   `json:"autoConnect"`
 		}{
 			IP:          ip,
 			Port:        port,
-			AutoConnect: false, // TODO: Get from preferences
+			AutoConnect: settings.GSProAutoConnect,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(config)
+		json.NewEncoder(w).Encode(configData)
 	} else {
-		var config struct {
+		var configData struct {
 			IP          string `json:"ip"`
 			Port        int    `json:"port"`
 			AutoConnect bool   `json:"autoConnect"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&configData); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		// TODO: Save preferences
+
+		// Save GSPro settings
+		cfg := config.GetInstance()
+		cfg.SetGSProIP(configData.IP)
+		cfg.SetGSProPort(configData.Port)
+		cfg.SetGSProAutoConnect(configData.AutoConnect)
+
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		spinMode := "advanced"
-		if sm := s.stateManager.GetSpinMode(); sm != nil && *sm == core.Standard {
-			spinMode = "standard"
-		}
+		settings := config.GetInstance().GetSettings()
 
-		settings := AppSettings{
-			DeviceName:  "",   // TODO: Get from preferences
-			AutoConnect: true, // TODO: Get from preferences
-			SpinMode:    spinMode,
+		appSettings := AppSettings{
+			DeviceName:       settings.DeviceName,
+			AutoConnect:      settings.AutoConnect,
+			SpinMode:         settings.SpinMode,
+			GSProIP:          settings.GSProIP,
+			GSProPort:        settings.GSProPort,
+			GSProAutoConnect: settings.GSProAutoConnect,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(settings)
+		json.NewEncoder(w).Encode(appSettings)
 	} else {
-		var settings AppSettings
-		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		var appSettings AppSettings
+		if err := json.NewDecoder(r.Body).Decode(&appSettings); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		// Update spin mode
+		// Update settings in config manager
+		cfg := config.GetInstance()
+		cfg.SetDeviceName(appSettings.DeviceName)
+		cfg.SetAutoConnect(appSettings.AutoConnect)
+		cfg.SetSpinMode(appSettings.SpinMode)
+		cfg.SetGSProIP(appSettings.GSProIP)
+		cfg.SetGSProPort(appSettings.GSProPort)
+		cfg.SetGSProAutoConnect(appSettings.GSProAutoConnect)
+
+		// Update spin mode in state manager
 		var spinMode core.SpinMode
-		if settings.SpinMode == "standard" {
+		if appSettings.SpinMode == "standard" {
 			spinMode = core.Standard
 		} else {
 			spinMode = core.Advanced
@@ -419,4 +462,54 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func (s *Server) getCameraConfig() CameraConfig {
+	url := "http://localhost:5000"
+	if cameraURL := s.stateManager.GetCameraURL(); cameraURL != nil {
+		url = *cameraURL
+	}
+
+	enabled := s.stateManager.GetCameraEnabled()
+
+	return CameraConfig{
+		URL:     url,
+		Enabled: enabled,
+	}
+}
+
+func (s *Server) handleCameraConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		cameraConfig := s.getCameraConfig()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cameraConfig)
+	} else {
+		var cameraConfig CameraConfig
+		if err := json.NewDecoder(r.Body).Decode(&cameraConfig); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Save camera settings to config
+		cfg := config.GetInstance()
+		cfg.SetCameraURL(cameraConfig.URL)
+		cfg.SetCameraEnabled(cameraConfig.Enabled)
+
+		// Update camera URL and enabled state in state manager
+		s.stateManager.SetCameraURL(&cameraConfig.URL)
+		s.stateManager.SetCameraEnabled(cameraConfig.Enabled)
+
+		// Update camera manager
+		s.cameraManager.SetBaseURL(cameraConfig.URL)
+		s.cameraManager.SetEnabled(cameraConfig.Enabled)
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) broadcastCameraConfig() {
+	config := s.getCameraConfig()
+	msg := WSMessage{Type: "cameraConfig", Data: config}
+	data, _ := json.Marshal(msg)
+	s.broadcast <- data
 }

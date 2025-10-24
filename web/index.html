@@ -29,6 +29,10 @@
                     <span class="material-icons">computer</span>
                     GSPro
                 </button>
+                <button class="nav-button" data-screen="camera">
+                    <span class="material-icons">videocam</span>
+                    Camera
+                </button>
                 <button class="nav-button" data-screen="alignment">
                     <span class="material-icons">tune</span>
                     Alignment
@@ -215,6 +219,51 @@
                                     </ul>
                                 </li>
                             </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Screen -->
+            <div class="screen" id="cameraScreen">
+                <div class="screen-header">
+                    <h1>Swing Camera</h1>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Camera Configuration</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="form-group">
+                            <label for="cameraURL">Camera URL:</label>
+                            <input type="text" id="cameraURL" class="input-field" value="http://localhost:5000" placeholder="http://localhost:5000">
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="cameraEnabled">
+                                Enable camera integration
+                            </label>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="cameraSaveBtn">Save Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>How It Works</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="camera-info">
+                            <p>The camera integration automatically:</p>
+                            <ul>
+                                <li><strong>Arms the camera</strong> when the ball is detected and ready</li>
+                                <li><strong>Triggers recording</strong> when shot metrics are received</li>
+                                <li><strong>Cancels recording</strong> if the ball is removed before a shot</li>
+                            </ul>
+                            <p class="info-note">⚠️ Make sure your camera server is running and accessible at the configured URL.</p>
                         </div>
                     </div>
                 </div>

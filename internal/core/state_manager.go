@@ -27,6 +27,8 @@ type AppState struct {
 	GSProStatus       GSProConnectionStatus
 	GSProError        error
 	SpinMode          *SpinMode
+	CameraURL         *string
+	CameraEnabled     bool
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -50,6 +52,8 @@ type StateManager struct {
 		GSProStatus       []StateCallback[GSProConnectionStatus]
 		GSProError        []StateCallback[error]
 		SpinMode          []StateCallback[*SpinMode]
+		CameraURL         []StateCallback[*string]
+		CameraEnabled     []StateCallback[bool]
 	}
 	mu sync.RWMutex
 }
@@ -70,11 +74,14 @@ func GetInstance() *StateManager {
 
 // initialize sets up the default state values
 func (sm *StateManager) initialize() {
+	defaultCameraURL := "http://localhost:5000"
 	sm.state = AppState{
 		ConnectionStatus: ConnectionStatusDisconnected,
 		BallDetected:     false,
 		BallReady:        false,
 		GSProStatus:      GSProStatusDisconnected,
+		CameraURL:        &defaultCameraURL,
+		CameraEnabled:    false,
 	}
 }
 
@@ -454,4 +461,58 @@ func (sm *StateManager) RegisterSpinModeCallback(callback StateCallback[*SpinMod
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.SpinMode = append(sm.callbacks.SpinMode, callback)
+}
+
+// GetCameraURL returns the camera URL
+func (sm *StateManager) GetCameraURL() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.CameraURL
+}
+
+// SetCameraURL sets the camera URL
+func (sm *StateManager) SetCameraURL(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.CameraURL
+	sm.state.CameraURL = value
+	callbacks := sm.callbacks.CameraURL
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// GetCameraEnabled returns whether camera integration is enabled
+func (sm *StateManager) GetCameraEnabled() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.CameraEnabled
+}
+
+// SetCameraEnabled sets whether camera integration is enabled
+func (sm *StateManager) SetCameraEnabled(value bool) {
+	sm.mu.Lock()
+	oldValue := sm.state.CameraEnabled
+	sm.state.CameraEnabled = value
+	callbacks := sm.callbacks.CameraEnabled
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterCameraURLCallback registers a callback for camera URL changes
+func (sm *StateManager) RegisterCameraURLCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.CameraURL = append(sm.callbacks.CameraURL, callback)
+}
+
+// RegisterCameraEnabledCallback registers a callback for camera enabled changes
+func (sm *StateManager) RegisterCameraEnabledCallback(callback StateCallback[bool]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.CameraEnabled = append(sm.callbacks.CameraEnabled, callback)
 }

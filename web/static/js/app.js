@@ -5,8 +5,9 @@ class SquareGolfApp {
         this.currentScreen = 'device';
         this.deviceStatus = null;
         this.gsproStatus = null;
+        this.cameraConfig = null;
         this.settings = {};
-        
+
         this.init();
     }
 
@@ -37,6 +38,9 @@ class SquareGolfApp {
         document.getElementById('gsproIP').addEventListener('change', () => this.saveGSProConfig());
         document.getElementById('gsproPort').addEventListener('change', () => this.saveGSProConfig());
         document.getElementById('gsproAutoConnect').addEventListener('change', () => this.saveGSProConfig());
+
+        // Camera controls
+        document.getElementById('cameraSaveBtn').addEventListener('click', () => this.saveCameraConfig());
 
         // Alignment controls
         document.getElementById('startCalibrationBtn').addEventListener('click', () => this.startCalibration());
@@ -118,6 +122,9 @@ class SquareGolfApp {
                 break;
             case 'gsproStatus':
                 this.updateGSProStatus(message.data);
+                break;
+            case 'cameraConfig':
+                this.updateCameraConfig(message.data);
                 break;
             default:
                 console.log('Unknown WebSocket message type:', message.type);
@@ -484,19 +491,62 @@ class SquareGolfApp {
         const ip = document.getElementById('gsproIP').value.trim();
         const port = parseInt(document.getElementById('gsproPort').value);
         const autoConnect = document.getElementById('gsproAutoConnect').checked;
-        
+
         try {
             const response = await fetch('/api/gspro/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ip, port, autoConnect })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Failed to save config: ${response.statusText}`);
             }
         } catch (error) {
             this.showToast(`Failed to save GSPro config: ${error.message}`, 'error');
+        }
+    }
+
+    // Camera functions
+    async saveCameraConfig() {
+        const url = document.getElementById('cameraURL').value.trim();
+        const enabled = document.getElementById('cameraEnabled').checked;
+
+        if (!url) {
+            this.showToast('Please enter a valid camera URL', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/camera/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, enabled })
+            });
+
+            if (response.ok) {
+                this.showToast('Camera settings saved successfully', 'success');
+            } else {
+                throw new Error(`Failed to save config: ${response.statusText}`);
+            }
+        } catch (error) {
+            this.showToast(`Failed to save camera config: ${error.message}`, 'error');
+        }
+    }
+
+    updateCameraConfig(config) {
+        this.cameraConfig = config;
+
+        // Update UI elements
+        const urlField = document.getElementById('cameraURL');
+        const enabledCheckbox = document.getElementById('cameraEnabled');
+
+        if (urlField && config.url) {
+            urlField.value = config.url;
+        }
+
+        if (enabledCheckbox) {
+            enabledCheckbox.checked = config.enabled;
         }
     }
 
