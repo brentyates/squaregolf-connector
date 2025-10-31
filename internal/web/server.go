@@ -37,6 +37,7 @@ type DeviceStatus struct {
 	ConnectionStatus string               `json:"connectionStatus"`
 	DeviceName       *string              `json:"deviceName"`
 	BatteryLevel     *int                 `json:"batteryLevel"`
+	FirmwareVersion  *string              `json:"firmwareVersion"`
 	BallDetected     bool                 `json:"ballDetected"`
 	BallReady        bool                 `json:"ballReady"`
 	BallPosition     *core.BallPosition   `json:"ballPosition"`
@@ -171,6 +172,10 @@ func (s *Server) setupCallbacks() {
 	s.stateManager.RegisterIsAlignedCallback(func(oldValue, newValue bool) {
 		s.broadcastDeviceStatus()
 	})
+
+	s.stateManager.RegisterFirmwareVersionCallback(func(oldValue, newValue *string) {
+		s.broadcastDeviceStatus()
+	})
 }
 
 func (s *Server) handleMessages() {
@@ -224,6 +229,7 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 		ConnectionStatus: connectionStatus,
 		DeviceName:       s.stateManager.GetDeviceDisplayName(),
 		BatteryLevel:     s.stateManager.GetBatteryLevel(),
+		FirmwareVersion:  s.stateManager.GetFirmwareVersion(),
 		BallDetected:     s.stateManager.GetBallDetected(),
 		BallReady:        s.stateManager.GetBallReady(),
 		BallPosition:     s.stateManager.GetBallPosition(),

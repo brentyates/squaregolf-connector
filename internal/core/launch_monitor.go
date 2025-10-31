@@ -93,6 +93,11 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 				// Heartbeat from the device
 				return
 			}
+			// OS Version response (format 11 10)
+			if bytesList[0] == "11" && bytesList[1] == "10" {
+				lm.HandleOSVersionNotification(bytesList)
+				return
+			}
 			// Shot Club Metrics (format 11 07 0f)
 			if bytesList[0] == "11" && bytesList[1] == "07" && bytesList[2] == "0f" {
 				lm.HandleShotClubMetrics(bytesList)
@@ -407,9 +412,18 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 		}
 	})
 
-	// Register for connection status changes to handle disconnects
+	// Register for connection status changes to handle disconnects and connection setup
 	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
-		if newValue == ConnectionStatusDisconnected {
+		if newValue == ConnectionStatusConnected && oldValue != ConnectionStatusConnected {
+			// When Bluetooth connects, request firmware version
+			go func() {
+				// Add a small delay to ensure notifications are ready
+				time.Sleep(100 * time.Millisecond)
+				if err := lm.RequestFirmwareVersion(); err != nil {
+					log.Printf("LaunchMonitor: Failed to request firmware version: %v", err)
+				}
+			}()
+		} else if newValue == ConnectionStatusDisconnected {
 			// When Bluetooth disconnects, reset ball detection state
 			lm.HandleBluetoothDisconnect()
 		}
@@ -482,4 +496,40 @@ func (lm *LaunchMonitor) StopAlignment() error {
 	lm.stateManager.SetAlignmentAngle(0)
 	lm.stateManager.SetIsAligned(false)
 	return nil
+}
+
+// RequestFirmwareVersion requests the device firmware version
+func (lm *LaunchMonitor) RequestFirmwareVersion() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	seq := lm.getNextSequence()
+	command := GetOSVersionCommand(seq)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to request firmware version: %w", err)
+	}
+
+	log.Printf("Firmware version requested with command: %s", command)
+	return nil
+}
+
+// HandleOSVersionNotification handles OS version response notifications (format 11 10)
+func (lm *LaunchMonitor) HandleOSVersionNotification(bytesList []string) {
+	// Format: 11 10 {major} {minor}
+	// Example: 11 10 01 06 = version 1.6
+	if len(bytesList) < 4 {
+		log.Printf("Invalid OS version notification format, expected at least 4 bytes, got %d", len(bytesList))
+		return
+	}
+
+	major := bytesList[2]
+	minor := bytesList[3]
+	version := fmt.Sprintf("%s.%s", major, minor)
+
+	log.Printf("Device firmware version: %s", version)
+
+	// Update state manager
+	lm.stateManager.SetFirmwareVersion(&version)
 }

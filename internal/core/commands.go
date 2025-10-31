@@ -60,3 +60,8 @@ func StopAlignmentCommand(sequence int, targetAngle float64) string {
 func RequestClubMetricsCommand(sequence int) string {
 	return fmt.Sprintf("1187%02x000000000000", sequence)
 }
+
+// GetOSVersionCommand generates firmware version request command (command ID 1192/0x92)
+func GetOSVersionCommand(sequence int) string {
+	return fmt.Sprintf("1192%02x0000000000", sequence)
+}

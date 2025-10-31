@@ -33,6 +33,7 @@ type AppState struct {
 	IsAligning        bool    // Whether alignment mode UI is active
 	AlignmentAngle    float64 // Current aim angle in degrees (left negative, right positive)
 	IsAligned         bool    // Whether device is currently aligned (within tolerance)
+	FirmwareVersion   *string // Device firmware version (e.g., "1.6.18")
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -61,6 +62,7 @@ type StateManager struct {
 		IsAligning        []StateCallback[bool]
 		AlignmentAngle    []StateCallback[float64]
 		IsAligned         []StateCallback[bool]
+		FirmwareVersion   []StateCallback[*string]
 	}
 	mu sync.RWMutex
 }
@@ -620,4 +622,31 @@ func (sm *StateManager) RegisterIsAlignedCallback(callback StateCallback[bool]) 
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.IsAligned = append(sm.callbacks.IsAligned, callback)
+}
+
+// GetFirmwareVersion returns the device firmware version
+func (sm *StateManager) GetFirmwareVersion() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.FirmwareVersion
+}
+
+// SetFirmwareVersion sets the device firmware version
+func (sm *StateManager) SetFirmwareVersion(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.FirmwareVersion
+	sm.state.FirmwareVersion = value
+	callbacks := sm.callbacks.FirmwareVersion
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterFirmwareVersionCallback registers a callback for firmware version changes
+func (sm *StateManager) RegisterFirmwareVersionCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.FirmwareVersion = append(sm.callbacks.FirmwareVersion, callback)
 }

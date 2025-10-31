@@ -436,6 +436,23 @@ func (s *SimulatorBluetoothClient) handleCommandData(data []byte) {
 		return
 	}
 
+	// Check if this is a firmware version request command (0x11, 0x92)
+	if len(data) > 1 && data[0] == 0x11 && data[1] == 0x92 {
+		log.Println("Simulator: Received request for firmware version")
+
+		// Send firmware version response (format: 11 10 {major} {minor})
+		// Simulating version 1.6
+		handler := s.notifyHandlers[NotificationCharUUID]
+		if handler != nil {
+			response := []byte{0x11, 0x10, 0x01, 0x06}
+			handler(response)
+			log.Println("Simulator: Sent firmware version 1.6")
+		} else {
+			log.Println("Simulator: No notification handler registered for firmware version")
+		}
+		return
+	}
+
 	// Check if this is a club metrics request command (0x11, 0x87)
 	if len(data) > 1 && data[0] == 0x11 && data[1] == 0x87 {
 		log.Println("Simulator: Received request for club metrics")

@@ -313,7 +313,11 @@ class SquareGolfApp {
         if (status.batteryLevel !== null) {
             document.getElementById('batteryLevel').textContent = `${status.batteryLevel}%`;
         }
-        
+
+        if (status.firmwareVersion !== null) {
+            document.getElementById('firmwareVersion').textContent = status.firmwareVersion;
+        }
+
         // Update ball status
         this.updateBallStatus('ballDetected', status.ballDetected);
         this.updateBallStatus('ballReady', status.ballReady);
