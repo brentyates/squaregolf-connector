@@ -15,12 +15,15 @@
 ### 2. State Management (`internal/core/state_manager.go`)
 - ✅ Added `IsAligning bool` to AppState - tracks whether alignment mode is active in UI
 - ✅ Added `AlignmentAngle float64` to AppState - current aim angle
+- ✅ Added `IsAligned bool` to AppState - whether device is within tolerance
 - ✅ Added getter/setter methods:
   - `GetIsAligning()` / `SetIsAligning()`
   - `GetAlignmentAngle()` / `SetAlignmentAngle()`
+  - `GetIsAligned()` / `SetIsAligned()`
 - ✅ Added callback registration:
   - `RegisterIsAligningCallback()`
   - `RegisterAlignmentAngleCallback()`
+  - `RegisterIsAlignedCallback()`
 
 ### 3. Notification Handling (`internal/core/launch_monitor.go`)
 - ✅ Added alignment notification detection (format: `11 82`)
@@ -55,17 +58,23 @@
 ### 2. Frontend Implementation
 **Status:** 🟡 IN PROGRESS
 
+**UI Behavior:**
+- When user navigates to Alignment tab → automatically start alignment mode (`IsAligning = true`)
+- When user leaves Alignment tab → automatically stop alignment mode (`IsAligning = false`)
+- Device will stream alignment data only while `IsAligning = true`
+
 **Web UI Files to Update:**
 - [ ] `web/static/js/app.js`:
   - Add alignment data handling in WebSocket message handler
   - Create `updateAlignmentData(data)` method
-  - Handle `isAligning` and `alignmentAngle` state
+  - Handle `isAligning`, `alignmentAngle`, and `isAligned` state
+  - Auto-start alignment on tab show, auto-stop on tab hide
 
 - [ ] `web/index.html` - Alignment screen section:
   - Add numeric angle display ("Aimed 12.3° right")
   - Add visual compass indicator (SVG/Canvas)
-  - Add Start/Stop Alignment buttons
-  - Add alignment status indicator
+  - Add alignment status indicator (green checkmark when `isAligned = true`)
+  - No manual Start/Stop buttons needed (auto-controlled by tab navigation)
 
 - [ ] `web/static/css/style.css`:
   - Style compass visual indicator
