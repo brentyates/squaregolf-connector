@@ -819,18 +819,10 @@ class SquareGolfApp {
 // Shot Monitor Module
 class ShotMonitor {
     constructor() {
-        this.shotHistory = [];
-        this.maxHistory = 20;
         this.initializeEventListeners();
     }
 
     initializeEventListeners() {
-        // Clear history button
-        const clearBtn = document.getElementById('clearHistoryBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => this.clearHistory());
-        }
-
         // Metrics tab switching
         const metricsTabs = document.querySelectorAll('.monitor-metrics-tabs .tab-button');
         metricsTabs.forEach(button => {
@@ -945,69 +937,6 @@ class ShotMonitor {
     }
 
     addShotToHistory(ballData, clubData) {
-        const timestamp = new Date().toLocaleTimeString();
-
-        const shot = {
-            time: timestamp,
-            ballSpeed: ballData.ballSpeed || '--',
-            launchAngle: ballData.launchAngle || '--',
-            launchDirection: ballData.launchDirection || '--',
-            spinRate: ballData.totalSpin || '--',
-            carry: ballData.carry || '--',
-            ballData: ballData,
-            clubData: clubData
-        };
-
-        this.shotHistory.unshift(shot);
-        if (this.shotHistory.length > this.maxHistory) {
-            this.shotHistory.pop();
-        }
-
-        this.renderHistory();
-    }
-
-    renderHistory() {
-        const tbody = document.getElementById('shotHistoryBody');
-
-        if (this.shotHistory.length === 0) {
-            tbody.innerHTML = '<tr class="no-shots"><td colspan="7">No shots recorded yet</td></tr>';
-            return;
-        }
-
-        let html = '';
-        this.shotHistory.forEach((shot, index) => {
-            html += `
-                <tr>
-                    <td>${shot.time}</td>
-                    <td>${shot.ballSpeed}</td>
-                    <td>${shot.launchAngle}</td>
-                    <td>${shot.launchDirection}</td>
-                    <td>${shot.spinRate}</td>
-                    <td>${shot.carry}</td>
-                    <td>
-                        <button class="btn btn-sm btn-secondary" onclick="window.shotMonitor.showShotDetails(${index})">
-                            View
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html;
-    }
-
-    showShotDetails(index) {
-        const shot = this.shotHistory[index];
-        if (!shot) return;
-
-        // For now, just log to console - could create a modal later
-        console.log('Shot details:', shot);
-        alert(`Shot Details:\n\nBall Speed: ${shot.ballSpeed}\nLaunch Angle: ${shot.launchAngle}\nLaunch Direction: ${shot.launchDirection}\nSpin Rate: ${shot.spinRate}\nCarry: ${shot.carry}`);
-    }
-
-    clearHistory() {
-        this.shotHistory = [];
-        this.renderHistory();
     }
 
     switchMetricsTab(tabName) {
