@@ -8,6 +8,7 @@ class SquareGolfApp {
         this.cameraConfig = null;
         this.settings = {};
         this.features = {};
+        this.currentHandedness = 'right'; // Default to right-handed
 
         this.init();
     }
@@ -44,6 +45,10 @@ class SquareGolfApp {
 
         // Camera controls
         document.getElementById('cameraSaveBtn').addEventListener('click', () => this.saveCameraConfig());
+
+        // Alignment controls
+        document.getElementById('leftHandedBtn').addEventListener('click', () => this.setHandedness('left'));
+        document.getElementById('rightHandedBtn').addEventListener('click', () => this.setHandedness('right'));
 
         // Settings controls
         document.getElementById('forgetDeviceBtn').addEventListener('click', () => this.forgetDevice());
@@ -326,9 +331,13 @@ class SquareGolfApp {
         }
         
         if (status.handedness !== null) {
-            const handedness = status.handedness === 1 ? 'Right' : 'Left';
+            const handedness = status.handedness === 0 ? 'Right' : 'Left';
             document.getElementById('handednessValue').textContent = handedness;
             document.getElementById('handednessItem').style.display = 'block';
+
+            // Update alignment screen handedness display
+            this.currentHandedness = handedness.toLowerCase();
+            this.updateHandednessDisplay(this.currentHandedness);
         }
         
         // Update metrics
@@ -660,6 +669,36 @@ class SquareGolfApp {
         // Rotate compass pointer
         if (pointerElement) {
             pointerElement.setAttribute('transform', `rotate(${angle} 100 100)`);
+        }
+    }
+
+    async setHandedness(handedness) {
+        try {
+            const response = await fetch('/api/alignment/handedness', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ handedness })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to set handedness');
+            }
+
+            this.currentHandedness = handedness;
+            this.updateHandednessDisplay(handedness);
+            console.log('Handedness set to:', handedness);
+        } catch (error) {
+            console.error('Error setting handedness:', error);
+            this.showToast('Failed to set handedness', 'error');
+        }
+    }
+
+    updateHandednessDisplay(handedness) {
+        const label = document.getElementById('handednessLabel');
+        if (label) {
+            label.textContent = handedness.toUpperCase();
         }
     }
 
