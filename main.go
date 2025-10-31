@@ -18,14 +18,15 @@ import (
 
 // Application configuration
 type AppConfig struct {
-	UseMock     core.MockMode
-	DeviceName  string
-	Headless    bool
-	WebMode     bool
-	WebPort     int
-	GSProIP     string
-	GSProPort   int
-	EnableGSPro bool
+	UseMock              core.MockMode
+	DeviceName           string
+	Headless             bool
+	WebMode              bool
+	WebPort              int
+	GSProIP              string
+	GSProPort            int
+	EnableGSPro          bool
+	EnableExternalCamera bool
 }
 
 // Initialize the backend services (Bluetooth, state manager, etc.)
@@ -208,11 +209,14 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	// Apply loaded settings to state manager
 	appcfg.GetInstance().ApplyToStateManager(stateManager)
 
-	// Initialize camera manager with settings from config
-	cameraManager := camera.GetInstance(stateManager, settings.CameraURL, settings.CameraEnabled)
+	// Initialize camera manager only if external camera feature is enabled
+	var cameraManager *camera.Manager
+	if config.EnableExternalCamera {
+		cameraManager = camera.GetInstance(stateManager, settings.CameraURL, settings.CameraEnabled)
+	}
 
 	// Create web server
-	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort)
+	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort, config.EnableExternalCamera)
 
 	// Setup GSPro integration if enabled via command line OR auto-connect is enabled in settings
 	if config.EnableGSPro || settings.GSProAutoConnect {
@@ -270,18 +274,20 @@ func main() {
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
 	enableGSPro := flag.Bool("enable-gspro", false, "Enable GSPro integration")
+	enableExternalCamera := flag.Bool("enable-external-camera", false, "Enable external camera integration (experimental)")
 	flag.Parse()
 
 	// Create configuration
 	config := AppConfig{
-		UseMock:     core.MockMode(*useMock),
-		DeviceName:  *deviceName,
-		Headless:    *headless,
-		WebMode:     !*headless,
-		WebPort:     *webPort,
-		GSProIP:     *gsproIP,
-		GSProPort:   *gsproPort,
-		EnableGSPro: *enableGSPro,
+		UseMock:              core.MockMode(*useMock),
+		DeviceName:           *deviceName,
+		Headless:             *headless,
+		WebMode:              !*headless,
+		WebPort:              *webPort,
+		GSProIP:              *gsproIP,
+		GSProPort:            *gsproPort,
+		EnableGSPro:          *enableGSPro,
+		EnableExternalCamera: *enableExternalCamera,
 	}
 
 	// Initialize common backend components

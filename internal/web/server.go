@@ -17,14 +17,15 @@ import (
 )
 
 type Server struct {
-	stateManager     *core.StateManager
-	bluetoothManager *core.BluetoothManager
-	launchMonitor    *core.LaunchMonitor
-	gsproIntegration *gspro.Integration
-	cameraManager    *camera.Manager
-	upgrader         websocket.Upgrader
-	clients          map[*websocket.Conn]bool
-	broadcast        chan []byte
+	stateManager         *core.StateManager
+	bluetoothManager     *core.BluetoothManager
+	launchMonitor        *core.LaunchMonitor
+	gsproIntegration     *gspro.Integration
+	cameraManager        *camera.Manager
+	enableExternalCamera bool
+	upgrader             websocket.Upgrader
+	clients              map[*websocket.Conn]bool
+	broadcast            chan []byte
 }
 
 type WSMessage struct {
@@ -68,16 +69,21 @@ type AppSettings struct {
 	GSProAutoConnect bool   `json:"gsproAutoConnect"`
 }
 
-func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, cameraManager *camera.Manager, gsproIP string, gsproPort int) *Server {
+type FeatureFlags struct {
+	ExternalCamera bool `json:"externalCamera"`
+}
+
+func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, cameraManager *camera.Manager, gsproIP string, gsproPort int, enableExternalCamera bool) *Server {
 	// Get GSPro integration
 	gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
 
 	server := &Server{
-		stateManager:     stateManager,
-		bluetoothManager: bluetoothManager,
-		launchMonitor:    launchMonitor,
-		gsproIntegration: gsproIntegration,
-		cameraManager:    cameraManager,
+		stateManager:         stateManager,
+		bluetoothManager:     bluetoothManager,
+		launchMonitor:        launchMonitor,
+		gsproIntegration:     gsproIntegration,
+		cameraManager:        cameraManager,
+		enableExternalCamera: enableExternalCamera,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for development
@@ -268,6 +274,9 @@ func (s *Server) Start(port int) error {
 
 	// Settings endpoints
 	api.HandleFunc("/settings", s.handleSettings).Methods("GET", "POST")
+
+	// Feature flags endpoint
+	api.HandleFunc("/features", s.handleFeatures).Methods("GET")
 
 	// WebSocket endpoint
 	router.HandleFunc("/ws", s.handleWebSocket)
@@ -479,6 +488,12 @@ func (s *Server) getCameraConfig() CameraConfig {
 }
 
 func (s *Server) handleCameraConfig(w http.ResponseWriter, r *http.Request) {
+	// Return 404 if external camera feature is disabled
+	if !s.enableExternalCamera {
+		http.Error(w, "External camera feature not enabled", http.StatusNotFound)
+		return
+	}
+
 	if r.Method == "GET" {
 		cameraConfig := s.getCameraConfig()
 		w.Header().Set("Content-Type", "application/json")
@@ -512,4 +527,12 @@ func (s *Server) broadcastCameraConfig() {
 	msg := WSMessage{Type: "cameraConfig", Data: config}
 	data, _ := json.Marshal(msg)
 	s.broadcast <- data
+}
+
+func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
+	features := FeatureFlags{
+		ExternalCamera: s.enableExternalCamera,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(features)
 }

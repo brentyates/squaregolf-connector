@@ -7,14 +7,17 @@ class SquareGolfApp {
         this.gsproStatus = null;
         this.cameraConfig = null;
         this.settings = {};
+        this.features = {};
 
         this.init();
     }
 
     init() {
-        this.setupEventListeners();
-        this.connectWebSocket();
-        this.loadSettings();
+        this.loadFeatures().then(() => {
+            this.setupEventListeners();
+            this.connectWebSocket();
+            this.loadSettings();
+        });
     }
 
     setupEventListeners() {
@@ -568,6 +571,32 @@ class SquareGolfApp {
     }
 
     // Settings functions
+    async loadFeatures() {
+        try {
+            const response = await fetch('/api/features');
+            if (response.ok) {
+                this.features = await response.json();
+                this.applyFeatures();
+            }
+        } catch (error) {
+            console.error('Failed to load features:', error);
+        }
+    }
+
+    applyFeatures() {
+        // Hide camera tab if external camera feature is disabled
+        if (!this.features.externalCamera) {
+            const cameraNavButton = document.querySelector('.nav-button[data-screen="camera"]');
+            if (cameraNavButton) {
+                cameraNavButton.style.display = 'none';
+            }
+            const cameraScreen = document.getElementById('cameraScreen');
+            if (cameraScreen) {
+                cameraScreen.style.display = 'none';
+            }
+        }
+    }
+
     async loadSettings() {
         try {
             const response = await fetch('/api/settings');
