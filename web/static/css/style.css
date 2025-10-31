@@ -78,8 +78,6 @@
     --font-xl: 1.25rem;
     --font-2xl: 1.5rem;
     --font-3xl: 2rem;
-    --font-4xl: 3rem;
-    --font-5xl: 5rem;
 
     /* Font weights */
     --weight-normal: 400;
@@ -686,7 +684,7 @@ body {
     color: var(--status-error-text);
 }
 
-/* Info grid */
+/* Info grid - uses utility pattern */
 .info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1367,7 +1365,7 @@ body {
     color: var(--color-danger);
 }
 
-/* Monitor Status Grid */
+/* Monitor Status Grid - uses .grid-2-cols utility */
 .monitor-status-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1470,15 +1468,28 @@ body {
 }
 
 .text-success {
-    color: var(--status-connected-text) !important;
+    color: var(--status-connected-text);
 }
 
 .text-error {
-    color: var(--status-error-text) !important;
+    color: var(--status-error-text);
 }
 
 .text-warning {
-    color: var(--status-warning-text) !important;
+    color: var(--status-warning-text);
+}
+
+/* Grid utility classes */
+.grid-2-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+}
+
+.grid-auto-fit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
 }
 
 /* Responsive design */
