@@ -1061,7 +1061,7 @@ body {
 
 .compass-container {
     width: 100%;
-    max-width: var(--sidebar-width);
+    max-width: var(--compass-size);
     aspect-ratio: 1;
     position: relative;
 }
