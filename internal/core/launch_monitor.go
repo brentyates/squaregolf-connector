@@ -436,3 +436,50 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	}
 	lm.heartbeatCancelMu.Unlock()
 }
+
+// StartAlignment starts alignment mode (command 1185 with confirm=0, angle=0)
+func (lm *LaunchMonitor) StartAlignment() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	// Send start alignment command (confirm=0, angle=0)
+	seq := lm.getNextSequence()
+	command := StartAlignmentCommand(seq)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to start alignment: %w", err)
+	}
+
+	log.Printf("Alignment started with command: %s", command)
+
+	// Update state
+	lm.stateManager.SetIsAligning(true)
+	return nil
+}
+
+// StopAlignment stops alignment mode (command 1185 with confirm=1)
+func (lm *LaunchMonitor) StopAlignment() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	// Get current alignment angle to send as target
+	currentAngle := lm.stateManager.GetAlignmentAngle()
+
+	// Send stop alignment command (confirm=1, current angle)
+	seq := lm.getNextSequence()
+	command := StopAlignmentCommand(seq, currentAngle)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to stop alignment: %w", err)
+	}
+
+	log.Printf("Alignment stopped with command: %s (angle: %.2f°)", command, currentAngle)
+
+	// Update state
+	lm.stateManager.SetIsAligning(false)
+	lm.stateManager.SetAlignmentAngle(0)
+	lm.stateManager.SetIsAligned(false)
+	return nil
+}
