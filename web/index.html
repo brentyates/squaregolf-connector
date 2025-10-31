@@ -100,32 +100,6 @@
                     </div>
                 </div>
 
-                <!-- Ball Status -->
-                <div class="card" id="ballStatusCard" style="display: none;">
-                    <div class="card-header">
-                        <h3>Ball Status</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="status-grid">
-                            <div class="status-item">
-                                <span class="status-icon" id="ballDetectedIcon">⚪</span>
-                                <span class="status-text">Ball Detected</span>
-                                <span class="status-value" id="ballDetected">No</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="status-icon" id="ballReadyIcon">⚪</span>
-                                <span class="status-text">Ball Ready</span>
-                                <span class="status-value" id="ballReady">No</span>
-                            </div>
-                            <div class="status-item" id="ballPositionItem" style="display: none;">
-                                <span class="status-icon">📍</span>
-                                <span class="status-text">Position</span>
-                                <span class="status-value" id="ballPosition">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- System Status -->
                 <div class="card" id="systemStatusCard" style="display: none;">
                     <div class="card-header">
@@ -171,10 +145,8 @@
                     <h1>Shot Monitor</h1>
                 </div>
 
-                <!-- Top Row: Ball Position and Real-Time Status -->
-                <div class="monitor-top-row">
-                    <!-- Ball Position Visualization -->
-                    <div class="card monitor-card">
+                <!-- Ball Position Visualization -->
+                <div class="card">
                         <div class="card-header">
                             <h3>Ball Position</h3>
                         </div>
@@ -195,13 +167,6 @@
 
                                     <!-- Target zone (ideal position) -->
                                     <circle cx="150" cy="200" r="30" fill="#22c55e" fill-opacity="0.1" stroke="#22c55e" stroke-width="2"/>
-
-                                    <!-- Device icon at center -->
-                                    <g id="deviceIcon" transform="translate(150, 200)">
-                                        <rect x="-15" y="-10" width="30" height="20" fill="#3b82f6" stroke="#1e40af" stroke-width="2" rx="3"/>
-                                        <circle cx="-8" cy="0" r="3" fill="#1e40af"/>
-                                        <circle cx="8" cy="0" r="3" fill="#1e40af"/>
-                                    </g>
 
                                     <!-- Ball position dot -->
                                     <circle id="ballDot" cx="150" cy="200" r="8" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
@@ -227,37 +192,6 @@
                                         <span class="coord-label">Z:</span>
                                         <span class="coord-value" id="coordZ">--</span>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Real-Time Status Panel -->
-                    <div class="card monitor-card">
-                        <div class="card-header">
-                            <h3>Real-Time Status</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="monitor-status-grid">
-                                <div class="monitor-status-item">
-                                    <span class="monitor-status-icon" id="monitorBallDetectedIcon">⚪</span>
-                                    <span class="monitor-status-label">Ball Detected</span>
-                                    <span class="monitor-status-value" id="monitorBallDetected">No</span>
-                                </div>
-                                <div class="monitor-status-item">
-                                    <span class="monitor-status-icon" id="monitorBallReadyIcon">⚪</span>
-                                    <span class="monitor-status-label">Ball Ready</span>
-                                    <span class="monitor-status-value" id="monitorBallReady">No</span>
-                                </div>
-                                <div class="monitor-status-item" id="monitorClubItem" style="display: none;">
-                                    <span class="monitor-status-icon">🏌️</span>
-                                    <span class="monitor-status-label">Club</span>
-                                    <span class="monitor-status-value" id="monitorClubValue">-</span>
-                                </div>
-                                <div class="monitor-status-item" id="monitorHandednessItem" style="display: none;">
-                                    <span class="monitor-status-icon">👋</span>
-                                    <span class="monitor-status-label">Handedness</span>
-                                    <span class="monitor-status-value" id="monitorHandednessValue">-</span>
                                 </div>
                             </div>
                         </div>

@@ -318,16 +318,8 @@ class SquareGolfApp {
             document.getElementById('firmwareVersion').textContent = status.firmwareVersion;
         }
 
-        // Update ball status
-        this.updateBallStatus('ballDetected', status.ballDetected);
-        this.updateBallStatus('ballReady', status.ballReady);
-        
-        if (status.ballPosition) {
-            const posElement = document.getElementById('ballPosition');
-            posElement.textContent = `X:${status.ballPosition.x}, Y:${status.ballPosition.y}, Z:${status.ballPosition.z}`;
-            document.getElementById('ballPositionItem').style.display = 'block';
-        }
-        
+        // Ball status is now handled by Shot Monitor screen
+
         // Update system status
         if (status.club) {
             document.getElementById('clubValue').textContent = status.club.regularCode || status.club.name;
@@ -377,7 +369,7 @@ class SquareGolfApp {
     }
 
     showDeviceInfo(show) {
-        const cards = ['deviceInfoCard', 'ballStatusCard', 'systemStatusCard'];
+        const cards = ['deviceInfoCard', 'systemStatusCard'];
         cards.forEach(cardId => {
             document.getElementById(cardId).style.display = show ? 'block' : 'none';
         });
@@ -849,18 +841,28 @@ class ShotMonitor {
         });
     }
 
-    updateBallPosition(position) {
-        if (!position) {
-            // Hide ball dot
-            document.getElementById('ballDot').style.display = 'none';
+    updateBallPosition(position, ballDetected, ballReady) {
+        const ballDot = document.getElementById('ballDot');
+        const targetZone = document.querySelector('#ballPositionSvg circle[r="30"]');
+        const svgContainer = document.querySelector('.ball-position-svg');
+
+        if (!position || !ballDetected) {
+            // No ball detected - show subtle red border on entire SVG container
+            ballDot.style.display = 'none';
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '0.1');
+            svgContainer.style.border = '2px solid rgba(239, 68, 68, 0.3)';
             document.getElementById('coordX').textContent = '--';
             document.getElementById('coordY').textContent = '--';
             document.getElementById('coordZ').textContent = '--';
             return;
         }
 
+        // Reset SVG container border when ball is detected
+        svgContainer.style.border = 'none';
+
         // Show and update ball dot position
-        const ballDot = document.getElementById('ballDot');
         ballDot.style.display = 'block';
 
         // Convert mm to SVG coordinates
@@ -883,61 +885,28 @@ class ShotMonitor {
         document.getElementById('coordY').textContent = `${position.y}mm`;
         document.getElementById('coordZ').textContent = `${position.z}mm`;
 
-        // Color code based on distance from center
-        const distance = Math.sqrt(position.x * position.x + position.y * position.y);
-        if (distance < 30) {
-            ballDot.setAttribute('fill', '#22c55e'); // Green - in target
-        } else if (distance < 100) {
-            ballDot.setAttribute('fill', '#eab308'); // Yellow - marginal
+        // Set ball appearance based on ready state
+        if (ballReady) {
+            // Ball detected and ready - green fill, reset target zone
+            ballDot.setAttribute('fill', '#22c55e');
+            ballDot.setAttribute('stroke', '#fff');
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '1');
         } else {
-            ballDot.setAttribute('fill', '#ef4444'); // Red - out of range
+            // Ball detected but not ready - red outline only
+            ballDot.setAttribute('fill', 'none');
+            ballDot.setAttribute('stroke', '#ef4444');
+            ballDot.setAttribute('stroke-width', '3');
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '0.3');
         }
     }
 
     updateStatus(status) {
-        // Update ball detected
-        const detectedIcon = document.getElementById('monitorBallDetectedIcon');
-        const detectedValue = document.getElementById('monitorBallDetected');
-        if (status.ballDetected) {
-            detectedIcon.textContent = '🟢';
-            detectedValue.textContent = 'Yes';
-            detectedValue.style.color = '#22c55e';
-        } else {
-            detectedIcon.textContent = '⚪';
-            detectedValue.textContent = 'No';
-            detectedValue.style.color = '#a0aec0';
-        }
-
-        // Update ball ready
-        const readyIcon = document.getElementById('monitorBallReadyIcon');
-        const readyValue = document.getElementById('monitorBallReady');
-        if (status.ballReady) {
-            readyIcon.textContent = '🟢';
-            readyValue.textContent = 'Yes';
-            readyValue.style.color = '#22c55e';
-        } else {
-            readyIcon.textContent = '⚪';
-            readyValue.textContent = 'No';
-            readyValue.style.color = '#a0aec0';
-        }
-
-        // Update club and handedness if available
-        if (status.currentClub) {
-            document.getElementById('monitorClubItem').style.display = 'flex';
-            document.getElementById('monitorClubValue').textContent = status.currentClub;
-        }
-
-        if (status.handedness) {
-            document.getElementById('monitorHandednessItem').style.display = 'flex';
-            document.getElementById('monitorHandednessValue').textContent = status.handedness;
-        }
-
-        // Update ball position visualization
-        if (status.ballPosition) {
-            this.updateBallPosition(status.ballPosition);
-        } else {
-            this.updateBallPosition(null);
-        }
+        // Update ball position visualization with detection state
+        this.updateBallPosition(status.ballPosition, status.ballDetected, status.ballReady);
     }
 
     updateCurrentShot(ballData, clubData) {
