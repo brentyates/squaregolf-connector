@@ -144,43 +144,31 @@ class SquareGolfApp {
     }
 
     updateConnectionIndicator(connected) {
-        // Update the small WebSocket debug indicator
-        const wsIndicator = document.querySelector('.ws-indicator');
-        if (wsIndicator) {
+        // Update the global status bar WebSocket indicator
+        const statusWebSocket = document.getElementById('statusWebSocket');
+        if (statusWebSocket) {
             if (connected) {
-                wsIndicator.classList.add('connected');
-                wsIndicator.classList.remove('connecting');
-                wsIndicator.title = 'WebSocket Connected';
+                statusWebSocket.classList.add('connected');
+                statusWebSocket.classList.remove('disconnected');
             } else {
-                wsIndicator.classList.remove('connected', 'connecting');
-                wsIndicator.title = 'WebSocket Disconnected';
+                statusWebSocket.classList.remove('connected');
+                statusWebSocket.classList.add('disconnected');
                 console.log('WebSocket disconnected - attempting reconnection...');
             }
         }
     }
 
     updateDeviceConnectionIndicator(deviceStatus) {
-        const indicator = document.getElementById('connectionIndicator');
-        const dot = indicator.querySelector('.status-dot');
-        const text = indicator.querySelector('.status-text');
-        
-        switch (deviceStatus) {
-            case 'connected':
-                dot.classList.remove('connecting');
-                dot.classList.add('connected');
-                text.textContent = 'Device Connected';
-                break;
-            case 'connecting':
-                dot.classList.remove('connected');
-                dot.classList.add('connecting');
-                text.textContent = 'Connecting...';
-                break;
-            case 'disconnected':
-            case 'error':
-            default:
-                dot.classList.remove('connected', 'connecting');
-                text.textContent = 'Device Disconnected';
-                break;
+        // Update the global status bar Device indicator
+        const statusDevice = document.getElementById('statusDevice');
+        if (statusDevice) {
+            if (deviceStatus === 'connected') {
+                statusDevice.classList.add('connected');
+                statusDevice.classList.remove('disconnected');
+            } else {
+                statusDevice.classList.remove('connected');
+                statusDevice.classList.add('disconnected');
+            }
         }
     }
 
@@ -318,16 +306,8 @@ class SquareGolfApp {
             document.getElementById('firmwareVersion').textContent = status.firmwareVersion;
         }
 
-        // Update ball status
-        this.updateBallStatus('ballDetected', status.ballDetected);
-        this.updateBallStatus('ballReady', status.ballReady);
-        
-        if (status.ballPosition) {
-            const posElement = document.getElementById('ballPosition');
-            posElement.textContent = `X:${status.ballPosition.x}, Y:${status.ballPosition.y}, Z:${status.ballPosition.z}`;
-            document.getElementById('ballPositionItem').style.display = 'block';
-        }
-        
+        // Ball status is now handled by Shot Monitor screen
+
         // Update system status
         if (status.club) {
             document.getElementById('clubValue').textContent = status.club.regularCode || status.club.name;
@@ -346,6 +326,17 @@ class SquareGolfApp {
         
         // Update metrics
         this.updateMetrics(status.lastBallMetrics, status.lastClubMetrics);
+
+        // Update Shot Monitor if available
+        if (window.shotMonitor) {
+            window.shotMonitor.updateStatus(status);
+
+            // If we have new shot data, update current shot and add to history
+            if (status.lastBallMetrics && Object.keys(status.lastBallMetrics).length > 0) {
+                window.shotMonitor.updateCurrentShot(status.lastBallMetrics, status.lastClubMetrics);
+                window.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
+            }
+        }
     }
 
     updateBallStatus(elementId, detected) {
@@ -366,7 +357,7 @@ class SquareGolfApp {
     }
 
     showDeviceInfo(show) {
-        const cards = ['deviceInfoCard', 'ballStatusCard', 'systemStatusCard'];
+        const cards = ['deviceInfoCard', 'systemStatusCard'];
         cards.forEach(cardId => {
             document.getElementById(cardId).style.display = show ? 'block' : 'none';
         });
@@ -473,17 +464,29 @@ class SquareGolfApp {
 
     updateGSProStatus(status) {
         this.gsproStatus = status;
-        
+
+        // Update the global status bar GSPro indicator
+        const statusGSPro = document.getElementById('statusGSPro');
+        if (statusGSPro) {
+            if (status.connectionStatus === 'connected') {
+                statusGSPro.classList.add('connected');
+                statusGSPro.classList.remove('disconnected');
+            } else {
+                statusGSPro.classList.remove('connected');
+                statusGSPro.classList.add('disconnected');
+            }
+        }
+
         const statusElement = document.getElementById('gsproStatus');
         const errorElement = document.getElementById('gsproError');
         const connectBtn = document.getElementById('gsproConnectBtn');
         const disconnectBtn = document.getElementById('gsproDisconnectBtn');
         const ipField = document.getElementById('gsproIP');
         const portField = document.getElementById('gsproPort');
-        
+
         statusElement.className = 'status-value';
         statusElement.classList.add(status.connectionStatus);
-        
+
         switch (status.connectionStatus) {
             case 'connected':
                 statusElement.textContent = 'Connected';
@@ -813,7 +816,158 @@ class SquareGolfApp {
     }
 }
 
+// Shot Monitor Module
+class ShotMonitor {
+    constructor() {
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Metrics tab switching
+        const metricsTabs = document.querySelectorAll('.monitor-metrics-tabs .tab-button');
+        metricsTabs.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tab = e.target.dataset.tab;
+                this.switchMetricsTab(tab);
+            });
+        });
+    }
+
+    updateBallPosition(position, ballDetected, ballReady) {
+        // Update the global status bar Ball Ready indicator
+        const statusBallReady = document.getElementById('statusBallReady');
+        if (statusBallReady) {
+            if (ballReady) {
+                statusBallReady.classList.add('connected');
+                statusBallReady.classList.remove('disconnected');
+            } else {
+                statusBallReady.classList.remove('connected');
+                statusBallReady.classList.add('disconnected');
+            }
+        }
+
+        const ballDot = document.getElementById('ballDot');
+        const targetZone = document.querySelector('#ballPositionSvg circle[r="30"]');
+        const svgContainer = document.querySelector('.ball-position-svg');
+
+        if (!position || !ballDetected) {
+            // No ball detected - show subtle red border on entire SVG container
+            ballDot.style.display = 'none';
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '0.1');
+            svgContainer.style.border = '2px solid rgba(239, 68, 68, 0.3)';
+            document.getElementById('coordX').textContent = '--';
+            document.getElementById('coordY').textContent = '--';
+            document.getElementById('coordZ').textContent = '--';
+            return;
+        }
+
+        // Reset SVG container border when ball is detected
+        svgContainer.style.border = 'none';
+
+        // Show and update ball dot position
+        ballDot.style.display = 'block';
+
+        // Convert mm to SVG coordinates
+        // SVG viewBox: 0 0 300 400, center at 150, 200
+        // Scale: 300mm range = 300px (1:1 for simplicity)
+        const centerX = 150;
+        const centerY = 200;
+        const scale = 1; // 1mm = 1px
+
+        // X: positive right, negative left
+        // Y: positive back (down in SVG), negative front (up in SVG)
+        const svgX = centerX + (position.x * scale);
+        const svgY = centerY + (position.y * scale);
+
+        ballDot.setAttribute('cx', svgX);
+        ballDot.setAttribute('cy', svgY);
+
+        // Update coordinate display
+        document.getElementById('coordX').textContent = `${position.x}mm`;
+        document.getElementById('coordY').textContent = `${position.y}mm`;
+        document.getElementById('coordZ').textContent = `${position.z}mm`;
+
+        // Set ball appearance based on ready state
+        if (ballReady) {
+            // Ball detected and ready - green fill, reset target zone
+            ballDot.setAttribute('fill', '#22c55e');
+            ballDot.setAttribute('stroke', '#fff');
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '1');
+        } else {
+            // Ball detected but not ready - red outline only
+            ballDot.setAttribute('fill', 'none');
+            ballDot.setAttribute('stroke', '#ef4444');
+            ballDot.setAttribute('stroke-width', '3');
+            targetZone.setAttribute('stroke', '#22c55e');
+            targetZone.setAttribute('stroke-width', '2');
+            targetZone.setAttribute('stroke-opacity', '0.3');
+        }
+    }
+
+    updateStatus(status) {
+        // Update ball position visualization with detection state
+        this.updateBallPosition(status.ballPosition, status.ballDetected, status.ballReady);
+    }
+
+    updateCurrentShot(ballData, clubData) {
+        const card = document.getElementById('monitorCurrentShotCard');
+        card.style.display = 'block';
+
+        // Update ball metrics
+        const ballMetrics = document.getElementById('monitorBallMetrics');
+        ballMetrics.innerHTML = this.formatMetrics(ballData);
+
+        // Update club metrics
+        const clubMetrics = document.getElementById('monitorClubMetrics');
+        clubMetrics.innerHTML = this.formatMetrics(clubData);
+    }
+
+    formatMetrics(data) {
+        if (!data || Object.keys(data).length === 0) {
+            return '<div class="no-metrics">No data available</div>';
+        }
+
+        let html = '<div class="metrics-grid">';
+        for (const [key, value] of Object.entries(data)) {
+            if (value !== null && value !== undefined) {
+                const label = key.replace(/([A-Z])/g, ' $1').trim();
+                const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                html += `
+                    <div class="metric-item">
+                        <div class="metric-label">${displayLabel}</div>
+                        <div class="metric-value">${value}</div>
+                    </div>
+                `;
+            }
+        }
+        html += '</div>';
+        return html;
+    }
+
+    addShotToHistory(ballData, clubData) {
+    }
+
+    switchMetricsTab(tabName) {
+        // Remove active from all tabs
+        document.querySelectorAll('.monitor-metrics-tabs .tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.monitor-metrics-content .metrics-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Add active to selected tab
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(tabName === 'monitorBall' ? 'monitorBallMetrics' : 'monitorClubMetrics').classList.add('active');
+    }
+}
+
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new SquareGolfApp();
+    window.shotMonitor = new ShotMonitor();
 });
