@@ -8,7 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	appcfg "github.com/brentyates/squaregolf-connector/internal/config"
 	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/camera"
 	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 	"github.com/brentyates/squaregolf-connector/internal/logging"
 	"github.com/brentyates/squaregolf-connector/internal/web"
@@ -16,14 +18,15 @@ import (
 
 // Application configuration
 type AppConfig struct {
-	UseMock     core.MockMode
-	DeviceName  string
-	Headless    bool
-	WebMode     bool
-	WebPort     int
-	GSProIP     string
-	GSProPort   int
-	EnableGSPro bool
+	UseMock              core.MockMode
+	DeviceName           string
+	Headless             bool
+	WebMode              bool
+	WebPort              int
+	GSProIP              string
+	GSProPort            int
+	EnableGSPro          bool
+	EnableExternalCamera bool
 }
 
 // Initialize the backend services (Bluetooth, state manager, etc.)
@@ -200,24 +203,48 @@ func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManage
 
 // startWebServer initializes and runs the web server
 func startWebServer(config AppConfig, stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor) {
-	// Create web server
-	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, config.GSProIP, config.GSProPort)
+	// Initialize config manager and load settings (happens behind the scenes like Fyne)
+	settings := appcfg.GetInstance().GetSettings()
 
-	// Setup GSPro integration if enabled
-	if config.EnableGSPro {
+	// Apply loaded settings to state manager
+	appcfg.GetInstance().ApplyToStateManager(stateManager)
+
+	// Initialize camera manager only if external camera feature is enabled
+	var cameraManager *camera.Manager
+	if config.EnableExternalCamera {
+		cameraManager = camera.GetInstance(stateManager, settings.CameraURL, settings.CameraEnabled)
+	}
+
+	// Create web server
+	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort, config.EnableExternalCamera)
+
+	// Setup GSPro integration if enabled via command line OR auto-connect is enabled in settings
+	if config.EnableGSPro || settings.GSProAutoConnect {
 		log.Println("GSPro integration enabled for web mode")
-		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+		// Use command line args if provided, otherwise use saved settings
+		gsproIP := config.GSProIP
+		gsproPort := config.GSProPort
+		if !config.EnableGSPro && settings.GSProAutoConnect {
+			gsproIP = settings.GSProIP
+			gsproPort = settings.GSProPort
+			log.Printf("Auto-connecting to GSPro at %s:%d", gsproIP, gsproPort)
+		}
+
+		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
 		go func() {
 			gsproIntegration.EnableAutoReconnect()
 			gsproIntegration.Start()
-			gsproIntegration.Connect(config.GSProIP, config.GSProPort)
+			gsproIntegration.Connect(gsproIP, gsproPort)
 		}()
 	}
 
-	// Start auto-connect if device name is provided
+	// Start auto-connect if device name is provided via command line OR if auto-connect is enabled in settings
 	if config.DeviceName != "" {
 		log.Printf("Auto-connecting to device: %s", config.DeviceName)
 		go bluetoothManager.StartBluetoothConnection(config.DeviceName, "")
+	} else if settings.AutoConnect && settings.DeviceName != "" {
+		log.Printf("Auto-connecting to saved device: %s", settings.DeviceName)
+		go bluetoothManager.StartBluetoothConnection(settings.DeviceName, "")
 	}
 
 	// Set up graceful shutdown
@@ -247,18 +274,20 @@ func main() {
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
 	enableGSPro := flag.Bool("enable-gspro", false, "Enable GSPro integration")
+	enableExternalCamera := flag.Bool("enable-external-camera", false, "Enable external camera integration (experimental)")
 	flag.Parse()
 
 	// Create configuration
 	config := AppConfig{
-		UseMock:     core.MockMode(*useMock),
-		DeviceName:  *deviceName,
-		Headless:    *headless,
-		WebMode:     !*headless,
-		WebPort:     *webPort,
-		GSProIP:     *gsproIP,
-		GSProPort:   *gsproPort,
-		EnableGSPro: *enableGSPro,
+		UseMock:              core.MockMode(*useMock),
+		DeviceName:           *deviceName,
+		Headless:             *headless,
+		WebMode:              !*headless,
+		WebPort:              *webPort,
+		GSProIP:              *gsproIP,
+		GSProPort:            *gsproPort,
+		EnableGSPro:          *enableGSPro,
+		EnableExternalCamera: *enableExternalCamera,
 	}
 
 	// Initialize common backend components

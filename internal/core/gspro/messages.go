@@ -64,6 +64,10 @@ func (g *Integration) handlePlayerMessage(playerInfo *PlayerInfo) {
 		} else {
 			log.Printf("Unmapped GSPro club: %s", clubName)
 		}
+
+		// Store the human-readable club name for camera metadata
+		friendlyName := mapGSProClubToFriendlyName(clubName)
+		g.stateManager.SetClubName(&friendlyName)
 	}
 
 	// Extract handedness from the Player object
