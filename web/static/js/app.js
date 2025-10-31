@@ -144,43 +144,31 @@ class SquareGolfApp {
     }
 
     updateConnectionIndicator(connected) {
-        // Update the small WebSocket debug indicator
-        const wsIndicator = document.querySelector('.ws-indicator');
-        if (wsIndicator) {
+        // Update the global status bar WebSocket indicator
+        const statusWebSocket = document.getElementById('statusWebSocket');
+        if (statusWebSocket) {
             if (connected) {
-                wsIndicator.classList.add('connected');
-                wsIndicator.classList.remove('connecting');
-                wsIndicator.title = 'WebSocket Connected';
+                statusWebSocket.classList.add('connected');
+                statusWebSocket.classList.remove('disconnected');
             } else {
-                wsIndicator.classList.remove('connected', 'connecting');
-                wsIndicator.title = 'WebSocket Disconnected';
+                statusWebSocket.classList.remove('connected');
+                statusWebSocket.classList.add('disconnected');
                 console.log('WebSocket disconnected - attempting reconnection...');
             }
         }
     }
 
     updateDeviceConnectionIndicator(deviceStatus) {
-        const indicator = document.getElementById('connectionIndicator');
-        const dot = indicator.querySelector('.status-dot');
-        const text = indicator.querySelector('.status-text');
-        
-        switch (deviceStatus) {
-            case 'connected':
-                dot.classList.remove('connecting');
-                dot.classList.add('connected');
-                text.textContent = 'Device Connected';
-                break;
-            case 'connecting':
-                dot.classList.remove('connected');
-                dot.classList.add('connecting');
-                text.textContent = 'Connecting...';
-                break;
-            case 'disconnected':
-            case 'error':
-            default:
-                dot.classList.remove('connected', 'connecting');
-                text.textContent = 'Device Disconnected';
-                break;
+        // Update the global status bar Device indicator
+        const statusDevice = document.getElementById('statusDevice');
+        if (statusDevice) {
+            if (deviceStatus === 'connected') {
+                statusDevice.classList.add('connected');
+                statusDevice.classList.remove('disconnected');
+            } else {
+                statusDevice.classList.remove('connected');
+                statusDevice.classList.add('disconnected');
+            }
         }
     }
 
@@ -476,17 +464,29 @@ class SquareGolfApp {
 
     updateGSProStatus(status) {
         this.gsproStatus = status;
-        
+
+        // Update the global status bar GSPro indicator
+        const statusGSPro = document.getElementById('statusGSPro');
+        if (statusGSPro) {
+            if (status.connectionStatus === 'connected') {
+                statusGSPro.classList.add('connected');
+                statusGSPro.classList.remove('disconnected');
+            } else {
+                statusGSPro.classList.remove('connected');
+                statusGSPro.classList.add('disconnected');
+            }
+        }
+
         const statusElement = document.getElementById('gsproStatus');
         const errorElement = document.getElementById('gsproError');
         const connectBtn = document.getElementById('gsproConnectBtn');
         const disconnectBtn = document.getElementById('gsproDisconnectBtn');
         const ipField = document.getElementById('gsproIP');
         const portField = document.getElementById('gsproPort');
-        
+
         statusElement.className = 'status-value';
         statusElement.classList.add(status.connectionStatus);
-        
+
         switch (status.connectionStatus) {
             case 'connected':
                 statusElement.textContent = 'Connected';
@@ -834,6 +834,18 @@ class ShotMonitor {
     }
 
     updateBallPosition(position, ballDetected, ballReady) {
+        // Update the global status bar Ball Ready indicator
+        const statusBallReady = document.getElementById('statusBallReady');
+        if (statusBallReady) {
+            if (ballReady) {
+                statusBallReady.classList.add('connected');
+                statusBallReady.classList.remove('disconnected');
+            } else {
+                statusBallReady.classList.remove('connected');
+                statusBallReady.classList.add('disconnected');
+            }
+        }
+
         const ballDot = document.getElementById('ballDot');
         const targetZone = document.querySelector('#ballPositionSvg circle[r="30"]');
         const svgContainer = document.querySelector('.ball-position-svg');

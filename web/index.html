@@ -14,12 +14,8 @@
         <nav class="sidebar">
             <div class="sidebar-header">
                 <h2>SquareGolf</h2>
-                <div class="connection-indicator" id="connectionIndicator">
-                    <span class="status-dot"></span>
-                    <span class="status-text">Device Disconnected</span>
-                </div>
             </div>
-            
+
             <div class="nav-menu">
                 <button class="nav-button active" data-screen="device">
                     <span class="material-icons">bluetooth</span>
@@ -50,6 +46,30 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <!-- Global Status Bar -->
+            <div class="global-status-bar">
+                <div class="status-item" id="statusWebSocket">
+                    <span class="status-icon material-icons">cloud</span>
+                    <span class="status-label">Server</span>
+                    <span class="status-dot"></span>
+                </div>
+                <div class="status-item" id="statusDevice">
+                    <span class="status-icon material-icons">bluetooth</span>
+                    <span class="status-label">Device</span>
+                    <span class="status-dot"></span>
+                </div>
+                <div class="status-item" id="statusGSPro">
+                    <span class="status-icon material-icons">computer</span>
+                    <span class="status-label">GSPro</span>
+                    <span class="status-dot"></span>
+                </div>
+                <div class="status-item" id="statusBallReady">
+                    <span class="status-icon material-icons">sports_golf</span>
+                    <span class="status-label">Ball Ready</span>
+                    <span class="status-dot"></span>
+                </div>
+            </div>
+
             <!-- Device Screen -->
             <div class="screen active" id="deviceScreen">
                 <div class="screen-header">
@@ -466,11 +486,6 @@
 
     <!-- Toast notifications -->
     <div class="toast-container" id="toastContainer"></div>
-    
-    <!-- WebSocket Status (debug) -->
-    <div class="websocket-status" id="websocketStatus">
-        <span class="ws-indicator"></span>
-    </div>
 
     <script src="/static/js/app.js"></script>
 </body>

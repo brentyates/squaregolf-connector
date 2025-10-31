@@ -41,36 +41,6 @@ body {
     margin-bottom: 1rem;
 }
 
-.connection-indicator {
-    display: flex;
-    align-items: center;
-    font-size: 0.875rem;
-    color: #cbd5e0;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #fc8181;
-    margin-right: 0.5rem;
-    transition: background-color 0.3s ease;
-}
-
-.status-dot.connected {
-    background: #68d391;
-}
-
-.status-dot.connecting {
-    background: #fbb6ce;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
 .nav-menu {
     flex: 1;
     padding: 1rem 0;
@@ -111,6 +81,72 @@ body {
     overflow-y: auto;
     padding: 2rem;
     background: #f7fafc;
+}
+
+/* Global Status Bar */
+.global-status-bar {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+    max-width: 1200px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: #f7fafc;
+    transition: all 0.2s;
+}
+
+.status-item .status-icon {
+    font-size: 20px;
+    color: #64748b;
+}
+
+.status-item .status-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.status-item .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94a3b8;
+    transition: background-color 0.3s;
+}
+
+.status-item.connected .status-dot {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.status-item.connected .status-icon {
+    color: #22c55e;
+}
+
+.status-item.connected .status-label {
+    color: #15803d;
+}
+
+.status-item.disconnected .status-dot {
+    background: #ef4444;
+}
+
+.status-item.disconnected .status-icon {
+    color: #ef4444;
+}
+
+.status-item.disconnected .status-label {
+    color: #991b1b;
 }
 
 .screen {
@@ -607,38 +643,6 @@ body {
     .info-grid {
         grid-template-columns: 1fr;
     }
-}
-
-/* WebSocket Status (debug indicator) */
-.websocket-status {
-    position: fixed;
-    bottom: 1rem;
-    left: 1rem;
-    z-index: 1000;
-    opacity: 0.3;
-    transition: opacity 0.3s ease;
-}
-
-.websocket-status:hover {
-    opacity: 1;
-}
-
-.ws-indicator {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #fc8181;
-    transition: background-color 0.3s ease;
-}
-
-.ws-indicator.connected {
-    background: #68d391;
-}
-
-.ws-indicator.connecting {
-    background: #fbb6ce;
-    animation: pulse 1.5s infinite;
 }
 
 /* Utility classes */
