@@ -58,28 +58,46 @@
 ### 2. Frontend Implementation
 **Status:** 🟡 IN PROGRESS
 
-**UI Behavior:**
-- When user navigates to Alignment tab → automatically start alignment mode (`IsAligning = true`)
-- When user leaves Alignment tab → automatically stop alignment mode (`IsAligning = false`)
-- Device will stream alignment data only while `IsAligning = true`
+**Current State (Discovered via Playwright):**
+- ✅ Basic alignment screen exists at `/web/index.html` (id: `alignmentScreen`)
+- ✅ Has "Start Calibration" / "Stop Calibration" buttons (currently TODOs)
+- ✅ Has status display element (`calibrationStatus`)
+- ✅ Navigation button exists and works
+- ❌ No actual alignment angle display
+- ❌ No visual compass/indicator
+- ❌ No auto-start/stop on tab navigation
+- ❌ No device connection check (can navigate to tab even when disconnected)
+
+**UI Behavior Requirements:**
+1. **Tab access control**: Disable/hide Alignment tab when device is not connected
+2. **Auto-start/stop**:
+   - When user navigates to Alignment tab → automatically call `startAlignment()` API
+   - When user leaves Alignment tab → automatically call `stopAlignment()` API
+   - Backend will set `IsAligning = true/false` and start/stop streaming
+3. **Real-time updates**: Display angle and aligned status as they stream via WebSocket
 
 **Web UI Files to Update:**
-- [ ] `web/static/js/app.js`:
-  - Add alignment data handling in WebSocket message handler
-  - Create `updateAlignmentData(data)` method
-  - Handle `isAligning`, `alignmentAngle`, and `isAligned` state
-  - Auto-start alignment on tab show, auto-stop on tab hide
+- [ ] `web/static/js/app.js` (line 557-571):
+  - Replace `startCalibration()` TODO with API call to `/api/alignment/start`
+  - Replace `stopCalibration()` TODO with API call to `/api/alignment/stop`
+  - Add alignment data handling in `handleWebSocketMessage()`
+  - Create `updateAlignmentDisplay(angle, isAligned)` method
+  - Modify `showScreen()` to auto-start/stop alignment (lines 178-192)
+  - Add device connection check before allowing navigation to alignment tab
 
-- [ ] `web/index.html` - Alignment screen section:
-  - Add numeric angle display ("Aimed 12.3° right")
-  - Add visual compass indicator (SVG/Canvas)
-  - Add alignment status indicator (green checkmark when `isAligned = true`)
-  - No manual Start/Stop buttons needed (auto-controlled by tab navigation)
+- [ ] `web/index.html` - Alignment screen section (lines ~200-230):
+  - Replace "Calibration Instructions" with "Device Alignment"
+  - Add large numeric angle display: `<div id="alignmentAngle">0.0°</div>`
+  - Add direction text: `<div id="alignmentDirection">Aimed straight</div>`
+  - Add visual compass indicator (SVG circle with pointer)
+  - Add alignment status indicator: `<div id="alignedStatus">⚠️ Not aligned</div>`
+  - Remove Start/Stop buttons (auto-controlled now)
 
 - [ ] `web/static/css/style.css`:
+  - Style large angle display (big, centered, easy to read)
   - Style compass visual indicator
-  - Add color coding (green = aligned, yellow/red = off-target)
-  - Responsive layout
+  - Add color coding: green (aligned), yellow (close), red (far off)
+  - Animated transitions for smooth updates
 
 **Compass Design Ideas:**
 ```
@@ -96,21 +114,36 @@
     └───────────────┘
 ```
 
-### 3. Backend Commands
+### 3. Backend API Endpoints
 **Status:** 🔴 NOT STARTED
 
-**Need to implement:**
-- [ ] `StartAlignment()` method in LaunchMonitor
-  - Send command to device to start streaming alignment data
-  - Set `IsAligning = true` in state
+**HTTP API endpoints needed** (add to web server):
+- [ ] `POST /api/alignment/start`
+  - Calls `LaunchMonitor.StartAlignment()`
+  - Returns success/error
+  - Only works if device is connected
 
-- [ ] `StopAlignment()` method in LaunchMonitor
-  - Send command to stop alignment data stream
+- [ ] `POST /api/alignment/stop`
+  - Calls `LaunchMonitor.StopAlignment()`
+  - Returns success/error
+
+### 4. Backend Commands
+**Status:** 🔴 NOT STARTED
+
+**Need to implement in `internal/core/launch_monitor.go`:**
+- [ ] `StartAlignment()` method:
+  - Send BLE command to device to start streaming alignment data
+  - Set `IsAligning = true` in state
+  - Return error if device not connected
+
+- [ ] `StopAlignment()` method:
+  - Send BLE command to stop alignment data stream
   - Set `IsAligning = false` in state
+  - Clear alignment angle/status
 
 - [ ] Discover command format from Bluetooth capture:
   ```go
-  // Example placeholder:
+  // Example placeholder in commands.go:
   func StartAlignmentCommand(sequence int) string {
       return fmt.Sprintf("118X%02x000000000000", sequence)
       // X = command ID (unknown, need to discover)
