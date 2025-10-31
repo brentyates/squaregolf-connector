@@ -24,9 +24,36 @@ func SwingStickCommand(sequence int, club ClubType, handedness HandednessType) s
 	return fmt.Sprintf("1182%02x%s0%d0000", sequence, club.SwingStickCode, handedness)
 }
 
-// AlignmentStickCommand generates alignment stick command
-func AlignmentStickCommand(sequence int, handedness HandednessType) string {
-	return fmt.Sprintf("1182%02x08080%d000000", sequence, handedness)
+// AlignmentCommand generates alignment command (command ID 1185)
+// confirm: 0 = start alignment (continuous streaming), 1 = stop/confirm alignment
+// targetAngle: target angle in degrees (will be multiplied by 100 and encoded as int32 little-endian)
+func AlignmentCommand(sequence int, confirm int, targetAngle float64) string {
+	// Convert angle to int32 (angle * 100)
+	angleInt := int32(targetAngle * 100)
+
+	// Convert to little-endian bytes
+	angleByte0 := byte(angleInt & 0xFF)
+	angleByte1 := byte((angleInt >> 8) & 0xFF)
+	angleByte2 := byte((angleInt >> 16) & 0xFF)
+	angleByte3 := byte((angleInt >> 24) & 0xFF)
+
+	return fmt.Sprintf("1185%02x%02x%02x%02x%02x%02x",
+		sequence,
+		confirm,
+		angleByte0,
+		angleByte1,
+		angleByte2,
+		angleByte3)
+}
+
+// StartAlignmentCommand generates command to start alignment mode (confirm=0, angle=0)
+func StartAlignmentCommand(sequence int) string {
+	return AlignmentCommand(sequence, 0, 0.0)
+}
+
+// StopAlignmentCommand generates command to stop alignment and set target angle (confirm=1)
+func StopAlignmentCommand(sequence int, targetAngle float64) string {
+	return AlignmentCommand(sequence, 1, targetAngle)
 }
 
 // RequestClubMetricsCommand generates club metrics request command

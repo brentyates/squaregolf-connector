@@ -38,6 +38,15 @@ type ClubMetrics struct {
 	DynamicLoftAngle float64
 }
 
+// AlignmentData represents device alignment/aim information
+// TODO: Actual data format needs to be determined from Bluetooth traffic capture
+// This structure is based on official app behavior showing left/right aim angle
+type AlignmentData struct {
+	RawData   []string
+	AimAngle  float64 // Degrees left (negative) or right (positive) of center
+	IsAligned bool    // Whether device is pointing at target (within threshold)
+}
+
 // ParseSensorData parses raw sensor data bytes
 func ParseSensorData(bytesList []string) (*SensorData, error) {
 	if len(bytesList) < 17 {
@@ -168,4 +177,33 @@ func ParseShotClubMetrics(bytesList []string) (*ClubMetrics, error) {
 	}
 
 	return metrics, nil
+}
+
+// ParseAlignmentData parses alignment/aim data from device accelerometer
+// TODO: This is a placeholder implementation. The actual byte format and positions
+// need to be determined by capturing Bluetooth traffic from the official app.
+// Current assumption: aim angle as signed 16-bit int / 100.0 (similar to other angles)
+func ParseAlignmentData(bytesList []string) (*AlignmentData, error) {
+	// TODO: Determine minimum byte length from actual data
+	if len(bytesList) < 5 {
+		return nil, fmt.Errorf("insufficient data for parsing alignment data")
+	}
+
+	alignment := &AlignmentData{
+		RawData: bytesList,
+	}
+
+	// TODO: Determine correct byte positions from Bluetooth capture
+	// Assumption: bytes 3-4 contain aim angle as int16 (little-endian) / 100.0
+	// This follows the same pattern as other angle data in the protocol
+	aimAngleBytes, err := hex.DecodeString(bytesList[3] + bytesList[4])
+	if err == nil && len(aimAngleBytes) == 2 {
+		alignment.AimAngle = float64(int16(binary.LittleEndian.Uint16(aimAngleBytes))) / 100.0
+	}
+
+	// Consider device aligned if within ±2 degrees of center
+	const alignmentThreshold = 2.0
+	alignment.IsAligned = alignment.AimAngle >= -alignmentThreshold && alignment.AimAngle <= alignmentThreshold
+
+	return alignment, nil
 }

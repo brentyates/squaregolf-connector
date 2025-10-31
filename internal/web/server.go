@@ -45,6 +45,9 @@ type DeviceStatus struct {
 	LastError        string               `json:"lastError"`
 	LastBallMetrics  *core.BallMetrics    `json:"lastBallMetrics"`
 	LastClubMetrics  *core.ClubMetrics    `json:"lastClubMetrics"`
+	IsAligning       bool                 `json:"isAligning"`
+	AlignmentAngle   float64              `json:"alignmentAngle"`
+	IsAligned        bool                 `json:"isAligned"`
 }
 
 type GSProStatus struct {
@@ -156,6 +159,18 @@ func (s *Server) setupCallbacks() {
 	s.stateManager.RegisterCameraEnabledCallback(func(oldValue, newValue bool) {
 		s.broadcastCameraConfig()
 	})
+
+	s.stateManager.RegisterIsAligningCallback(func(oldValue, newValue bool) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterAlignmentAngleCallback(func(oldValue, newValue float64) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterIsAlignedCallback(func(oldValue, newValue bool) {
+		s.broadcastDeviceStatus()
+	})
 }
 
 func (s *Server) handleMessages() {
@@ -217,6 +232,9 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 		LastError:        lastErrorStr,
 		LastBallMetrics:  s.stateManager.GetLastBallMetrics(),
 		LastClubMetrics:  s.stateManager.GetLastClubMetrics(),
+		IsAligning:       s.stateManager.GetIsAligning(),
+		AlignmentAngle:   s.stateManager.GetAlignmentAngle(),
+		IsAligned:        s.stateManager.GetIsAligned(),
 	}
 }
 
@@ -277,6 +295,10 @@ func (s *Server) Start(port int) error {
 
 	// Feature flags endpoint
 	api.HandleFunc("/features", s.handleFeatures).Methods("GET")
+
+	// Alignment endpoints
+	api.HandleFunc("/alignment/start", s.handleAlignmentStart).Methods("POST")
+	api.HandleFunc("/alignment/stop", s.handleAlignmentStop).Methods("POST")
 
 	// WebSocket endpoint
 	router.HandleFunc("/ws", s.handleWebSocket)
@@ -535,4 +557,22 @@ func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(features)
+}
+
+func (s *Server) handleAlignmentStart(w http.ResponseWriter, r *http.Request) {
+	err := s.launchMonitor.StartAlignment()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleAlignmentStop(w http.ResponseWriter, r *http.Request) {
+	err := s.launchMonitor.StopAlignment()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

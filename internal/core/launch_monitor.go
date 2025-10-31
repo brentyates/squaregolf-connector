@@ -73,6 +73,13 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 
 	// Process by byte patterns
 	if len(bytesList) >= 2 {
+		// Handle alignment notifications (format 11 82)
+		// TODO: Verify this is the correct format from Bluetooth traffic capture
+		if bytesList[0] == "11" && bytesList[1] == "82" {
+			lm.HandleAlignmentNotification(bytesList)
+			return
+		}
+
 		// Sensor notifications (format 11 01)
 		if bytesList[0] == "11" && bytesList[1] == "01" {
 			lm.HandleSensorNotification(bytesList)
@@ -118,6 +125,25 @@ func (lm *LaunchMonitor) HandleSensorNotification(bytesList []string) {
 		Z: sensorData.PositionZ,
 	}
 	lm.stateManager.SetBallPosition(ballPosition)
+}
+
+// HandleAlignmentNotification handles alignment/aim notifications (format 11 82)
+// TODO: The exact format and byte positions need to be verified by capturing
+// Bluetooth traffic from the official Square Golf app
+func (lm *LaunchMonitor) HandleAlignmentNotification(bytesList []string) {
+	alignmentData, err := ParseAlignmentData(bytesList)
+	if err != nil {
+		log.Printf("Error parsing alignment data: %v", err)
+		return
+	}
+
+	// Log for debugging until we confirm the format is correct
+	log.Printf("Alignment data received - Aim: %.2f°, Aligned: %v",
+		alignmentData.AimAngle, alignmentData.IsAligned)
+
+	// Update alignment state - IsAligning is controlled by the UI
+	lm.stateManager.SetAlignmentAngle(alignmentData.AimAngle)
+	lm.stateManager.SetIsAligned(alignmentData.IsAligned)
 }
 
 // HandleShotBallMetrics handles shot ball metrics notifications (format 11 02 37)
@@ -409,4 +435,51 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 		lm.heartbeatCancel = nil
 	}
 	lm.heartbeatCancelMu.Unlock()
+}
+
+// StartAlignment starts alignment mode (command 1185 with confirm=0, angle=0)
+func (lm *LaunchMonitor) StartAlignment() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	// Send start alignment command (confirm=0, angle=0)
+	seq := lm.getNextSequence()
+	command := StartAlignmentCommand(seq)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to start alignment: %w", err)
+	}
+
+	log.Printf("Alignment started with command: %s", command)
+
+	// Update state
+	lm.stateManager.SetIsAligning(true)
+	return nil
+}
+
+// StopAlignment stops alignment mode (command 1185 with confirm=1)
+func (lm *LaunchMonitor) StopAlignment() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	// Get current alignment angle to send as target
+	currentAngle := lm.stateManager.GetAlignmentAngle()
+
+	// Send stop alignment command (confirm=1, current angle)
+	seq := lm.getNextSequence()
+	command := StopAlignmentCommand(seq, currentAngle)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to stop alignment: %w", err)
+	}
+
+	log.Printf("Alignment stopped with command: %s (angle: %.2f°)", command, currentAngle)
+
+	// Update state
+	lm.stateManager.SetIsAligning(false)
+	lm.stateManager.SetAlignmentAngle(0)
+	lm.stateManager.SetIsAligned(false)
+	return nil
 }

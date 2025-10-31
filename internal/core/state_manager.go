@@ -30,6 +30,9 @@ type AppState struct {
 	SpinMode          *SpinMode
 	CameraURL         *string
 	CameraEnabled     bool
+	IsAligning        bool    // Whether alignment mode UI is active
+	AlignmentAngle    float64 // Current aim angle in degrees (left negative, right positive)
+	IsAligned         bool    // Whether device is currently aligned (within tolerance)
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -55,6 +58,9 @@ type StateManager struct {
 		SpinMode          []StateCallback[*SpinMode]
 		CameraURL         []StateCallback[*string]
 		CameraEnabled     []StateCallback[bool]
+		IsAligning        []StateCallback[bool]
+		AlignmentAngle    []StateCallback[float64]
+		IsAligned         []StateCallback[bool]
 	}
 	mu sync.RWMutex
 }
@@ -83,6 +89,9 @@ func (sm *StateManager) initialize() {
 		GSProStatus:      GSProStatusDisconnected,
 		CameraURL:        &defaultCameraURL,
 		CameraEnabled:    false,
+		IsAligning:       false,
+		AlignmentAngle:   0.0,
+		IsAligned:        false,
 	}
 }
 
@@ -530,4 +539,85 @@ func (sm *StateManager) RegisterCameraEnabledCallback(callback StateCallback[boo
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.CameraEnabled = append(sm.callbacks.CameraEnabled, callback)
+}
+
+// GetIsAligning returns whether alignment mode is active
+func (sm *StateManager) GetIsAligning() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.IsAligning
+}
+
+// SetIsAligning sets whether alignment mode is active
+func (sm *StateManager) SetIsAligning(value bool) {
+	sm.mu.Lock()
+	oldValue := sm.state.IsAligning
+	sm.state.IsAligning = value
+	callbacks := sm.callbacks.IsAligning
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// GetAlignmentAngle returns the current alignment angle in degrees
+func (sm *StateManager) GetAlignmentAngle() float64 {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.AlignmentAngle
+}
+
+// SetAlignmentAngle sets the current alignment angle in degrees
+func (sm *StateManager) SetAlignmentAngle(value float64) {
+	sm.mu.Lock()
+	oldValue := sm.state.AlignmentAngle
+	sm.state.AlignmentAngle = value
+	callbacks := sm.callbacks.AlignmentAngle
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// GetIsAligned returns whether the device is currently aligned
+func (sm *StateManager) GetIsAligned() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.IsAligned
+}
+
+// SetIsAligned sets whether the device is currently aligned
+func (sm *StateManager) SetIsAligned(value bool) {
+	sm.mu.Lock()
+	oldValue := sm.state.IsAligned
+	sm.state.IsAligned = value
+	callbacks := sm.callbacks.IsAligned
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterIsAligningCallback registers a callback for alignment mode changes
+func (sm *StateManager) RegisterIsAligningCallback(callback StateCallback[bool]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.IsAligning = append(sm.callbacks.IsAligning, callback)
+}
+
+// RegisterAlignmentAngleCallback registers a callback for alignment angle changes
+func (sm *StateManager) RegisterAlignmentAngleCallback(callback StateCallback[float64]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.AlignmentAngle = append(sm.callbacks.AlignmentAngle, callback)
+}
+
+// RegisterIsAlignedCallback registers a callback for alignment status changes
+func (sm *StateManager) RegisterIsAlignedCallback(callback StateCallback[bool]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.IsAligned = append(sm.callbacks.IsAligned, callback)
 }
