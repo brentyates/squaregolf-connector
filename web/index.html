@@ -25,6 +25,10 @@
                     <span class="material-icons">bluetooth</span>
                     Device
                 </button>
+                <button class="nav-button" data-screen="shotMonitor">
+                    <span class="material-icons">assessment</span>
+                    Shot Monitor
+                </button>
                 <button class="nav-button" data-screen="gspro">
                     <span class="material-icons">computer</span>
                     GSPro
@@ -156,6 +160,153 @@
                         <div class="metrics-content">
                             <div class="metrics-tab active" id="ballMetrics"></div>
                             <div class="metrics-tab" id="clubMetrics"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shot Monitor Screen -->
+            <div class="screen" id="shotMonitorScreen">
+                <div class="screen-header">
+                    <h1>Shot Monitor</h1>
+                </div>
+
+                <!-- Top Row: Ball Position and Real-Time Status -->
+                <div class="monitor-top-row">
+                    <!-- Ball Position Visualization -->
+                    <div class="card monitor-card">
+                        <div class="card-header">
+                            <h3>Ball Position</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="ball-position-container">
+                                <svg class="ball-position-svg" viewBox="0 0 300 400" id="ballPositionSvg">
+                                    <!-- Grid lines -->
+                                    <defs>
+                                        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                                            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
+                                        </pattern>
+                                    </defs>
+                                    <rect width="300" height="400" fill="url(#grid)" />
+
+                                    <!-- Axes -->
+                                    <line x1="150" y1="0" x2="150" y2="400" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
+                                    <line x1="0" y1="200" x2="300" y2="200" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
+
+                                    <!-- Target zone (ideal position) -->
+                                    <circle cx="150" cy="200" r="30" fill="#22c55e" fill-opacity="0.1" stroke="#22c55e" stroke-width="2"/>
+
+                                    <!-- Device icon at center -->
+                                    <g id="deviceIcon" transform="translate(150, 200)">
+                                        <rect x="-15" y="-10" width="30" height="20" fill="#3b82f6" stroke="#1e40af" stroke-width="2" rx="3"/>
+                                        <circle cx="-8" cy="0" r="3" fill="#1e40af"/>
+                                        <circle cx="8" cy="0" r="3" fill="#1e40af"/>
+                                    </g>
+
+                                    <!-- Ball position dot -->
+                                    <circle id="ballDot" cx="150" cy="200" r="8" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
+
+                                    <!-- Distance labels -->
+                                    <text x="155" y="50" fill="#64748b" font-size="10">-150mm</text>
+                                    <text x="155" y="350" fill="#64748b" font-size="10">+150mm</text>
+                                    <text x="10" y="205" fill="#64748b" font-size="10">-150mm</text>
+                                    <text x="250" y="205" fill="#64748b" font-size="10">+150mm</text>
+                                </svg>
+
+                                <!-- Position Coordinates Display -->
+                                <div class="position-coords" id="positionCoords">
+                                    <div class="coord-item">
+                                        <span class="coord-label">X:</span>
+                                        <span class="coord-value" id="coordX">--</span>
+                                    </div>
+                                    <div class="coord-item">
+                                        <span class="coord-label">Y:</span>
+                                        <span class="coord-value" id="coordY">--</span>
+                                    </div>
+                                    <div class="coord-item">
+                                        <span class="coord-label">Z:</span>
+                                        <span class="coord-value" id="coordZ">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Status Panel -->
+                    <div class="card monitor-card">
+                        <div class="card-header">
+                            <h3>Real-Time Status</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="monitor-status-grid">
+                                <div class="monitor-status-item">
+                                    <span class="monitor-status-icon" id="monitorBallDetectedIcon">⚪</span>
+                                    <span class="monitor-status-label">Ball Detected</span>
+                                    <span class="monitor-status-value" id="monitorBallDetected">No</span>
+                                </div>
+                                <div class="monitor-status-item">
+                                    <span class="monitor-status-icon" id="monitorBallReadyIcon">⚪</span>
+                                    <span class="monitor-status-label">Ball Ready</span>
+                                    <span class="monitor-status-value" id="monitorBallReady">No</span>
+                                </div>
+                                <div class="monitor-status-item" id="monitorClubItem" style="display: none;">
+                                    <span class="monitor-status-icon">🏌️</span>
+                                    <span class="monitor-status-label">Club</span>
+                                    <span class="monitor-status-value" id="monitorClubValue">-</span>
+                                </div>
+                                <div class="monitor-status-item" id="monitorHandednessItem" style="display: none;">
+                                    <span class="monitor-status-icon">👋</span>
+                                    <span class="monitor-status-label">Handedness</span>
+                                    <span class="monitor-status-value" id="monitorHandednessValue">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Shot Metrics -->
+                <div class="card" id="monitorCurrentShotCard" style="display: none;">
+                    <div class="card-header">
+                        <h3>Current Shot Metrics</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="monitor-metrics-tabs">
+                            <button class="tab-button active" data-tab="monitorBall">Ball Data</button>
+                            <button class="tab-button" data-tab="monitorClub">Club Data</button>
+                        </div>
+                        <div class="monitor-metrics-content">
+                            <div class="metrics-tab active" id="monitorBallMetrics"></div>
+                            <div class="metrics-tab" id="monitorClubMetrics"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shot History -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Shot History</h3>
+                        <button class="btn btn-secondary btn-sm" id="clearHistoryBtn">Clear</button>
+                    </div>
+                    <div class="card-content">
+                        <div class="shot-history-container">
+                            <table class="shot-history-table" id="shotHistoryTable">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Ball Speed</th>
+                                        <th>Launch Angle</th>
+                                        <th>Launch Dir</th>
+                                        <th>Spin Rate</th>
+                                        <th>Carry</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shotHistoryBody">
+                                    <tr class="no-shots">
+                                        <td colspan="7">No shots recorded yet</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

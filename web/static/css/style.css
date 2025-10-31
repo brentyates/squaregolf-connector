@@ -833,3 +833,197 @@ body {
         max-width: 250px;
     }
 }
+
+/* Shot Monitor Screen Styles */
+.monitor-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.monitor-card {
+    height: 100%;
+}
+
+/* Ball Position Visualization */
+.ball-position-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ball-position-svg {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    background: #1a202c;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+#ballDot {
+    transition: cx 0.3s ease, cy 0.3s ease;
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
+}
+
+.position-coords {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+.coord-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem;
+    background: #f7fafc;
+    border-radius: 6px;
+}
+
+.coord-label {
+    font-size: 0.75rem;
+    color: #718096;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.coord-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* Monitor Status Grid */
+.monitor-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.monitor-status-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: #f7fafc;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.monitor-status-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.monitor-status-label {
+    font-size: 0.75rem;
+    color: #718096;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
+.monitor-status-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* Monitor Metrics */
+.monitor-metrics-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.monitor-metrics-content {
+    min-height: 200px;
+}
+
+/* Shot History Table */
+.shot-history-container {
+    overflow-x: auto;
+}
+
+.shot-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.shot-history-table thead {
+    background: #f7fafc;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.shot-history-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shot-history-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.shot-history-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.shot-history-table tbody tr:hover {
+    background-color: #f7fafc;
+}
+
+.shot-history-table .no-shots {
+    text-align: center;
+    color: #a0aec0;
+    font-style: italic;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Card header with button */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Responsive adjustments for Shot Monitor */
+@media (max-width: 1200px) {
+    .monitor-top-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .position-coords {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .shot-history-table {
+        font-size: 0.75rem;
+    }
+
+    .shot-history-table th,
+    .shot-history-table td {
+        padding: 0.5rem;
+    }
+}

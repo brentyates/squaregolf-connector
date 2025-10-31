@@ -346,6 +346,17 @@ class SquareGolfApp {
         
         // Update metrics
         this.updateMetrics(status.lastBallMetrics, status.lastClubMetrics);
+
+        // Update Shot Monitor if available
+        if (window.shotMonitor) {
+            window.shotMonitor.updateStatus(status);
+
+            // If we have new shot data, update current shot and add to history
+            if (status.lastBallMetrics && Object.keys(status.lastBallMetrics).length > 0) {
+                window.shotMonitor.updateCurrentShot(status.lastBallMetrics, status.lastClubMetrics);
+                window.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
+            }
+        }
     }
 
     updateBallStatus(elementId, detected) {
@@ -813,7 +824,240 @@ class SquareGolfApp {
     }
 }
 
+// Shot Monitor Module
+class ShotMonitor {
+    constructor() {
+        this.shotHistory = [];
+        this.maxHistory = 20;
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Clear history button
+        const clearBtn = document.getElementById('clearHistoryBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.clearHistory());
+        }
+
+        // Metrics tab switching
+        const metricsTabs = document.querySelectorAll('.monitor-metrics-tabs .tab-button');
+        metricsTabs.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tab = e.target.dataset.tab;
+                this.switchMetricsTab(tab);
+            });
+        });
+    }
+
+    updateBallPosition(position) {
+        if (!position) {
+            // Hide ball dot
+            document.getElementById('ballDot').style.display = 'none';
+            document.getElementById('coordX').textContent = '--';
+            document.getElementById('coordY').textContent = '--';
+            document.getElementById('coordZ').textContent = '--';
+            return;
+        }
+
+        // Show and update ball dot position
+        const ballDot = document.getElementById('ballDot');
+        ballDot.style.display = 'block';
+
+        // Convert mm to SVG coordinates
+        // SVG viewBox: 0 0 300 400, center at 150, 200
+        // Scale: 300mm range = 300px (1:1 for simplicity)
+        const centerX = 150;
+        const centerY = 200;
+        const scale = 1; // 1mm = 1px
+
+        // X: positive right, negative left
+        // Y: positive back (down in SVG), negative front (up in SVG)
+        const svgX = centerX + (position.x * scale);
+        const svgY = centerY + (position.y * scale);
+
+        ballDot.setAttribute('cx', svgX);
+        ballDot.setAttribute('cy', svgY);
+
+        // Update coordinate display
+        document.getElementById('coordX').textContent = `${position.x}mm`;
+        document.getElementById('coordY').textContent = `${position.y}mm`;
+        document.getElementById('coordZ').textContent = `${position.z}mm`;
+
+        // Color code based on distance from center
+        const distance = Math.sqrt(position.x * position.x + position.y * position.y);
+        if (distance < 30) {
+            ballDot.setAttribute('fill', '#22c55e'); // Green - in target
+        } else if (distance < 100) {
+            ballDot.setAttribute('fill', '#eab308'); // Yellow - marginal
+        } else {
+            ballDot.setAttribute('fill', '#ef4444'); // Red - out of range
+        }
+    }
+
+    updateStatus(status) {
+        // Update ball detected
+        const detectedIcon = document.getElementById('monitorBallDetectedIcon');
+        const detectedValue = document.getElementById('monitorBallDetected');
+        if (status.ballDetected) {
+            detectedIcon.textContent = '🟢';
+            detectedValue.textContent = 'Yes';
+            detectedValue.style.color = '#22c55e';
+        } else {
+            detectedIcon.textContent = '⚪';
+            detectedValue.textContent = 'No';
+            detectedValue.style.color = '#a0aec0';
+        }
+
+        // Update ball ready
+        const readyIcon = document.getElementById('monitorBallReadyIcon');
+        const readyValue = document.getElementById('monitorBallReady');
+        if (status.ballReady) {
+            readyIcon.textContent = '🟢';
+            readyValue.textContent = 'Yes';
+            readyValue.style.color = '#22c55e';
+        } else {
+            readyIcon.textContent = '⚪';
+            readyValue.textContent = 'No';
+            readyValue.style.color = '#a0aec0';
+        }
+
+        // Update club and handedness if available
+        if (status.currentClub) {
+            document.getElementById('monitorClubItem').style.display = 'flex';
+            document.getElementById('monitorClubValue').textContent = status.currentClub;
+        }
+
+        if (status.handedness) {
+            document.getElementById('monitorHandednessItem').style.display = 'flex';
+            document.getElementById('monitorHandednessValue').textContent = status.handedness;
+        }
+
+        // Update ball position visualization
+        if (status.ballPosition) {
+            this.updateBallPosition(status.ballPosition);
+        } else {
+            this.updateBallPosition(null);
+        }
+    }
+
+    updateCurrentShot(ballData, clubData) {
+        const card = document.getElementById('monitorCurrentShotCard');
+        card.style.display = 'block';
+
+        // Update ball metrics
+        const ballMetrics = document.getElementById('monitorBallMetrics');
+        ballMetrics.innerHTML = this.formatMetrics(ballData);
+
+        // Update club metrics
+        const clubMetrics = document.getElementById('monitorClubMetrics');
+        clubMetrics.innerHTML = this.formatMetrics(clubData);
+    }
+
+    formatMetrics(data) {
+        if (!data || Object.keys(data).length === 0) {
+            return '<div class="no-metrics">No data available</div>';
+        }
+
+        let html = '<div class="metrics-grid">';
+        for (const [key, value] of Object.entries(data)) {
+            if (value !== null && value !== undefined) {
+                const label = key.replace(/([A-Z])/g, ' $1').trim();
+                const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                html += `
+                    <div class="metric-item">
+                        <div class="metric-label">${displayLabel}</div>
+                        <div class="metric-value">${value}</div>
+                    </div>
+                `;
+            }
+        }
+        html += '</div>';
+        return html;
+    }
+
+    addShotToHistory(ballData, clubData) {
+        const timestamp = new Date().toLocaleTimeString();
+
+        const shot = {
+            time: timestamp,
+            ballSpeed: ballData.ballSpeed || '--',
+            launchAngle: ballData.launchAngle || '--',
+            launchDirection: ballData.launchDirection || '--',
+            spinRate: ballData.totalSpin || '--',
+            carry: ballData.carry || '--',
+            ballData: ballData,
+            clubData: clubData
+        };
+
+        this.shotHistory.unshift(shot);
+        if (this.shotHistory.length > this.maxHistory) {
+            this.shotHistory.pop();
+        }
+
+        this.renderHistory();
+    }
+
+    renderHistory() {
+        const tbody = document.getElementById('shotHistoryBody');
+
+        if (this.shotHistory.length === 0) {
+            tbody.innerHTML = '<tr class="no-shots"><td colspan="7">No shots recorded yet</td></tr>';
+            return;
+        }
+
+        let html = '';
+        this.shotHistory.forEach((shot, index) => {
+            html += `
+                <tr>
+                    <td>${shot.time}</td>
+                    <td>${shot.ballSpeed}</td>
+                    <td>${shot.launchAngle}</td>
+                    <td>${shot.launchDirection}</td>
+                    <td>${shot.spinRate}</td>
+                    <td>${shot.carry}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="window.shotMonitor.showShotDetails(${index})">
+                            View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    showShotDetails(index) {
+        const shot = this.shotHistory[index];
+        if (!shot) return;
+
+        // For now, just log to console - could create a modal later
+        console.log('Shot details:', shot);
+        alert(`Shot Details:\n\nBall Speed: ${shot.ballSpeed}\nLaunch Angle: ${shot.launchAngle}\nLaunch Direction: ${shot.launchDirection}\nSpin Rate: ${shot.spinRate}\nCarry: ${shot.carry}`);
+    }
+
+    clearHistory() {
+        this.shotHistory = [];
+        this.renderHistory();
+    }
+
+    switchMetricsTab(tabName) {
+        // Remove active from all tabs
+        document.querySelectorAll('.monitor-metrics-tabs .tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.monitor-metrics-content .metrics-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Add active to selected tab
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(tabName === 'monitorBall' ? 'monitorBallMetrics' : 'monitorClubMetrics').classList.add('active');
+    }
+}
+
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new SquareGolfApp();
+    window.shotMonitor = new ShotMonitor();
 });
