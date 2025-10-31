@@ -1566,3 +1566,33 @@ body {
         padding: var(--spacing-sm);
     }
 }
+
+/* Shot Monitor Placeholder */
+.shot-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-2xl) var(--spacing-xl);
+    text-align: center;
+    min-height: 200px;
+}
+
+.shot-placeholder-icon {
+    font-size: 48px;
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-md);
+}
+
+.shot-placeholder-title {
+    color: var(--text-muted);
+    font-size: var(--font-base);
+    font-weight: var(--weight-medium);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.shot-placeholder-subtitle {
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    margin: 0;
+}

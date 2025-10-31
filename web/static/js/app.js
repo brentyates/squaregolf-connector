@@ -969,16 +969,20 @@ class ShotMonitor {
     }
 
     updateCurrentShot(ballData, clubData) {
-        const card = document.getElementById('monitorCurrentShotCard');
-        card.style.display = 'block';
+        const placeholder = document.getElementById('monitorShotPlaceholder');
+        const shotData = document.getElementById('monitorShotData');
+
+        // Hide placeholder and show actual data
+        if (placeholder) placeholder.style.display = 'none';
+        if (shotData) shotData.style.display = 'block';
 
         // Update ball metrics
         const ballMetrics = document.getElementById('monitorBallMetrics');
-        ballMetrics.innerHTML = this.formatMetrics(ballData);
+        if (ballMetrics) ballMetrics.innerHTML = this.formatMetrics(ballData);
 
         // Update club metrics
         const clubMetrics = document.getElementById('monitorClubMetrics');
-        clubMetrics.innerHTML = this.formatMetrics(clubData);
+        if (clubMetrics) clubMetrics.innerHTML = this.formatMetrics(clubData);
     }
 
     formatMetrics(data) {

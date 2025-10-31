@@ -200,18 +200,28 @@
                     </div>
 
                 <!-- Last Shot Metrics -->
-                <div class="card" id="monitorCurrentShotCard" style="display: none;">
+                <div class="card" id="monitorCurrentShotCard">
                     <div class="card-header">
                         <h3>Last Shot Metrics</h3>
                     </div>
                     <div class="card-content">
-                        <div class="monitor-metrics-tabs">
-                            <button class="tab-button active" data-tab="monitorBall">Ball Data</button>
-                            <button class="tab-button" data-tab="monitorClub">Club Data</button>
+                        <!-- Placeholder when no shot data -->
+                        <div id="monitorShotPlaceholder" class="shot-placeholder">
+                            <span class="material-icons shot-placeholder-icon">sports_golf</span>
+                            <p class="shot-placeholder-title">Waiting for shot data...</p>
+                            <p class="shot-placeholder-subtitle">Hit a shot to see ball and club metrics</p>
                         </div>
-                        <div class="monitor-metrics-content">
-                            <div class="metrics-tab active" id="monitorBallMetrics"></div>
-                            <div class="metrics-tab" id="monitorClubMetrics"></div>
+
+                        <!-- Actual metrics (hidden by default) -->
+                        <div id="monitorShotData" style="display: none;">
+                            <div class="monitor-metrics-tabs">
+                                <button class="tab-button active" data-tab="monitorBall">Ball Data</button>
+                                <button class="tab-button" data-tab="monitorClub">Club Data</button>
+                            </div>
+                            <div class="monitor-metrics-content">
+                                <div class="metrics-tab active" id="monitorBallMetrics"></div>
+                                <div class="metrics-tab" id="monitorClubMetrics"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
