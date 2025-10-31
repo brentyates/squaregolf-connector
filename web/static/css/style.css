@@ -669,3 +669,118 @@ body {
 .text-warning {
     color: #b7791f !important;
 }
+
+/* Alignment Screen Styles */
+.alignment-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    padding: 2rem;
+}
+
+.compass-container {
+    width: 100%;
+    max-width: 300px;
+    aspect-ratio: 1;
+}
+
+.compass-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+#aimPointer {
+    transition: transform 0.3s ease-out;
+}
+
+.alignment-numbers {
+    text-align: center;
+    width: 100%;
+}
+
+.alignment-angle {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #f8fafc;
+    margin-bottom: 0.5rem;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+}
+
+.alignment-angle.aligned {
+    color: #22c55e;
+}
+
+.alignment-angle.close {
+    color: #eab308;
+}
+
+.alignment-angle.far {
+    color: #ef4444;
+}
+
+.alignment-direction {
+    font-size: 1.5rem;
+    color: #94a3b8;
+    margin-bottom: 1rem;
+}
+
+.aligned-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.aligned-status.aligned {
+    background: rgba(34, 197, 94, 0.1);
+    border: 2px solid #22c55e;
+}
+
+.aligned-status.not-aligned {
+    background: rgba(239, 68, 68, 0.1);
+    border: 2px solid #ef4444;
+}
+
+.aligned-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.aligned-status.aligned .aligned-icon {
+    transform: scale(1.2);
+}
+
+.aligned-text {
+    font-size: 1.125rem;
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+.aligned-status.aligned .aligned-text {
+    color: #22c55e;
+}
+
+.aligned-status.not-aligned .aligned-text {
+    color: #ef4444;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .alignment-angle {
+        font-size: 3rem;
+    }
+
+    .alignment-direction {
+        font-size: 1.25rem;
+    }
+
+    .compass-container {
+        max-width: 250px;
+    }
+}

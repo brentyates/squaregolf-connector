@@ -45,10 +45,6 @@ class SquareGolfApp {
         // Camera controls
         document.getElementById('cameraSaveBtn').addEventListener('click', () => this.saveCameraConfig());
 
-        // Alignment controls
-        document.getElementById('startCalibrationBtn').addEventListener('click', () => this.startCalibration());
-        document.getElementById('stopCalibrationBtn').addEventListener('click', () => this.stopCalibration());
-
         // Settings controls
         document.getElementById('forgetDeviceBtn').addEventListener('click', () => this.forgetDevice());
         
@@ -129,6 +125,14 @@ class SquareGolfApp {
             case 'cameraConfig':
                 this.updateCameraConfig(message.data);
                 break;
+            case 'alignmentData':
+                if (message.data) {
+                    this.updateAlignmentDisplay(
+                        message.data.alignmentAngle || 0,
+                        message.data.isAligned || false
+                    );
+                }
+                break;
             default:
                 console.log('Unknown WebSocket message type:', message.type);
         }
@@ -176,19 +180,35 @@ class SquareGolfApp {
     }
 
     showScreen(screenName) {
+        // Check if alignment screen requires device connection
+        if (screenName === 'alignment' && (!this.deviceStatus || this.deviceStatus.connectionStatus !== 'connected')) {
+            this.showToast('Please connect to device first', 'warning');
+            return;
+        }
+
+        // Stop alignment if leaving alignment screen
+        if (this.currentScreen === 'alignment' && screenName !== 'alignment') {
+            this.stopAlignment();
+        }
+
         // Update navigation
         document.querySelectorAll('.nav-button').forEach(btn => {
             btn.classList.remove('active');
         });
         document.querySelector(`[data-screen="${screenName}"]`).classList.add('active');
-        
+
         // Update screens
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
         });
         document.getElementById(`${screenName}Screen`).classList.add('active');
-        
+
         this.currentScreen = screenName;
+
+        // Start alignment if entering alignment screen
+        if (screenName === 'alignment') {
+            this.startAlignment();
+        }
     }
 
     // Device functions
@@ -553,21 +573,94 @@ class SquareGolfApp {
         }
     }
 
-    // Calibration functions
-    startCalibration() {
-        // TODO: Implement calibration start
-        document.getElementById('calibrationStatus').textContent = 'Calibrating...';
-        document.getElementById('startCalibrationBtn').disabled = true;
-        document.getElementById('stopCalibrationBtn').disabled = false;
-        this.showToast('Calibration started', 'info');
+    // Alignment functions
+    async startAlignment() {
+        try {
+            const response = await fetch('/api/alignment/start', {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to start alignment');
+            }
+
+            console.log('Alignment started');
+        } catch (error) {
+            console.error('Error starting alignment:', error);
+            this.showToast('Failed to start alignment', 'error');
+        }
     }
 
-    stopCalibration() {
-        // TODO: Implement calibration stop
-        document.getElementById('calibrationStatus').textContent = 'Ready to calibrate';
-        document.getElementById('startCalibrationBtn').disabled = false;
-        document.getElementById('stopCalibrationBtn').disabled = true;
-        this.showToast('Calibration stopped', 'info');
+    async stopAlignment() {
+        try {
+            const response = await fetch('/api/alignment/stop', {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to stop alignment');
+            }
+
+            console.log('Alignment stopped');
+
+            // Reset display
+            this.updateAlignmentDisplay(0, false);
+        } catch (error) {
+            console.error('Error stopping alignment:', error);
+        }
+    }
+
+    updateAlignmentDisplay(angle, isAligned) {
+        // Update numeric angle
+        const angleElement = document.getElementById('alignmentAngle');
+        const directionElement = document.getElementById('alignmentDirection');
+        const statusElement = document.getElementById('alignedStatus');
+        const pointerElement = document.getElementById('aimPointer');
+
+        if (!angleElement) return; // Not on alignment screen
+
+        // Format angle
+        const formattedAngle = Math.abs(angle).toFixed(1);
+        angleElement.textContent = `${formattedAngle}°`;
+
+        // Update direction text
+        if (Math.abs(angle) < 0.5) {
+            directionElement.textContent = 'Aimed straight';
+        } else if (angle > 0) {
+            directionElement.textContent = `Aimed ${formattedAngle}° right`;
+        } else {
+            directionElement.textContent = `Aimed ${formattedAngle}° left`;
+        }
+
+        // Update angle color based on magnitude
+        angleElement.classList.remove('aligned', 'close', 'far');
+        if (isAligned) {
+            angleElement.classList.add('aligned');
+        } else if (Math.abs(angle) < 5) {
+            angleElement.classList.add('close');
+        } else {
+            angleElement.classList.add('far');
+        }
+
+        // Update status indicator
+        statusElement.classList.remove('aligned', 'not-aligned');
+        const iconElement = statusElement.querySelector('.aligned-icon');
+        const textElement = statusElement.querySelector('.aligned-text');
+
+        if (isAligned) {
+            statusElement.classList.add('aligned');
+            iconElement.textContent = '✅';
+            textElement.textContent = 'Aligned!';
+        } else {
+            statusElement.classList.add('not-aligned');
+            iconElement.textContent = '⚠️';
+            textElement.textContent = 'Not aligned';
+        }
+
+        // Rotate compass pointer
+        if (pointerElement) {
+            pointerElement.setAttribute('transform', `rotate(${angle} 100 100)`);
+        }
     }
 
     // Settings functions

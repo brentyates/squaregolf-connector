@@ -274,30 +274,67 @@
                 <div class="screen-header">
                     <h1>Device Alignment</h1>
                 </div>
-                
+
+                <!-- Alignment Display Card -->
                 <div class="card">
                     <div class="card-header">
-                        <h3>Calibration Instructions</h3>
+                        <h3>Aim Direction</h3>
+                    </div>
+                    <div class="card-content alignment-display">
+                        <!-- Visual Compass -->
+                        <div class="compass-container">
+                            <svg class="compass-svg" viewBox="0 0 200 200" id="compassSvg">
+                                <!-- Background circle -->
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="#2a3f5f" stroke-width="2"/>
+
+                                <!-- Target zone (±2 degrees) -->
+                                <path id="targetZone" d="" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="2"/>
+
+                                <!-- Degree markers -->
+                                <line x1="100" y1="20" x2="100" y2="30" stroke="#64748b" stroke-width="2"/> <!-- 0° -->
+                                <line x1="170" y1="100" x2="180" y2="100" stroke="#64748b" stroke-width="1"/> <!-- 90° -->
+                                <line x1="100" y1="170" x2="100" y2="180" stroke="#64748b" stroke-width="1"/> <!-- 180° -->
+                                <line x1="20" y1="100" x2="30" y2="100" stroke="#64748b" stroke-width="1"/> <!-- -90° -->
+
+                                <!-- Center target -->
+                                <circle cx="100" cy="100" r="5" fill="#64748b"/>
+
+                                <!-- Aim pointer (rotates based on angle) -->
+                                <g id="aimPointer" transform="rotate(0 100 100)">
+                                    <line x1="100" y1="100" x2="100" y2="30" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
+                                    <circle cx="100" cy="30" r="8" fill="#3b82f6"/>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- Numeric Display -->
+                        <div class="alignment-numbers">
+                            <div class="alignment-angle" id="alignmentAngle">0.0°</div>
+                            <div class="alignment-direction" id="alignmentDirection">Aimed straight</div>
+                        </div>
+
+                        <!-- Aligned Status Indicator -->
+                        <div class="aligned-status" id="alignedStatus">
+                            <span class="aligned-icon">⚪</span>
+                            <span class="aligned-text">Waiting for data...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>How to Use</h3>
                     </div>
                     <div class="card-content">
                         <div class="instructions">
-                            <h4>Device Alignment Instructions:</h4>
-                            <ol>
-                                <li>Place the device on a flat surface</li>
-                                <li>Ensure the device is level</li>
-                                <li>Press 'Start Calibration' to begin</li>
-                                <li>Follow the on-screen prompts</li>
-                            </ol>
-                        </div>
-                        
-                        <div class="button-group">
-                            <button class="btn btn-primary" id="startCalibrationBtn">Start Calibration</button>
-                            <button class="btn btn-secondary" id="stopCalibrationBtn" disabled>Stop Calibration</button>
-                        </div>
-                        
-                        <div class="status-row">
-                            <span class="status-label">Status:</span>
-                            <span class="status-value" id="calibrationStatus">Ready to calibrate</span>
+                            <ul>
+                                <li>Alignment starts automatically when you open this tab</li>
+                                <li>Point the device at your target</li>
+                                <li>Green circle appears when aligned (within ±2°)</li>
+                                <li>Aim arrow shows current direction</li>
+                                <li>Alignment stops when you leave this tab</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
