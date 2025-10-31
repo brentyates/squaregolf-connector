@@ -201,6 +201,17 @@ class SquareGolfApp {
         });
         document.getElementById(`${screenName}Screen`).classList.add('active');
 
+        // Update page title
+        const pageTitles = {
+            device: 'Device Connection',
+            shotMonitor: 'Shot Monitor',
+            gspro: 'GSPro Connection',
+            camera: 'Swing Camera',
+            alignment: 'Device Alignment',
+            settings: 'Settings'
+        };
+        document.getElementById('pageTitle').textContent = pageTitles[screenName] || screenName;
+
         this.currentScreen = screenName;
 
         // Start alignment if entering alignment screen
