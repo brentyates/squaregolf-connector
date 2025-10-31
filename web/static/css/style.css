@@ -982,8 +982,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--spacing-2xl) var(--spacing-sm);
-    padding: var(--spacing-2xl);
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
 }
 
 .compass-container {
@@ -1025,10 +1025,10 @@ body {
 }
 
 .alignment-angle {
-    font-size: var(--font-5xl);
+    font-size: var(--font-4xl);
     font-weight: var(--weight-black);
     color: var(--text-light);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0;
     font-variant-numeric: tabular-nums;
     transition: all var(--transition-slow);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -1062,9 +1062,9 @@ body {
 }
 
 .alignment-direction {
-    font-size: var(--font-2xl);
+    font-size: var(--font-lg);
     color: var(--slate-400);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 0;
     font-weight: var(--weight-medium);
     letter-spacing: 0.02em;
 }
@@ -1072,8 +1072,8 @@ body {
 .aligned-status {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg) var(--spacing-2xl);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
     background: rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-lg);
     transition: all var(--transition-normal);
@@ -1090,7 +1090,7 @@ body {
 }
 
 .aligned-icon {
-    font-size: var(--font-2xl);
+    font-size: var(--font-lg);
     transition: transform var(--transition-normal);
 }
 
@@ -1099,7 +1099,7 @@ body {
 }
 
 .aligned-text {
-    font-size: var(--font-lg);
+    font-size: var(--font-sm);
     color: var(--text-light);
     font-weight: var(--weight-medium);
 }
@@ -1117,7 +1117,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--spacing-lg);
-    margin-top: var(--spacing-xl);
+    margin-top: 0;
 }
 
 .handedness-btn {
