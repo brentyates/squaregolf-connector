@@ -73,6 +73,13 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 
 	// Process by byte patterns
 	if len(bytesList) >= 2 {
+		// Handle alignment notifications (format 11 82)
+		// TODO: Verify this is the correct format from Bluetooth traffic capture
+		if bytesList[0] == "11" && bytesList[1] == "82" {
+			lm.HandleAlignmentNotification(bytesList)
+			return
+		}
+
 		// Sensor notifications (format 11 01)
 		if bytesList[0] == "11" && bytesList[1] == "01" {
 			lm.HandleSensorNotification(bytesList)
@@ -118,6 +125,25 @@ func (lm *LaunchMonitor) HandleSensorNotification(bytesList []string) {
 		Z: sensorData.PositionZ,
 	}
 	lm.stateManager.SetBallPosition(ballPosition)
+}
+
+// HandleAlignmentNotification handles alignment/aim notifications (format 11 82)
+// TODO: The exact format and byte positions need to be verified by capturing
+// Bluetooth traffic from the official Square Golf app
+func (lm *LaunchMonitor) HandleAlignmentNotification(bytesList []string) {
+	alignmentData, err := ParseAlignmentData(bytesList)
+	if err != nil {
+		log.Printf("Error parsing alignment data: %v", err)
+		return
+	}
+
+	// Log for debugging until we confirm the format is correct
+	log.Printf("Alignment data received - Aim: %.2f°, Aligned: %v",
+		alignmentData.AimAngle, alignmentData.IsAligned)
+
+	// Update alignment state - IsAligning is controlled by the UI
+	lm.stateManager.SetAlignmentAngle(alignmentData.AimAngle)
+	lm.stateManager.SetIsAligned(alignmentData.IsAligned)
 }
 
 // HandleShotBallMetrics handles shot ball metrics notifications (format 11 02 37)
