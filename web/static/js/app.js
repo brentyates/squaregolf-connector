@@ -30,6 +30,11 @@ class SquareGolfApp {
             });
         });
 
+        // Status bar navigation
+        document.getElementById('statusDevice')?.addEventListener('click', () => this.showScreen('device'));
+        document.getElementById('statusGSPro')?.addEventListener('click', () => this.showScreen('gspro'));
+        document.getElementById('statusBallReady')?.addEventListener('click', () => this.showScreen('shotMonitor'));
+
         // Device controls
         document.getElementById('connectBtn').addEventListener('click', () => this.connectDevice());
         document.getElementById('disconnectBtn').addEventListener('click', () => this.disconnectDevice());
@@ -299,7 +304,26 @@ class SquareGolfApp {
         }
         
         if (status.batteryLevel !== null) {
-            document.getElementById('batteryLevel').textContent = `${status.batteryLevel}%`;
+            const batteryElement = document.getElementById('batteryLevel');
+            const level = status.batteryLevel;
+            let icon = '';
+            let className = '';
+
+            if (level >= 80) {
+                icon = '🔋';
+                className = 'battery-high';
+            } else if (level >= 50) {
+                icon = '🔋';
+                className = 'battery-medium';
+            } else if (level >= 20) {
+                icon = '⚠️';
+                className = 'battery-medium';
+            } else {
+                icon = '🪫';
+                className = 'battery-low';
+            }
+
+            batteryElement.innerHTML = `<span class="battery-indicator"><span class="battery-icon ${className}">${icon}</span> ${level}%</span>`;
         }
 
         if (status.firmwareVersion !== null) {
@@ -357,10 +381,10 @@ class SquareGolfApp {
     }
 
     showDeviceInfo(show) {
-        const cards = ['deviceInfoCard', 'systemStatusCard'];
-        cards.forEach(cardId => {
-            document.getElementById(cardId).style.display = show ? 'block' : 'none';
-        });
+        const deviceInfoCard = document.getElementById('deviceInfoCard');
+        if (deviceInfoCard) {
+            deviceInfoCard.style.display = show ? 'block' : 'none';
+        }
     }
 
     updateMetrics(ballMetrics, clubMetrics) {
@@ -889,6 +913,26 @@ class ShotMonitor {
         document.getElementById('coordY').textContent = `${position.y}mm`;
         document.getElementById('coordZ').textContent = `${position.z}mm`;
 
+        // Calculate distance from center
+        const distance = Math.sqrt(position.x * position.x + position.y * position.y);
+        const distanceIndicator = document.getElementById('distanceIndicator');
+        const distanceValue = document.getElementById('distanceValue');
+
+        if (distanceIndicator && distanceValue) {
+            distanceIndicator.style.display = 'flex';
+            distanceValue.textContent = `${distance.toFixed(1)}mm`;
+
+            // Color code based on distance
+            distanceValue.classList.remove('excellent', 'good', 'poor');
+            if (distance < 30) {
+                distanceValue.classList.add('excellent');
+            } else if (distance < 60) {
+                distanceValue.classList.add('good');
+            } else {
+                distanceValue.classList.add('poor');
+            }
+        }
+
         // Set ball appearance based on ready state
         if (ballReady) {
             // Ball detected and ready - green fill, reset target zone
@@ -970,4 +1014,12 @@ class ShotMonitor {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new SquareGolfApp();
     window.shotMonitor = new ShotMonitor();
+
+    // Status bar click-to-expand functionality
+    const statusBar = document.getElementById('statusBar');
+    if (statusBar) {
+        statusBar.addEventListener('click', () => {
+            statusBar.classList.toggle('expanded');
+        });
+    }
 });

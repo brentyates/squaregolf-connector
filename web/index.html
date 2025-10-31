@@ -48,7 +48,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <!-- Global Status Bar -->
-            <div class="global-status-bar">
+            <div class="global-status-bar compact" id="statusBar">
                 <div class="status-item" id="statusWebSocket">
                     <span class="status-icon material-icons">cloud</span>
                     <span class="status-label">Server</span>
@@ -90,6 +90,7 @@
                         
                         <div class="control-buttons">
                             <input type="text" id="deviceNameInput" placeholder="Device name (leave empty to scan)" class="input-field">
+                            <p class="helper-text">💡 Leave empty to automatically scan and connect to any available SquareGolf device, or enter a specific device name to connect to that device.</p>
                             <div class="button-group">
                                 <button class="btn btn-primary" id="connectBtn">Connect</button>
                                 <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
@@ -121,26 +122,6 @@
                     </div>
                 </div>
 
-                <!-- System Status -->
-                <div class="card" id="systemStatusCard" style="display: none;">
-                    <div class="card-header">
-                        <h3>System Status</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="status-grid">
-                            <div class="status-item" id="clubItem" style="display: none;">
-                                <span class="status-icon">🏌️</span>
-                                <span class="status-text">Club</span>
-                                <span class="status-value" id="clubValue">-</span>
-                            </div>
-                            <div class="status-item" id="handednessItem" style="display: none;">
-                                <span class="status-icon">👋</span>
-                                <span class="status-text">Handedness</span>
-                                <span class="status-value" id="handednessValue">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Metrics -->
                 <div class="card" id="metricsCard" style="display: none;">
@@ -214,6 +195,13 @@
                                         <span class="coord-value" id="coordZ">--</span>
                                     </div>
                                 </div>
+
+                                <!-- Distance from center indicator -->
+                                <div class="distance-indicator" id="distanceIndicator" style="display: none;">
+                                    <span class="material-icons">center_focus_strong</span>
+                                    <span class="distance-label">Distance from center:</span>
+                                    <span class="distance-value" id="distanceValue">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -241,28 +229,6 @@
             <div class="screen" id="gsproScreen">
                 <div class="screen-header">
                     <h1>GSPro Connection</h1>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Connection Configuration</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="gsproIP">GSPro IP Address:</label>
-                            <input type="text" id="gsproIP" class="input-field" value="127.0.0.1">
-                        </div>
-                        <div class="form-group">
-                            <label for="gsproPort">GSPro Port:</label>
-                            <input type="number" id="gsproPort" class="input-field" value="921">
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="gsproAutoConnect">
-                                Connect automatically on start
-                            </label>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="card">
@@ -361,6 +327,11 @@
                         <h3>Aim Direction</h3>
                     </div>
                     <div class="card-content alignment-display">
+                        <!-- Inline Error Message -->
+                        <div class="error-message" id="alignmentError" style="display: none;">
+                            <p class="error-text"></p>
+                            <button class="btn btn-primary btn-sm" id="retryAlignmentBtn">Retry Alignment</button>
+                        </div>
                         <!-- Visual Compass -->
                         <div class="compass-container">
                             <svg class="compass-svg" viewBox="0 0 200 200" id="compassSvg">
@@ -443,11 +414,12 @@
                     </div>
                     <div class="card-content">
                         <div class="form-group">
-                            <label for="settingsDeviceName">Device Name:</label>
+                            <label for="settingsDeviceName">Preferred Device Name:</label>
                             <div class="input-group">
                                 <input type="text" id="settingsDeviceName" class="input-field" placeholder="Device Name">
                                 <button class="btn btn-secondary" id="forgetDeviceBtn">Forget</button>
                             </div>
+                            <p class="helper-text">Save a specific device name to always connect to the same device. Click "Forget" to clear and scan for any device.</p>
                         </div>
                         <div class="form-group">
                             <label class="checkbox-label">
@@ -455,24 +427,61 @@
                                 Connect automatically on start
                             </label>
                         </div>
+                        <div class="form-group">
+                            <label>Spin Detection Mode:</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="spinMode" value="standard">
+                                    <div>
+                                        <strong>Standard (Unmarked Balls)</strong>
+                                        <p class="helper-text">Use with regular golf balls. Provides estimated spin measurements. Lower CPU usage.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="spinMode" value="advanced" checked>
+                                    <div>
+                                        <strong>Advanced (Marked Balls)</strong>
+                                        <p class="helper-text">Use with specially marked/dotted golf balls for accurate spin data through camera tracking.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <h3>Spin Detection Mode</h3>
+                        <h3>GSPro Settings</h3>
                     </div>
                     <div class="card-content">
-                        <div class="radio-group">
-                            <label class="radio-label">
-                                <input type="radio" name="spinMode" value="standard">
-                                Standard
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="gsproAutoConnect">
+                                Connect to GSPro automatically
                             </label>
-                            <label class="radio-label">
-                                <input type="radio" name="spinMode" value="advanced" checked>
-                                Advanced
-                            </label>
+                            <p class="helper-text">When enabled, automatically connects to GSPro when the device connects.</p>
                         </div>
+                        <div class="form-group">
+                            <label for="gsproIP">GSPro IP Address:</label>
+                            <input type="text" id="gsproIP" class="input-field" value="127.0.0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="gsproPort">GSPro Port:</label>
+                            <input type="number" id="gsproPort" class="input-field" value="921">
+                        </div>
+                        <p class="helper-text">These settings rarely need to be changed. Default is localhost (127.0.0.1) on port 921.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>About</h3>
+                    </div>
+                    <div class="card-content">
+                        <p class="helper-text">
+                            <strong>SquareGolf Connector</strong> is an unofficial connector for SquareGolf launch monitors.
+                            <br><a href="https://github.com/byates/squaregolf-connector" target="_blank" style="color: #3b82f6;">View Documentation on GitHub</a>
+                        </p>
                     </div>
                 </div>
             </div>
