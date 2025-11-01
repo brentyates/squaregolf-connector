@@ -54,6 +54,8 @@ class SquareGolfApp {
         // Alignment controls
         document.getElementById('leftHandedBtn').addEventListener('click', () => this.setHandedness('left'));
         document.getElementById('rightHandedBtn').addEventListener('click', () => this.setHandedness('right'));
+        document.getElementById('saveAlignmentBtn').addEventListener('click', () => this.saveAlignment());
+        document.getElementById('cancelAlignmentBtn').addEventListener('click', () => this.cancelAlignment());
 
         // Settings controls
         document.getElementById('forgetDeviceBtn').addEventListener('click', () => this.forgetDevice());
@@ -184,9 +186,12 @@ class SquareGolfApp {
             return;
         }
 
-        // Stop alignment if leaving alignment screen
+        // Auto-cancel alignment if leaving alignment screen without explicit save/cancel
         if (this.currentScreen === 'alignment' && screenName !== 'alignment') {
-            this.stopAlignment();
+            if (!this.alignmentExplicitlyStopped) {
+                this.cancelAlignment();
+            }
+            this.alignmentExplicitlyStopped = false; // Reset for next time
         }
 
         // Update navigation
@@ -338,21 +343,37 @@ class SquareGolfApp {
         }
 
         if (status.firmwareVersion !== null) {
-            document.getElementById('firmwareVersion').textContent = status.firmwareVersion;
+            const firmwareElement = document.getElementById('firmwareVersion');
+            if (firmwareElement) {
+                firmwareElement.textContent = status.firmwareVersion;
+            }
         }
 
         // Ball status is now handled by Shot Monitor screen
 
         // Update system status
         if (status.club) {
-            document.getElementById('clubValue').textContent = status.club.regularCode || status.club.name;
-            document.getElementById('clubItem').style.display = 'block';
+            const clubValueElement = document.getElementById('clubValue');
+            const clubItemElement = document.getElementById('clubItem');
+            if (clubValueElement) {
+                clubValueElement.textContent = status.club.regularCode || status.club.name;
+            }
+            if (clubItemElement) {
+                clubItemElement.style.display = 'block';
+            }
         }
-        
+
         if (status.handedness !== null) {
             const handedness = status.handedness === 0 ? 'Right' : 'Left';
-            document.getElementById('handednessValue').textContent = handedness;
-            document.getElementById('handednessItem').style.display = 'block';
+            const handednessValueElement = document.getElementById('handednessValue');
+            const handednessItemElement = document.getElementById('handednessItem');
+
+            if (handednessValueElement) {
+                handednessValueElement.textContent = handedness;
+            }
+            if (handednessItemElement) {
+                handednessItemElement.style.display = 'block';
+            }
 
             // Update alignment screen handedness display
             this.currentHandedness = handedness.toLowerCase();
@@ -666,6 +687,65 @@ class SquareGolfApp {
         }
     }
 
+    async saveAlignment() {
+        try {
+            this.alignmentExplicitlyStopped = true;
+
+            const response = await fetch('/api/alignment/stop', {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save alignment');
+            }
+
+            console.log('Alignment saved (OK button)');
+            this.showToast('Calibration saved successfully', 'success');
+
+            // Reset display
+            this.updateAlignmentDisplay(0, false);
+
+            // Switch to device screen
+            this.showScreen('device');
+        } catch (error) {
+            console.error('Error saving alignment:', error);
+            this.showToast('Failed to save calibration', 'error');
+        }
+    }
+
+    async cancelAlignment(skipNavigation = false) {
+        try {
+            this.alignmentExplicitlyStopped = true;
+
+            const response = await fetch('/api/alignment/cancel', {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to cancel alignment');
+            }
+
+            console.log('Alignment cancelled');
+
+            // Only show toast if not part of a handedness toggle (to avoid duplicate toasts)
+            if (!skipNavigation) {
+                this.showToast('Calibration cancelled', 'info');
+            }
+
+            // Reset display
+            this.updateAlignmentDisplay(0, false);
+
+            // If explicitly cancelled via button, switch to device screen
+            // Skip navigation if this is part of a handedness toggle restart
+            if (this.currentScreen === 'alignment' && !skipNavigation) {
+                this.showScreen('device');
+            }
+        } catch (error) {
+            console.error('Error cancelling alignment:', error);
+            this.showToast('Failed to cancel alignment', 'error');
+        }
+    }
+
     updateAlignmentDisplay(angle, isAligned) {
         // Update numeric angle
         const angleElement = document.getElementById('alignmentAngle');
@@ -675,14 +755,20 @@ class SquareGolfApp {
 
         if (!angleElement) return; // Not on alignment screen
 
+        // Flip angle sign for left-handed users
+        let displayAngle = angle;
+        if (this.currentHandedness === 'left') {
+            displayAngle = -angle;
+        }
+
         // Format angle
-        const formattedAngle = Math.abs(angle).toFixed(1);
+        const formattedAngle = Math.abs(displayAngle).toFixed(1);
         angleElement.textContent = `${formattedAngle}°`;
 
         // Update direction text
-        if (Math.abs(angle) < 0.5) {
+        if (Math.abs(displayAngle) < 0.5) {
             directionElement.textContent = 'Aimed straight';
-        } else if (angle > 0) {
+        } else if (displayAngle > 0) {
             directionElement.textContent = `Aimed ${formattedAngle}° right`;
         } else {
             directionElement.textContent = `Aimed ${formattedAngle}° left`;
@@ -736,6 +822,17 @@ class SquareGolfApp {
             this.currentHandedness = handedness;
             this.updateHandednessDisplay(handedness);
             console.log('Handedness set to:', handedness);
+
+            // If we're currently in alignment mode, restart it with the new handedness
+            if (this.currentScreen === 'alignment') {
+                console.log('Restarting alignment with new handedness:', handedness);
+                // First cancel the current alignment, then restart with new handedness
+                // Pass skipNavigation=true to stay on alignment screen
+                await this.cancelAlignment(true);
+                // Small delay to ensure cancel completes
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await this.startAlignment();
+            }
         } catch (error) {
             console.error('Error setting handedness:', error);
             this.showToast('Failed to set handedness', 'error');
@@ -743,9 +840,18 @@ class SquareGolfApp {
     }
 
     updateHandednessDisplay(handedness) {
-        const label = document.getElementById('handednessLabel');
-        if (label) {
-            label.textContent = handedness.toUpperCase();
+        const leftBtn = document.getElementById('leftHandedBtn');
+        const rightBtn = document.getElementById('rightHandedBtn');
+
+        // Update button states
+        if (leftBtn && rightBtn) {
+            if (handedness === 'left') {
+                leftBtn.classList.add('active');
+                rightBtn.classList.remove('active');
+            } else {
+                rightBtn.classList.add('active');
+                leftBtn.classList.remove('active');
+            }
         }
     }
 

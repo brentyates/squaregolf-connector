@@ -1160,82 +1160,57 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-lg);
-    margin-top: 0;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
 }
 
 .handedness-btn {
-    background: linear-gradient(var(--gradient-angle), rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-    border: var(--border-width-normal) solid #64748b;
-    border-radius: var(--border-radius-handedness);
-    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs) var(--spacing-md);
     cursor: pointer;
     transition: all var(--transition-normal);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--handedness-btn-size);
-    height: var(--handedness-btn-size);
-    position: relative;
-}
-
-.handedness-btn::before {
-    content: '';
-    position: absolute;
-    inset: calc(-1 * var(--border-width-normal));
-    border-radius: var(--border-radius-handedness);
-    padding: var(--border-width-normal);
-    background: linear-gradient(var(--gradient-angle), var(--color-primary), var(--color-primary-dark));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity var(--transition-normal);
+    font-size: var(--font-xs);
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: var(--weight-medium);
+    min-width: auto;
+    height: auto;
 }
 
 .handedness-btn:hover {
-    background: linear-gradient(var(--gradient-angle), rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
-    border-color: var(--gray-400);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-hover-lift);
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
 }
 
-.handedness-btn:hover::before {
-    opacity: 1;
+.handedness-btn.active {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #60a5fa;
+    font-weight: var(--weight-semibold);
 }
 
-.handedness-btn:active {
-    transform: translateY(0) scale(0.95);
+.handedness-btn.active:hover {
+    background: rgba(59, 130, 246, 0.4);
+    border-color: rgba(59, 130, 246, 0.6);
+    color: #93c5fd;
 }
 
-.handedness-btn .material-icons {
-    font-size: var(--icon-2xl);
-    color: var(--text-light);
-    transition: color var(--transition-normal);
+/* Alignment Action Buttons */
+.alignment-actions {
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: center;
+    margin-top: var(--spacing-2xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
 }
 
-.handedness-btn:hover .material-icons {
-    color: var(--color-primary);
-}
-
-.handedness-label {
-    font-size: var(--font-2xl);
-    font-weight: var(--weight-bold);
-    color: var(--gray-800);
-    background: linear-gradient(var(--gradient-angle), #ffffff 0%, var(--gray-50) 100%);
-    padding: var(--spacing-md) var(--spacing-2xl);
-    border-radius: var(--radius-xl);
-    min-width: var(--min-touch-target);
-    text-align: center;
-    letter-spacing: var(--letter-spacing-wide);
-    box-shadow: var(--shadow-md);
-    border: var(--border-width-normal) solid var(--border-color);
-    transition: all var(--transition-normal);
-}
-
-.handedness-label:hover {
-    box-shadow: var(--shadow-xl);
-    transform: scale(1.05);
+.alignment-actions .btn {
+    flex: 1;
+    max-width: 300px;
 }
 
 /* Shot Monitor Screen Styles */

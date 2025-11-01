@@ -305,6 +305,8 @@ func (s *Server) Start(port int) error {
 	// Alignment endpoints
 	api.HandleFunc("/alignment/start", s.handleAlignmentStart).Methods("POST")
 	api.HandleFunc("/alignment/stop", s.handleAlignmentStop).Methods("POST")
+	api.HandleFunc("/alignment/cancel", s.handleAlignmentCancel).Methods("POST")
+	api.HandleFunc("/alignment/handedness", s.handleAlignmentHandedness).Methods("POST")
 
 	// WebSocket endpoint
 	router.HandleFunc("/ws", s.handleWebSocket)
@@ -580,5 +582,41 @@ func (s *Server) handleAlignmentStop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleAlignmentCancel(w http.ResponseWriter, r *http.Request) {
+	err := s.launchMonitor.CancelAlignment()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleAlignmentHandedness(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Handedness string `json:"handedness"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Convert string to HandednessType
+	var handedness core.HandednessType
+	if req.Handedness == "left" {
+		handedness = core.LeftHanded
+	} else if req.Handedness == "right" {
+		handedness = core.RightHanded
+	} else {
+		http.Error(w, "Invalid handedness value (must be 'left' or 'right')", http.StatusBadRequest)
+		return
+	}
+
+	// Update state manager
+	s.stateManager.SetHandedness(&handedness)
+
 	w.WriteHeader(http.StatusOK)
 }

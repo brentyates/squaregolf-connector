@@ -450,16 +450,26 @@ func (lm *LaunchMonitor) StartAlignment() error {
 		return fmt.Errorf("not connected to device")
 	}
 
-	// First, send club command with alignment stick (clubSel=0x08)
-	// This puts the device in alignment mode (Windows app Awake method)
-	seq := lm.getNextSequence()
-
 	// Get handedness, default to RightHanded if not set
 	handednessPtr := lm.stateManager.GetHandedness()
 	handedness := RightHanded
 	if handednessPtr != nil {
 		handedness = *handednessPtr
 	}
+
+	// Check if already in alignment mode
+	// If so, only send commands if this is NOT a duplicate call from navigation
+	// We can tell it's a handedness change request because the frontend always
+	// updates handedness state before calling StartAlignment
+	if lm.stateManager.GetIsAligning() {
+		// Already aligning - this is likely just navigation returning to the screen
+		// Don't send duplicate commands
+		return nil
+	}
+
+	// First, send club command with alignment stick (clubSel=0x08)
+	// This puts the device in alignment mode (Windows app Awake method)
+	seq := lm.getNextSequence()
 
 	command := ClubCommand(seq, ClubAlignmentStick, handedness)
 	err := lm.SendCommand(command)
@@ -483,7 +493,7 @@ func (lm *LaunchMonitor) StartAlignment() error {
 	return nil
 }
 
-// StopAlignment stops alignment mode
+// StopAlignment stops alignment mode and saves calibration (OK button)
 func (lm *LaunchMonitor) StopAlignment() error {
 	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
 		return fmt.Errorf("not connected to device")
@@ -498,6 +508,30 @@ func (lm *LaunchMonitor) StopAlignment() error {
 	err := lm.SendCommand(command)
 	if err != nil {
 		return fmt.Errorf("failed to stop alignment: %w", err)
+	}
+
+	// Update state
+	lm.stateManager.SetIsAligning(false)
+	lm.stateManager.SetAlignmentAngle(0)
+	lm.stateManager.SetIsAligned(false)
+	return nil
+}
+
+// CancelAlignment cancels alignment mode without saving calibration (Cancel button)
+func (lm *LaunchMonitor) CancelAlignment() error {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return fmt.Errorf("not connected to device")
+	}
+
+	// Get current alignment angle to send with cancel
+	currentAngle := lm.stateManager.GetAlignmentAngle()
+
+	// Send cancel alignment command (confirm=0, current angle)
+	seq := lm.getNextSequence()
+	command := CancelAlignmentCommand(seq, currentAngle)
+	err := lm.SendCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to cancel alignment: %w", err)
 	}
 
 	// Update state

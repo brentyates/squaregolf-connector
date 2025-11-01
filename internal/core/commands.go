@@ -25,7 +25,7 @@ func SwingStickCommand(sequence int, club ClubType, handedness HandednessType) s
 }
 
 // AlignmentCommand generates alignment command (command ID 1185)
-// confirm: 0 = start alignment (continuous streaming), 1 = stop/confirm alignment
+// confirm: 0 = cancel (exit without saving), 1 = confirm/OK (save calibration)
 // targetAngle: target angle in degrees (will be multiplied by 100 and encoded as int32 little-endian)
 func AlignmentCommand(sequence int, confirm int, targetAngle float64) string {
 	// Convert angle to int32 (angle * 100)
@@ -51,9 +51,14 @@ func StartAlignmentCommand(sequence int) string {
 	return AlignmentCommand(sequence, 0, 0.0)
 }
 
-// StopAlignmentCommand generates command to stop alignment and set target angle (confirm=1)
+// StopAlignmentCommand generates command to stop alignment and save calibration (confirm=1, OK button)
 func StopAlignmentCommand(sequence int, targetAngle float64) string {
 	return AlignmentCommand(sequence, 1, targetAngle)
+}
+
+// CancelAlignmentCommand generates command to cancel alignment without saving (confirm=0, Cancel button)
+func CancelAlignmentCommand(sequence int, targetAngle float64) string {
+	return AlignmentCommand(sequence, 0, targetAngle)
 }
 
 // RequestClubMetricsCommand generates club metrics request command
