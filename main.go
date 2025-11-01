@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -78,6 +81,29 @@ func initializeBackend(config AppConfig) (*core.StateManager, *core.BluetoothMan
 	launchMonitor.SetupNotifications(bluetoothManager)
 
 	return stateManager, bluetoothManager, launchMonitor
+}
+
+// openBrowser opens the specified URL in the default browser
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to open browser: %w", err)
+	}
+
+	log.Printf("Opening browser at %s", url)
+	return nil
 }
 
 // setupHeadlessCallbacks configures callbacks for headless mode
@@ -251,16 +277,32 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	// Start the web server in a goroutine
+	serverErr := make(chan error, 1)
 	go func() {
-		<-sigChan
+		log.Printf("Starting web server on http://localhost:%d", config.WebPort)
+		if err := server.Start(config.WebPort); err != nil {
+			serverErr <- err
+		}
+	}()
+
+	// Give the server a moment to start up
+	time.Sleep(500 * time.Millisecond)
+
+	// Auto-open the web browser
+	url := fmt.Sprintf("http://localhost:%d", config.WebPort)
+	if err := openBrowser(url); err != nil {
+		log.Printf("Warning: Could not automatically open browser: %v", err)
+		log.Printf("Please manually open your browser and navigate to: %s", url)
+	}
+
+	// Wait for shutdown signal or server error
+	select {
+	case <-sigChan:
 		log.Println("Shutting down web server...")
 		bluetoothManager.DisconnectBluetooth()
 		os.Exit(0)
-	}()
-
-	// Start the web server
-	log.Printf("Starting web server on http://localhost:%d", config.WebPort)
-	if err := server.Start(config.WebPort); err != nil {
+	case err := <-serverErr:
 		log.Fatalf("Web server failed to start: %v", err)
 	}
 }
