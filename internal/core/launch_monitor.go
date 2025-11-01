@@ -73,9 +73,8 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 
 	// Process by byte patterns
 	if len(bytesList) >= 2 {
-		// Handle alignment notifications (format 11 82)
-		// TODO: Verify this is the correct format from Bluetooth traffic capture
-		if bytesList[0] == "11" && bytesList[1] == "82" {
+		// Handle alignment notifications (format 11 04)
+		if bytesList[0] == "11" && bytesList[1] == "04" {
 			lm.HandleAlignmentNotification(bytesList)
 			return
 		}
@@ -132,19 +131,13 @@ func (lm *LaunchMonitor) HandleSensorNotification(bytesList []string) {
 	lm.stateManager.SetBallPosition(ballPosition)
 }
 
-// HandleAlignmentNotification handles alignment/aim notifications (format 11 82)
-// TODO: The exact format and byte positions need to be verified by capturing
-// Bluetooth traffic from the official Square Golf app
+// HandleAlignmentNotification handles alignment/aim notifications (format 11 04)
 func (lm *LaunchMonitor) HandleAlignmentNotification(bytesList []string) {
 	alignmentData, err := ParseAlignmentData(bytesList)
 	if err != nil {
 		log.Printf("Error parsing alignment data: %v", err)
 		return
 	}
-
-	// Log for debugging until we confirm the format is correct
-	log.Printf("Alignment data received - Aim: %.2f°, Aligned: %v",
-		alignmentData.AimAngle, alignmentData.IsAligned)
 
 	// Update alignment state - IsAligning is controlled by the UI
 	lm.stateManager.SetAlignmentAngle(alignmentData.AimAngle)
@@ -451,28 +444,46 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	lm.heartbeatCancelMu.Unlock()
 }
 
-// StartAlignment starts alignment mode (command 1185 with confirm=0, angle=0)
+// StartAlignment starts alignment mode
 func (lm *LaunchMonitor) StartAlignment() error {
 	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
 		return fmt.Errorf("not connected to device")
 	}
 
-	// Send start alignment command (confirm=0, angle=0)
+	// First, send club command with alignment stick (clubSel=0x08)
+	// This puts the device in alignment mode (Windows app Awake method)
 	seq := lm.getNextSequence()
-	command := StartAlignmentCommand(seq)
+
+	// Get handedness, default to RightHanded if not set
+	handednessPtr := lm.stateManager.GetHandedness()
+	handedness := RightHanded
+	if handednessPtr != nil {
+		handedness = *handednessPtr
+	}
+
+	command := ClubCommand(seq, ClubAlignmentStick, handedness)
 	err := lm.SendCommand(command)
 	if err != nil {
 		return fmt.Errorf("failed to start alignment: %w", err)
 	}
 
-	log.Printf("Alignment started with command: %s", command)
+	time.Sleep(1 * time.Second)
 
-	// Update state
+	// Activate ball detection mode 2 to turn on the red LED
+	detectSeq := lm.getNextSequence()
+	detectCmd := DetectBallCommand(detectSeq, ActivateAlignmentMode, Advanced)
+	err = lm.SendCommand(detectCmd)
+	if err != nil {
+		return fmt.Errorf("failed to activate ball detection: %w", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
 	lm.stateManager.SetIsAligning(true)
 	return nil
 }
 
-// StopAlignment stops alignment mode (command 1185 with confirm=1)
+// StopAlignment stops alignment mode
 func (lm *LaunchMonitor) StopAlignment() error {
 	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
 		return fmt.Errorf("not connected to device")
@@ -488,8 +499,6 @@ func (lm *LaunchMonitor) StopAlignment() error {
 	if err != nil {
 		return fmt.Errorf("failed to stop alignment: %w", err)
 	}
-
-	log.Printf("Alignment stopped with command: %s (angle: %.2f°)", command, currentAngle)
 
 	// Update state
 	lm.stateManager.SetIsAligning(false)
@@ -511,7 +520,6 @@ func (lm *LaunchMonitor) RequestFirmwareVersion() error {
 		return fmt.Errorf("failed to request firmware version: %w", err)
 	}
 
-	log.Printf("Firmware version requested with command: %s", command)
 	return nil
 }
 

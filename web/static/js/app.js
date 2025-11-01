@@ -372,6 +372,11 @@ class SquareGolfApp {
                 window.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
             }
         }
+
+        // Update alignment display if alignment data is present
+        if (status.isAligning && typeof status.alignmentAngle === 'number') {
+            this.updateAlignmentDisplay(status.alignmentAngle, status.isAligned || false);
+        }
     }
 
     updateBallStatus(elementId, detected) {

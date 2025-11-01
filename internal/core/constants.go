@@ -59,8 +59,9 @@ const (
 type DetectBallMode int
 
 const (
-	Deactivate DetectBallMode = iota
-	Activate
+	Deactivate            DetectBallMode = iota // 0 = deactivate ball detection
+	Activate                                    // 1 = activate ball detection (standard mode)
+	ActivateAlignmentMode                       // 2 = activate in alignment mode
 )
 
 // SpinMode represents spin measurement mode
@@ -100,6 +101,9 @@ var (
 	ClubPitchingWedge = ClubType{RegularCode: "0a06", SwingStickCode: "0a00"}
 	ClubApproachWedge = ClubType{RegularCode: "0b06", SwingStickCode: "0b00"}
 	ClubSandWedge     = ClubType{RegularCode: "0c06", SwingStickCode: "0c00"}
+
+	// Alignment stick - special club type used to activate alignment mode
+	ClubAlignmentStick = ClubType{RegularCode: "0008", SwingStickCode: "0008"}
 )
 
 // ShotType represents the type of shot
