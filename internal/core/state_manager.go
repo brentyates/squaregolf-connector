@@ -6,9 +6,9 @@ import (
 
 // BallPosition represents the 3D position of the ball
 type BallPosition struct {
-	X int32
-	Y int32
-	Z int32
+	X int32 `json:"x"`
+	Y int32 `json:"y"`
+	Z int32 `json:"z"`
 }
 
 // AppState represents the complete application state

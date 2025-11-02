@@ -166,8 +166,10 @@
                                     <line x1="150" y1="0" x2="150" y2="400" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
                                     <line x1="0" y1="200" x2="300" y2="200" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
 
-                                    <!-- Target zone (ideal position) -->
-                                    <circle cx="150" cy="200" r="30" fill="#22c55e" fill-opacity="0.1" stroke="#22c55e" stroke-width="2"/>
+                                    <!-- Hitting area (15cm x 15cm rectangle) -->
+                                    <!-- Center is at 150, 200. 15cm = 150mm scaled at 150/500 = 45px each direction -->
+                                    <!-- So 45px left/right and up/down from center = 90px x 90px rectangle -->
+                                    <rect x="105" y="155" width="90" height="90" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="5,5"/>
 
                                     <!-- Ball position dot -->
                                     <circle id="ballDot" cx="150" cy="200" r="8" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
@@ -193,13 +195,6 @@
                                         <span class="coord-label">Z:</span>
                                         <span class="coord-value" id="coordZ">--</span>
                                     </div>
-                                </div>
-
-                                <!-- Distance from center indicator -->
-                                <div class="distance-indicator" id="distanceIndicator" style="display: none;">
-                                    <span class="material-icons">center_focus_strong</span>
-                                    <span class="distance-label">Distance from center:</span>
-                                    <span class="distance-value" id="distanceValue">--</span>
                                 </div>
                             </div>
                         </div>

@@ -83,6 +83,7 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 		// Sensor notifications (format 11 01)
 		if bytesList[0] == "11" && bytesList[1] == "01" {
 			lm.HandleSensorNotification(bytesList)
+			return
 		} else if len(bytesList) >= 3 {
 			// Shot Ball Metrics (format 11 02)
 			if bytesList[0] == "11" && bytesList[1] == "02" {

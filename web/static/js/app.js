@@ -360,8 +360,6 @@ class SquareGolfApp {
             mmiElement.textContent = status.mmiVersion !== null ? status.mmiVersion : '-';
         }
 
-        // Ball status is now handled by Shot Monitor screen
-
         // Update system status
         if (status.club) {
             const clubValueElement = document.getElementById('clubValue');
@@ -1004,15 +1002,17 @@ class ShotMonitor {
         }
 
         const ballDot = document.getElementById('ballDot');
-        const targetZone = document.querySelector('#ballPositionSvg circle[r="30"]');
         const svgContainer = document.querySelector('.ball-position-svg');
 
-        if (!position || !ballDetected) {
-            // No ball detected - show subtle red border on entire SVG container
+        // Check if position has valid numeric properties
+        const hasValidPosition = position &&
+                                typeof position.x === 'number' && !isNaN(position.x) &&
+                                typeof position.y === 'number' && !isNaN(position.y) &&
+                                typeof position.z === 'number' && !isNaN(position.z);
+
+        if (!hasValidPosition || !ballDetected) {
+            // No ball detected or invalid position - show subtle red border on entire SVG container
             ballDot.style.display = 'none';
-            targetZone.setAttribute('stroke', '#22c55e');
-            targetZone.setAttribute('stroke-width', '2');
-            targetZone.setAttribute('stroke-opacity', '0.1');
             svgContainer.style.border = '2px solid rgba(239, 68, 68, 0.3)';
             document.getElementById('coordX').textContent = '--';
             document.getElementById('coordY').textContent = '--';
@@ -1026,28 +1026,43 @@ class ShotMonitor {
         // Show and update ball dot position
         ballDot.style.display = 'block';
 
-        // Convert mm to SVG coordinates
+        // Convert sensor units to SVG coordinates
         // SVG viewBox: 0 0 300 400, center at 150, 200
-        // Scale: 300mm range = 300px (1:1 for simplicity)
+        // The sensor reports values in 0.1mm increments (tenths of a millimeter)
+        // So we need to divide by 10 to get actual mm, then scale to SVG
         const centerX = 150;
         const centerY = 200;
-        const scale = 1; // 1mm = 1px
+
+        // Convert from sensor units (0.1mm) to actual millimeters
+        const actualX = position.x / 10;
+        const actualY = position.y / 10;
+        const actualZ = position.z / 10;
+
+        // SVG visual range (as shown in labels)
+        const svgVisualRange = 150; // ±150mm shown on labels
+
+        // Actual expected coordinate range in mm (after conversion)
+        // Typical values should be within ±500mm
+        const actualRange = 500; // mm
+
+        // Calculate scale to map actual mm coordinates to SVG coordinates
+        const scale = svgVisualRange / actualRange;
 
         // X: positive right, negative left
         // Y: positive back (down in SVG), negative front (up in SVG)
-        const svgX = centerX + (position.x * scale);
-        const svgY = centerY + (position.y * scale);
+        const svgX = centerX + (actualX * scale);
+        const svgY = centerY + (actualY * scale);
 
         ballDot.setAttribute('cx', svgX);
         ballDot.setAttribute('cy', svgY);
 
-        // Update coordinate display
-        document.getElementById('coordX').textContent = `${position.x}mm`;
-        document.getElementById('coordY').textContent = `${position.y}mm`;
-        document.getElementById('coordZ').textContent = `${position.z}mm`;
+        // Update coordinate display with actual mm values
+        document.getElementById('coordX').textContent = `${actualX.toFixed(1)}mm`;
+        document.getElementById('coordY').textContent = `${actualY.toFixed(1)}mm`;
+        document.getElementById('coordZ').textContent = `${actualZ.toFixed(1)}mm`;
 
-        // Calculate distance from center
-        const distance = Math.sqrt(position.x * position.x + position.y * position.y);
+        // Calculate distance from center using actual mm values
+        const distance = Math.sqrt(actualX * actualX + actualY * actualY);
         const distanceIndicator = document.getElementById('distanceIndicator');
         const distanceValue = document.getElementById('distanceValue');
 

@@ -191,12 +191,15 @@ func (s *Server) setupCallbacks() {
 func (s *Server) handleMessages() {
 	for {
 		message := <-s.broadcast
+		log.Printf("WebSocket broadcast received, sending to %d clients", len(s.clients))
 		for client := range s.clients {
 			select {
 			case <-time.After(time.Second):
+				log.Printf("WebSocket client timed out, removing")
 				delete(s.clients, client)
 			default:
 				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
+					log.Printf("WebSocket send error: %v, removing client", err)
 					delete(s.clients, client)
 					client.Close()
 				}
@@ -207,6 +210,7 @@ func (s *Server) handleMessages() {
 
 func (s *Server) broadcastDeviceStatus() {
 	status := s.getDeviceStatus()
+	log.Printf("Broadcasting device status - BallDetected: %v, BallPosition: %+v", status.BallDetected, status.BallPosition)
 	msg := WSMessage{Type: "deviceStatus", Data: status}
 	data, _ := json.Marshal(msg)
 	s.broadcast <- data
