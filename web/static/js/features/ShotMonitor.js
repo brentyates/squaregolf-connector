@@ -31,6 +31,9 @@ export class ShotMonitor {
         const ballDot = document.getElementById('ballDot');
         const svgContainer = document.querySelector('.ball-position-svg');
 
+        // Return early if elements don't exist
+        if (!ballDot || !svgContainer) return;
+
         // Check if position has valid numeric properties
         const hasValidPosition = position &&
                                 typeof position.x === 'number' && !isNaN(position.x) &&
@@ -41,9 +44,12 @@ export class ShotMonitor {
             // No ball detected or invalid position - show subtle red border on entire SVG container
             ballDot.style.display = 'none';
             svgContainer.style.border = '2px solid rgba(239, 68, 68, 0.3)';
-            document.getElementById('coordX').textContent = '--';
-            document.getElementById('coordY').textContent = '--';
-            document.getElementById('coordZ').textContent = '--';
+            const coordX = document.getElementById('coordX');
+            const coordY = document.getElementById('coordY');
+            const coordZ = document.getElementById('coordZ');
+            if (coordX) coordX.textContent = '--';
+            if (coordY) coordY.textContent = '--';
+            if (coordZ) coordZ.textContent = '--';
             return;
         }
 
@@ -84,9 +90,12 @@ export class ShotMonitor {
         ballDot.setAttribute('cy', svgY);
 
         // Update coordinate display with actual mm values
-        document.getElementById('coordX').textContent = `${actualX.toFixed(1)}mm`;
-        document.getElementById('coordY').textContent = `${actualY.toFixed(1)}mm`;
-        document.getElementById('coordZ').textContent = `${actualZ.toFixed(1)}mm`;
+        const coordX = document.getElementById('coordX');
+        const coordY = document.getElementById('coordY');
+        const coordZ = document.getElementById('coordZ');
+        if (coordX) coordX.textContent = `${actualX.toFixed(1)}mm`;
+        if (coordY) coordY.textContent = `${actualY.toFixed(1)}mm`;
+        if (coordZ) coordZ.textContent = `${actualZ.toFixed(1)}mm`;
 
         // Calculate distance from center using actual mm values
         const distance = Math.sqrt(actualX * actualX + actualY * actualY);
