@@ -342,11 +342,22 @@ class SquareGolfApp {
             batteryElement.innerHTML = `<span class="battery-indicator"><span class="battery-icon ${className}">${icon}</span> ${level}%</span>`;
         }
 
-        if (status.firmwareVersion !== null) {
-            const firmwareElement = document.getElementById('firmwareVersion');
-            if (firmwareElement) {
-                firmwareElement.textContent = status.firmwareVersion;
-            }
+        // Update LM Version (FirmwareVersion)
+        const firmwareElement = document.getElementById('firmwareVersion');
+        if (firmwareElement) {
+            firmwareElement.textContent = status.firmwareVersion !== null ? status.firmwareVersion : '-';
+        }
+
+        // Update Launcher Version
+        const launcherElement = document.getElementById('launcherVersion');
+        if (launcherElement) {
+            launcherElement.textContent = status.launcherVersion !== null ? status.launcherVersion : '-';
+        }
+
+        // Update MMI Version
+        const mmiElement = document.getElementById('mmiVersion');
+        if (mmiElement) {
+            mmiElement.textContent = status.mmiVersion !== null ? status.mmiVersion : '-';
         }
 
         // Ball status is now handled by Shot Monitor screen

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -250,6 +251,44 @@ func (bm *BluetoothManager) ReadBatteryLevel() (int, error) {
 	return batteryLevel, nil
 }
 
+// ReadFirmwareVersion reads the firmware version from the device
+func (bm *BluetoothManager) ReadFirmwareVersion() (string, error) {
+	if bm.bluetoothClient == nil || !bm.bluetoothClient.IsConnected() {
+		return "", fmt.Errorf("not connected to device")
+	}
+
+	versionBytes, err := bm.bluetoothClient.ReadCharacteristic(FirmwareVersionCharUUID)
+	if err != nil {
+		return "", fmt.Errorf("could not read firmware version: %w", err)
+	}
+
+	if len(versionBytes) == 0 {
+		return "", fmt.Errorf("received empty firmware version data")
+	}
+
+	// Parse JSON response: {"launcher":"1.0.0","mmi":"1.2.0","lm":"1.9.27"}
+	var versionData struct {
+		Launcher string `json:"launcher"`
+		MMI      string `json:"mmi"`
+		LM       string `json:"lm"`
+	}
+
+	err = json.Unmarshal(versionBytes, &versionData)
+	if err != nil {
+		return "", fmt.Errorf("could not parse firmware version JSON: %w", err)
+	}
+
+	// Update state manager with all version fields
+	bm.stateManager.SetFirmwareVersion(&versionData.LM)
+	bm.stateManager.SetLauncherVersion(&versionData.Launcher)
+	bm.stateManager.SetMMIVersion(&versionData.MMI)
+
+	log.Printf("BluetoothManager: Versions - LM: %s, Launcher: %s, MMI: %s",
+		versionData.LM, versionData.Launcher, versionData.MMI)
+
+	return versionData.LM, nil
+}
+
 // connectDevice connects to the BLE device
 func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, deviceAddress string) error {
 	log.Printf("BluetoothManager: Connecting to device: %s", deviceName)
@@ -279,6 +318,14 @@ func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, devic
 	} else {
 		log.Printf("BluetoothManager: Battery level: %d%%", batteryLevel)
 		bm.stateManager.SetBatteryLevel(&batteryLevel)
+	}
+
+	// Read firmware version
+	firmwareVersion, err := bm.ReadFirmwareVersion()
+	if err != nil {
+		log.Printf("BluetoothManager: Could not read firmware version: %v", err)
+	} else {
+		log.Printf("BluetoothManager: Firmware version: %s", firmwareVersion)
 	}
 
 	// Enable notifications

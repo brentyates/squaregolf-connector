@@ -38,6 +38,8 @@ type DeviceStatus struct {
 	DeviceName       *string              `json:"deviceName"`
 	BatteryLevel     *int                 `json:"batteryLevel"`
 	FirmwareVersion  *string              `json:"firmwareVersion"`
+	LauncherVersion  *string              `json:"launcherVersion"`
+	MMIVersion       *string              `json:"mmiVersion"`
 	BallDetected     bool                 `json:"ballDetected"`
 	BallReady        bool                 `json:"ballReady"`
 	BallPosition     *core.BallPosition   `json:"ballPosition"`
@@ -176,6 +178,14 @@ func (s *Server) setupCallbacks() {
 	s.stateManager.RegisterFirmwareVersionCallback(func(oldValue, newValue *string) {
 		s.broadcastDeviceStatus()
 	})
+
+	s.stateManager.RegisterLauncherVersionCallback(func(oldValue, newValue *string) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterMMIVersionCallback(func(oldValue, newValue *string) {
+		s.broadcastDeviceStatus()
+	})
 }
 
 func (s *Server) handleMessages() {
@@ -230,6 +240,8 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 		DeviceName:       s.stateManager.GetDeviceDisplayName(),
 		BatteryLevel:     s.stateManager.GetBatteryLevel(),
 		FirmwareVersion:  s.stateManager.GetFirmwareVersion(),
+		LauncherVersion:  s.stateManager.GetLauncherVersion(),
+		MMIVersion:       s.stateManager.GetMMIVersion(),
 		BallDetected:     s.stateManager.GetBallDetected(),
 		BallReady:        s.stateManager.GetBallReady(),
 		BallPosition:     s.stateManager.GetBallPosition(),

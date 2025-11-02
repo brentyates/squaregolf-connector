@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -408,14 +409,10 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 	// Register for connection status changes to handle disconnects and connection setup
 	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
 		if newValue == ConnectionStatusConnected && oldValue != ConnectionStatusConnected {
-			// When Bluetooth connects, request firmware version
-			go func() {
-				// Add a small delay to ensure notifications are ready
-				time.Sleep(100 * time.Millisecond)
-				if err := lm.RequestFirmwareVersion(); err != nil {
-					log.Printf("LaunchMonitor: Failed to request firmware version: %v", err)
-				}
-			}()
+			// Note: Firmware version is not available via BLE
+			// The device does not respond to the 0x92 command
+			// The Android app does not request it either
+			log.Println("LaunchMonitor: Device connected (firmware version not available via BLE)")
 		} else if newValue == ConnectionStatusDisconnected {
 			// When Bluetooth disconnects, reset ball detection state
 			lm.HandleBluetoothDisconnect()
@@ -543,34 +540,62 @@ func (lm *LaunchMonitor) CancelAlignment() error {
 
 // RequestFirmwareVersion requests the device firmware version
 func (lm *LaunchMonitor) RequestFirmwareVersion() error {
-	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+	log.Printf("LaunchMonitor: RequestFirmwareVersion called")
+
+	if lm.bluetoothClient == nil {
+		log.Printf("LaunchMonitor: bluetoothClient is nil")
+		return fmt.Errorf("bluetoothClient is nil")
+	}
+
+	if !lm.bluetoothClient.IsConnected() {
+		log.Printf("LaunchMonitor: device not connected")
 		return fmt.Errorf("not connected to device")
 	}
 
 	seq := lm.getNextSequence()
 	command := GetOSVersionCommand(seq)
+	log.Printf("LaunchMonitor: Sending firmware version request command: %v", command)
+
 	err := lm.SendCommand(command)
 	if err != nil {
+		log.Printf("LaunchMonitor: Failed to send firmware version command: %v", err)
 		return fmt.Errorf("failed to request firmware version: %w", err)
 	}
 
+	log.Printf("LaunchMonitor: Firmware version request sent successfully")
 	return nil
 }
 
 // HandleOSVersionNotification handles OS version response notifications (format 11 10)
 func (lm *LaunchMonitor) HandleOSVersionNotification(bytesList []string) {
 	// Format: 11 10 {major} {minor}
-	// Example: 11 10 01 06 = version 1.6
+	// Example: 11 10 01 09 = version 1.9
+	// The bytes are hex strings representing decimal values
+	log.Printf("Raw OS version bytes: %v (len=%d)", bytesList, len(bytesList))
+
 	if len(bytesList) < 4 {
 		log.Printf("Invalid OS version notification format, expected at least 4 bytes, got %d", len(bytesList))
 		return
 	}
 
-	major := bytesList[2]
-	minor := bytesList[3]
-	version := fmt.Sprintf("%s.%s", major, minor)
+	// Parse hex strings as hex values to get decimal
+	// bytesList[2] is major version (hex string like "01" = decimal 1)
+	// bytesList[3] is minor version (hex string like "09" = decimal 9)
+	major, err := strconv.ParseInt(bytesList[2], 16, 64)
+	if err != nil {
+		log.Printf("Error parsing major version from '%s': %v", bytesList[2], err)
+		return
+	}
 
-	log.Printf("Device firmware version: %s", version)
+	minor, err := strconv.ParseInt(bytesList[3], 16, 64)
+	if err != nil {
+		log.Printf("Error parsing minor version from '%s': %v", bytesList[3], err)
+		return
+	}
+
+	version := fmt.Sprintf("%d.%d", major, minor)
+
+	log.Printf("Device firmware version: %s (major=%d, minor=%d)", version, major, minor)
 
 	// Update state manager
 	lm.stateManager.SetFirmwareVersion(&version)

@@ -34,6 +34,8 @@ type AppState struct {
 	AlignmentAngle    float64 // Current aim angle in degrees (left negative, right positive)
 	IsAligned         bool    // Whether device is currently aligned (within tolerance)
 	FirmwareVersion   *string // Device firmware version (e.g., "1.6.18")
+	LauncherVersion   *string // Launcher version
+	MMIVersion        *string // MMI version
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -63,6 +65,8 @@ type StateManager struct {
 		AlignmentAngle    []StateCallback[float64]
 		IsAligned         []StateCallback[bool]
 		FirmwareVersion   []StateCallback[*string]
+		LauncherVersion   []StateCallback[*string]
+		MMIVersion        []StateCallback[*string]
 	}
 	mu sync.RWMutex
 }
@@ -649,4 +653,58 @@ func (sm *StateManager) RegisterFirmwareVersionCallback(callback StateCallback[*
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.FirmwareVersion = append(sm.callbacks.FirmwareVersion, callback)
+}
+
+// GetLauncherVersion returns the launcher version
+func (sm *StateManager) GetLauncherVersion() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.LauncherVersion
+}
+
+// SetLauncherVersion sets the launcher version
+func (sm *StateManager) SetLauncherVersion(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.LauncherVersion
+	sm.state.LauncherVersion = value
+	callbacks := sm.callbacks.LauncherVersion
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterLauncherVersionCallback registers a callback for launcher version changes
+func (sm *StateManager) RegisterLauncherVersionCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.LauncherVersion = append(sm.callbacks.LauncherVersion, callback)
+}
+
+// GetMMIVersion returns the MMI version
+func (sm *StateManager) GetMMIVersion() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.MMIVersion
+}
+
+// SetMMIVersion sets the MMI version
+func (sm *StateManager) SetMMIVersion(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.MMIVersion
+	sm.state.MMIVersion = value
+	callbacks := sm.callbacks.MMIVersion
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterMMIVersionCallback registers a callback for MMI version changes
+func (sm *StateManager) RegisterMMIVersionCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.MMIVersion = append(sm.callbacks.MMIVersion, callback)
 }

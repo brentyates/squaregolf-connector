@@ -722,6 +722,20 @@ body {
     font-size: var(--font-lg);
 }
 
+/* Version footer - subtle footnote style */
+.version-footer {
+    padding: var(--spacing-xs) var(--spacing-md);
+    margin-top: calc(var(--spacing-sm) * -1);
+    text-align: right;
+}
+
+.version-text {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    opacity: 0.6;
+    font-weight: var(--weight-regular);
+}
+
 /* Battery level indicator */
 .battery-indicator {
     display: inline-flex;
