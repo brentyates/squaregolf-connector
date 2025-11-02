@@ -61,8 +61,7 @@ export class ShotMonitor {
 
         // Convert sensor units to SVG coordinates
         // SVG viewBox: 0 0 300 400, center at 150, 200
-        // The sensor reports values in 0.1mm increments (tenths of a millimeter)
-        // So we need to divide by 10 to get actual mm, then scale to SVG
+        // The sensor reports values in tenths of millimeters (0.1mm increments)
         const centerX = 150;
         const centerY = 200;
 
@@ -81,10 +80,15 @@ export class ShotMonitor {
         // Calculate scale to map actual mm coordinates to SVG coordinates
         const scale = svgVisualRange / actualRange;
 
-        // X: positive right, negative left
-        // Y: positive back (down in SVG), negative front (up in SVG)
-        const svgX = centerX + (actualX * scale);
-        const svgY = centerY + (actualY * scale);
+        // Transform coordinates for top-down view from behind the ball (beside the unit)
+        // Device axes are rotated 90° from UI axes:
+        // - Device X (left/right movement) maps to UI Y (up/down on screen)
+        // - Device Y (forward/back movement) maps to UI X (left/right on screen)
+        // Device reports: deviceX+ = left, deviceY+ = away from target
+        // UI needs: svgX+ = right, svgY+ = down (away from target)
+        // Therefore: svgX uses +deviceY, svgY uses +deviceX
+        const svgX = centerX + (actualY * scale);
+        const svgY = centerY + (actualX * scale);
 
         ballDot.setAttribute('cx', svgX);
         ballDot.setAttribute('cy', svgY);
