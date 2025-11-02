@@ -1,0 +1,130 @@
+/* Form elements */
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.helper-text {
+    font-size: var(--font-sm);
+    color: var(--text-muted);
+    margin-top: var(--spacing-sm);
+    margin-bottom: 0;
+    line-height: var(--line-height-normal);
+}
+
+.helper-text a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.helper-text a:hover {
+    text-decoration: underline;
+}
+
+.input-field {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: var(--border-width-normal) solid var(--border-color);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-sm);
+    transition: all var(--transition-normal);
+    background: white;
+    font-family: inherit;
+}
+
+.input-field:hover {
+    border-color: var(--gray-400);
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: var(--focus-ring-primary);
+    transform: translateY(-1px);
+}
+
+.input-field:disabled {
+    background: var(--gray-50);
+    color: var(--gray-500);
+    cursor: not-allowed;
+}
+
+.input-field.error {
+    border-color: var(--color-danger);
+}
+
+.input-field.error:focus {
+    box-shadow: var(--focus-ring-danger);
+}
+
+.input-field.success {
+    border-color: var(--color-success);
+}
+
+/* Input validation feedback */
+.field-feedback {
+    font-size: var(--font-xs);
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.field-feedback.error {
+    color: var(--color-danger);
+}
+
+.field-feedback.success {
+    color: var(--color-success);
+}
+
+.field-feedback .material-icons {
+    font-size: var(--font-base);
+}
+
+.input-group {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.input-group .input-field {
+    flex: 1;
+}
+
+.range-input {
+    width: 100%;
+    margin: var(--spacing-sm) 0;
+}
+
+/* Checkboxes and radios */
+.checkbox-label,
+.radio-label {
+    display: flex !important;
+    align-items: center;
+    font-weight: normal !important;
+    margin-bottom: var(--spacing-sm) !important;
+    cursor: pointer;
+}
+
+.checkbox-label input,
+.radio-label input {
+    margin-right: var(--spacing-sm);
+    margin-bottom: 0;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}

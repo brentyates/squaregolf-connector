@@ -1,0 +1,97 @@
+/* Cards */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-xl);
+    overflow: hidden;
+    border: 1px solid var(--gray-50);
+    transition: all var(--transition-normal);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-color);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    padding: var(--spacing-xl) var(--spacing-xl) 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    font-size: var(--font-lg);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.card-header h3 .material-icons {
+    font-size: var(--font-xl);
+    color: var(--color-primary);
+}
+
+.card-content {
+    padding: var(--spacing-xl);
+}
+
+/* Collapsible Cards */
+.collapsible-card .card-header.clickable {
+    cursor: pointer;
+    padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.collapsible-card .card-header.clickable:hover {
+    background: var(--gray-50);
+}
+
+.collapsible-card .card-header .collapse-icon {
+    transition: transform var(--transition-normal);
+    color: var(--text-muted);
+}
+
+.collapsible-card.collapsed .card-header .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.collapsible-card .collapsible-content {
+    max-height: var(--max-height-collapsible);
+    overflow: hidden;
+    transition: max-height var(--transition-normal), padding var(--transition-normal), opacity var(--transition-normal);
+    opacity: 1;
+}
+
+.collapsible-card.collapsed .collapsible-content {
+    max-height: 0;
+    padding: 0 var(--spacing-xl);
+    opacity: 0;
+}
+
+/* Card sections */
+.card-section {
+    padding: var(--spacing-xl) 0;
+    border-top: var(--border-width-thin) solid var(--gray-50);
+}
+
+.card-section:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.card-section:last-child {
+    padding-bottom: 0;
+}
+
+.section-title {
+    font-size: var(--font-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-normal);
+    margin-bottom: var(--spacing-lg);
+}

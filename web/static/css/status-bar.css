@@ -1,0 +1,81 @@
+/* Global Status Bar */
+.global-status-bar {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--gray-100);
+    border-bottom: var(--border-width-thin) solid var(--border-color);
+    align-items: center;
+    transition: all var(--transition-fast);
+}
+
+.page-title {
+    font-size: var(--font-lg);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+    margin-right: auto;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2xs);
+    padding: var(--spacing-xs) 0.4rem;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    position: relative;
+}
+
+.status-item:hover {
+    background: var(--overlay-light);
+}
+
+.status-item .status-icon {
+    font-size: var(--icon-xs);
+    color: var(--gray-600);
+    transition: color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.status-item .status-label {
+    font-size: var(--font-xs);
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    display: none;
+}
+
+.status-item:hover .status-label {
+    display: block;
+}
+
+.status-item.connected .status-icon {
+    color: var(--color-success);
+}
+
+.status-item.connected .status-label {
+    color: var(--color-success-darker);
+    font-weight: var(--weight-semibold);
+}
+
+.status-item.disconnected .status-icon {
+    color: var(--color-danger);
+}
+
+.status-item.disconnected .status-label {
+    color: var(--color-danger-darker);
+}
+
+/* Screens */
+.screen {
+    display: none;
+    max-width: var(--max-content-width);
+    padding-top: var(--spacing-xl);
+}
+
+.screen.active {
+    display: block;
+}

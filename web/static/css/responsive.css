@@ -1,0 +1,74 @@
+/* Responsive design */
+@media (max-width: var(--breakpoint-lg)) {
+    .monitor-top-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: var(--breakpoint-md)) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+    }
+
+    .nav-menu {
+        display: flex;
+        overflow-x: auto;
+        padding: 0;
+    }
+
+    .nav-button {
+        min-width: var(--min-touch-target);
+        justify-content: center;
+        padding: var(--spacing-lg);
+    }
+
+    .main-content {
+        padding: var(--spacing-lg);
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .alignment-angle {
+        font-size: 3rem;
+    }
+
+    .alignment-direction {
+        font-size: var(--font-xl);
+    }
+
+    .compass-container {
+        max-width: var(--compass-mobile-size);
+    }
+
+    .position-coords {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .shot-history-table {
+        font-size: var(--font-xs);
+    }
+
+    .shot-history-table th,
+    .shot-history-table td {
+        padding: var(--spacing-sm);
+    }
+}

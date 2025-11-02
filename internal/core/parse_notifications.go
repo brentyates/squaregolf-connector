@@ -8,41 +8,41 @@ import (
 
 // SensorData represents data from the sensor
 type SensorData struct {
-	RawData      []string
-	BallReady    bool
-	BallDetected bool
-	PositionX    int32
-	PositionY    int32
-	PositionZ    int32
+	RawData      []string `json:"rawData,omitempty"`
+	BallReady    bool     `json:"ballReady"`
+	BallDetected bool     `json:"ballDetected"`
+	PositionX    int32    `json:"positionX"`
+	PositionY    int32    `json:"positionY"`
+	PositionZ    int32    `json:"positionZ"`
 }
 
 // BallMetrics represents ball metrics from a shot
 type BallMetrics struct {
-	RawData         []string
-	BallSpeedMPS    float64
-	VerticalAngle   float64
-	HorizontalAngle float64
-	TotalspinRPM    int16
-	SpinAxis        float64
-	BackspinRPM     int16
-	SidespinRPM     int16
-	ShotType        ShotType
+	RawData         []string  `json:"rawData,omitempty"`
+	BallSpeedMPS    float64   `json:"speed"`
+	VerticalAngle   float64   `json:"launchAngle"`
+	HorizontalAngle float64   `json:"horizontalAngle"`
+	TotalspinRPM    int16     `json:"totalSpin"`
+	SpinAxis        float64   `json:"spinAxis"`
+	BackspinRPM     int16     `json:"backSpin"`
+	SidespinRPM     int16     `json:"sideSpin"`
+	ShotType        ShotType  `json:"shotType"`
 }
 
 // ClubMetrics represents club metrics from a shot
 type ClubMetrics struct {
-	RawData          []string
-	PathAngle        float64
-	FaceAngle        float64
-	AttackAngle      float64
-	DynamicLoftAngle float64
+	RawData          []string  `json:"rawData,omitempty"`
+	PathAngle        float64   `json:"path"`
+	FaceAngle        float64   `json:"angle"`
+	AttackAngle      float64   `json:"attackAngle"`
+	DynamicLoftAngle float64   `json:"dynamicLoft"`
 }
 
 // AlignmentData represents device alignment/aim information
 type AlignmentData struct {
-	RawData   []string
-	AimAngle  float64 // Degrees left (negative) or right (positive) of center
-	IsAligned bool    // Whether device is pointing at target (within ±2° threshold)
+	RawData   []string `json:"rawData,omitempty"`
+	AimAngle  float64  `json:"aimAngle"`  // Degrees left (negative) or right (positive) of center
+	IsAligned bool     `json:"isAligned"` // Whether device is pointing at target (within ±2° threshold)
 }
 
 // ParseSensorData parses raw sensor data bytes
