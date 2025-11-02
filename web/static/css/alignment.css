@@ -1,0 +1,191 @@
+/* Alignment Screen Styles */
+.alignment-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg);
+}
+
+.compass-container {
+    width: 100%;
+    max-width: var(--compass-size);
+    aspect-ratio: 1;
+    position: relative;
+}
+
+.compass-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+    transition: all var(--transition-normal);
+}
+
+.compass-svg:hover {
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+    transform: scale(1.05);
+}
+
+#aimPointer {
+    transition: transform var(--transition-slow) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.degree-marker {
+    font-size: var(--font-xs);
+    fill: var(--gray-400);
+    font-weight: var(--weight-semibold);
+}
+
+.alignment-numbers {
+    text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.alignment-angle {
+    font-size: 3rem;
+    font-weight: var(--weight-black);
+    color: var(--text-light);
+    margin-bottom: 0;
+    font-variant-numeric: tabular-nums;
+    transition: all var(--transition-slow);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    line-height: var(--line-height-tight);
+}
+
+.alignment-angle.aligned {
+    color: var(--color-success);
+    text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+    animation: pulse-glow var(--timing-very-slow) ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.alignment-angle.close {
+    color: var(--color-warning);
+    text-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+}
+
+.alignment-angle.far {
+    color: var(--color-danger);
+}
+
+.alignment-direction {
+    font-size: var(--font-lg);
+    color: var(--gray-400);
+    margin-bottom: 0;
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--letter-spacing-tight);
+}
+
+.aligned-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+}
+
+.aligned-status.aligned {
+    background: rgba(34, 197, 94, 0.1);
+    border: var(--border-width-normal) solid var(--color-success);
+}
+
+.aligned-status.not-aligned {
+    background: rgba(239, 68, 68, 0.1);
+    border: var(--border-width-normal) solid var(--color-danger);
+}
+
+.aligned-icon {
+    font-size: var(--font-lg);
+    transition: transform var(--transition-normal);
+}
+
+.aligned-status.aligned .aligned-icon {
+    transform: scale(1.2);
+}
+
+.aligned-text {
+    font-size: var(--font-sm);
+    color: var(--text-light);
+    font-weight: var(--weight-medium);
+}
+
+.aligned-status.aligned .aligned-text {
+    color: var(--color-success);
+}
+
+.aligned-status.not-aligned .aligned-text {
+    color: var(--color-danger);
+}
+
+.handedness-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.handedness-btn {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    font-size: var(--font-xs);
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: var(--weight-medium);
+    min-width: auto;
+    height: auto;
+}
+
+.handedness-btn:hover {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.handedness-btn.active {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #60a5fa;
+    font-weight: var(--weight-semibold);
+}
+
+.handedness-btn.active:hover {
+    background: rgba(59, 130, 246, 0.4);
+    border-color: rgba(59, 130, 246, 0.6);
+    color: #93c5fd;
+}
+
+/* Alignment Action Buttons */
+.alignment-actions {
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: center;
+    margin-top: var(--spacing-2xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.alignment-actions .btn {
+    flex: 1;
+    max-width: 300px;
+}

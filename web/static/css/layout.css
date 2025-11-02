@@ -1,0 +1,77 @@
+/* App layout */
+.app-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sidebar);
+}
+
+.sidebar-header {
+    padding: var(--spacing-xl);
+    border-bottom: var(--border-width-thin) solid var(--gray-800);
+}
+
+.sidebar-header h2 {
+    font-size: var(--font-xl);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--spacing-xs);
+}
+
+.app-subtitle {
+    font-size: var(--font-xs);
+    color: var(--gray-400);
+    font-weight: var(--weight-normal);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-normal);
+}
+
+.nav-menu {
+    flex: 1;
+    padding: var(--spacing-lg) 0;
+}
+
+.nav-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: var(--font-sm);
+    font-family: inherit;
+}
+
+.nav-button:hover {
+    background: var(--gray-800);
+    color: white;
+}
+
+.nav-button.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.nav-button .material-icons {
+    margin-right: var(--spacing-md);
+    font-size: var(--icon-sm);
+}
+
+/* Main content */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 var(--spacing-2xl) var(--spacing-2xl) var(--spacing-2xl);
+    background: var(--bg-primary);
+}

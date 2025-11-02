@@ -1,0 +1,62 @@
+/* Tabs */
+.metrics-tabs,
+.monitor-metrics-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    border-bottom: var(--border-width-normal) solid var(--border-color);
+    margin-bottom: var(--spacing-xl);
+}
+
+.tab-button {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: var(--border-width-normal) solid transparent;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+}
+
+.tab-button.active,
+.tab-button:hover {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.metrics-tab {
+    display: none;
+}
+
+.metrics-tab.active {
+    display: block;
+}
+
+.metrics-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-sm) 0;
+    border-bottom: var(--border-width-thin) solid var(--border-color);
+}
+
+.metrics-item:last-child {
+    border-bottom: none;
+}
+
+.metrics-label {
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+}
+
+.metrics-value {
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+
+/* Volume slider */
+.volume-value {
+    margin-left: var(--spacing-md);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+    min-width: var(--spacing-3xl);
+}
