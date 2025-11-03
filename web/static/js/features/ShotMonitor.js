@@ -1,6 +1,8 @@
 // features/ShotMonitor.js
 export class ShotMonitor {
-    constructor() {
+    constructor(apiClient, eventBus) {
+        this.api = apiClient;
+        this.eventBus = eventBus;
         this.initializeEventListeners();
     }
 

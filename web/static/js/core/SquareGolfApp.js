@@ -7,6 +7,7 @@ import { ApiClient } from '../services/ApiClient.js';
 import { AlignmentManager } from '../features/AlignmentManager.js';
 import { SettingsManager } from '../features/SettingsManager.js';
 import { CameraManager } from '../features/CameraManager.js';
+import { ShotMonitor } from '../features/ShotMonitor.js';
 import { ToastManager } from '../ui/ToastManager.js';
 import { LoadingManager } from '../ui/LoadingManager.js';
 import { ScreenManager } from '../ui/ScreenManager.js';
@@ -31,6 +32,7 @@ export class SquareGolfApp {
         this.alignmentManager = new AlignmentManager(this.api, this.eventBus);
         this.settingsManager = new SettingsManager(this.api, this.eventBus);
         this.cameraManager = new CameraManager(this.api, this.eventBus);
+        this.shotMonitor = new ShotMonitor(this.api, this.eventBus);
 
         // Local state
         this.features = {};
@@ -399,15 +401,13 @@ export class SquareGolfApp {
         // Update metrics
         this.updateMetrics(status.lastBallMetrics, status.lastClubMetrics);
 
-        // Update Shot Monitor if available
-        if (window.shotMonitor) {
-            window.shotMonitor.updateStatus(status);
+        // Update Shot Monitor
+        this.shotMonitor.updateStatus(status);
 
-            // If we have new shot data, update current shot and add to history
-            if (status.lastBallMetrics && Object.keys(status.lastBallMetrics).length > 0) {
-                window.shotMonitor.updateCurrentShot(status.lastBallMetrics, status.lastClubMetrics);
-                window.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
-            }
+        // If we have new shot data, update current shot and add to history
+        if (status.lastBallMetrics && Object.keys(status.lastBallMetrics).length > 0) {
+            this.shotMonitor.updateCurrentShot(status.lastBallMetrics, status.lastClubMetrics);
+            this.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
         }
 
         // Update alignment display if alignment data is present
