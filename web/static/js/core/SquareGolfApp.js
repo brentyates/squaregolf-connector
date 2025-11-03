@@ -197,14 +197,6 @@ export class SquareGolfApp {
         document.querySelectorAll('input[name="spinMode"]').forEach(radio => {
             radio.addEventListener('change', () => this.saveSettings());
         });
-
-        // Metrics tabs
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tab = e.target.dataset.tab;
-                this.showMetricsTab(tab);
-            });
-        });
     }
 
     async handleHandednessChange(handedness) {
@@ -398,9 +390,6 @@ export class SquareGolfApp {
             this.updateHandednessDisplay(this.currentHandedness);
         }
 
-        // Update metrics
-        this.updateMetrics(status.lastBallMetrics, status.lastClubMetrics);
-
         // Update Shot Monitor
         this.shotMonitor.updateStatus(status);
 
@@ -421,71 +410,6 @@ export class SquareGolfApp {
         if (deviceInfoCard) {
             deviceInfoCard.style.display = show ? 'block' : 'none';
         }
-    }
-
-    updateMetrics(ballMetrics, clubMetrics) {
-        const metricsCard = document.getElementById('metricsCard');
-        if (ballMetrics || clubMetrics) {
-            if (metricsCard) metricsCard.style.display = 'block';
-
-            if (ballMetrics) {
-                this.displayBallMetrics(ballMetrics);
-            }
-
-            if (clubMetrics) {
-                this.displayClubMetrics(clubMetrics);
-            }
-        }
-    }
-
-    displayBallMetrics(metrics) {
-        const container = document.getElementById('ballMetrics');
-        if (!container) return;
-
-        let html = '';
-
-        if (metrics.speed !== undefined) html += this.createMetricItem('Speed', `${metrics.speed.toFixed(1)} mph`);
-        if (metrics.launchAngle !== undefined) html += this.createMetricItem('Launch Angle', `${metrics.launchAngle.toFixed(1)}°`);
-        if (metrics.backSpin !== undefined) html += this.createMetricItem('Back Spin', `${metrics.backSpin.toFixed(0)} rpm`);
-        if (metrics.sideSpin !== undefined) html += this.createMetricItem('Side Spin', `${metrics.sideSpin.toFixed(0)} rpm`);
-
-        container.innerHTML = html;
-    }
-
-    displayClubMetrics(metrics) {
-        const container = document.getElementById('clubMetrics');
-        if (!container) return;
-
-        let html = '';
-
-        if (metrics.speed !== undefined) html += this.createMetricItem('Club Speed', `${metrics.speed.toFixed(1)} mph`);
-        if (metrics.angle !== undefined) html += this.createMetricItem('Club Angle', `${metrics.angle.toFixed(1)}°`);
-        if (metrics.path !== undefined) html += this.createMetricItem('Club Path', `${metrics.path.toFixed(1)}°`);
-
-        container.innerHTML = html;
-    }
-
-    createMetricItem(label, value) {
-        return `
-            <div class="metrics-item">
-                <span class="metrics-label">${label}:</span>
-                <span class="metrics-value">${value}</span>
-            </div>
-        `;
-    }
-
-    showMetricsTab(tab) {
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        const tabButton = document.querySelector(`[data-tab="${tab}"]`);
-        if (tabButton) tabButton.classList.add('active');
-
-        document.querySelectorAll('.metrics-tab').forEach(tabContent => {
-            tabContent.classList.remove('active');
-        });
-        const tabElement = document.getElementById(`${tab}Metrics`);
-        if (tabElement) tabElement.classList.add('active');
     }
 
     updateGSProStatus(status) {
