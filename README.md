@@ -27,7 +27,7 @@ SquareGolf Connector is a Go-based application that connects to SquareGolf Bluet
 
 - Go 1.23 or later
 - Bluetooth adapter (for real hardware)
-- macOS, Linux, or Windows
+- **macOS or Windows** (Linux support pending - see Known Limitations below)
 
 ## Installation
 
@@ -163,6 +163,20 @@ go test ./...
 - Confirm the port is not already in use
 - Check that no firewall is blocking the port
 - Try a different port with `--web-port`
+
+## Known Limitations
+
+### Linux Support
+
+Currently, the connector **does not compile on Linux** due to limitations in the TinyGo Bluetooth library. The SquareGolf device requires BLE characteristic writes with acknowledgment (`Write` method), but the TinyGo library on Linux only exposes `WriteWithoutResponse` via BlueZ.
+
+**Status**: An untested implementation exists in [TinyGo Bluetooth PR #205](https://github.com/tinygo-org/bluetooth/pull/205) that adds the required `Write()` method for Linux. However, it needs testing on actual Linux hardware before it can be merged.
+
+**Workarounds**:
+- Use macOS or Windows for development and deployment
+- Use mock modes (`--mock=stub` or `--mock=simulate`) on Linux for testing without hardware
+
+**Future**: Once PR #205 is tested and merged (or an alternative solution is implemented), Linux support will be available. Testing on Linux hardware with a SquareGolf device would help move this forward.
 
 ## License
 
