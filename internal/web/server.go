@@ -96,7 +96,7 @@ func NewServer(stateManager *core.StateManager, bluetoothManager *core.Bluetooth
 			},
 		},
 		clients:   make(map[*websocket.Conn]bool),
-		broadcast: make(chan []byte),
+		broadcast: make(chan []byte, 100),
 	}
 
 	server.setupCallbacks()
@@ -213,14 +213,20 @@ func (s *Server) broadcastDeviceStatus() {
 	log.Printf("Broadcasting device status - BallDetected: %v, BallPosition: %+v", status.BallDetected, status.BallPosition)
 	msg := WSMessage{Type: "deviceStatus", Data: status}
 	data, _ := json.Marshal(msg)
-	s.broadcast <- data
+	select {
+	case s.broadcast <- data:
+	default:
+	}
 }
 
 func (s *Server) broadcastGSProStatus() {
 	status := s.getGSProStatus()
 	msg := WSMessage{Type: "gsproStatus", Data: status}
 	data, _ := json.Marshal(msg)
-	s.broadcast <- data
+	select {
+	case s.broadcast <- data:
+	default:
+	}
 }
 
 func (s *Server) getDeviceStatus() DeviceStatus {
@@ -572,7 +578,10 @@ func (s *Server) broadcastCameraConfig() {
 	config := s.getCameraConfig()
 	msg := WSMessage{Type: "cameraConfig", Data: config}
 	data, _ := json.Marshal(msg)
-	s.broadcast <- data
+	select {
+	case s.broadcast <- data:
+	default:
+	}
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
