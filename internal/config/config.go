@@ -17,6 +17,7 @@ type Settings struct {
 	GSProIP          string `json:"gsproIP"`
 	GSProPort        int    `json:"gsproPort"`
 	GSProAutoConnect bool   `json:"gsproAutoConnect"`
+	GSProMode        string `json:"gsproMode"` // "connect" or "direct"
 	CameraURL        string `json:"cameraURL"`
 	CameraEnabled    bool   `json:"cameraEnabled"`
 }
@@ -67,6 +68,7 @@ func (m *Manager) initialize() {
 		GSProIP:          "127.0.0.1",
 		GSProPort:        921,
 		GSProAutoConnect: false,
+		GSProMode:        "connect", // Default to GSPro Connect mode
 		CameraURL:        "http://localhost:5000",
 		CameraEnabled:    false,
 	}
@@ -184,6 +186,13 @@ func (m *Manager) SetCameraURL(url string) error {
 func (m *Manager) SetCameraEnabled(enabled bool) error {
 	m.mu.Lock()
 	m.settings.CameraEnabled = enabled
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetGSProMode(mode string) error {
+	m.mu.Lock()
+	m.settings.GSProMode = mode
 	m.mu.Unlock()
 	return m.Save()
 }

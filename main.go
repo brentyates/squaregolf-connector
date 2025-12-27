@@ -28,6 +28,7 @@ type AppConfig struct {
 	WebPort              int
 	GSProIP              string
 	GSProPort            int
+	GSProMode            string // "connect" or "direct"
 	EnableGSPro          bool
 	EnableExternalCamera bool
 }
@@ -205,8 +206,9 @@ func startCLI(config AppConfig, stateManager *core.StateManager, bluetoothManage
 
 	// Setup GSPro integration if enabled
 	if config.EnableGSPro {
-		log.Println("Starting GSPro integration")
+		log.Printf("Starting GSPro integration in %s mode", config.GSProMode)
 		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, config.GSProIP, config.GSProPort)
+		gsproIntegration.SetMode(config.GSProMode)
 		gsproIntegration.EnableAutoReconnect()
 		gsproIntegration.Start()
 	}
@@ -250,13 +252,19 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 		// Use command line args if provided, otherwise use saved settings
 		gsproIP := config.GSProIP
 		gsproPort := config.GSProPort
+		gsproMode := config.GSProMode
 		if !config.EnableGSPro && settings.GSProAutoConnect {
 			gsproIP = settings.GSProIP
 			gsproPort = settings.GSProPort
-			log.Printf("Auto-connecting to GSPro at %s:%d", gsproIP, gsproPort)
+			gsproMode = settings.GSProMode
+			if gsproMode == "" {
+				gsproMode = "connect" // Default to Connect mode if not set
+			}
+			log.Printf("Auto-connecting to GSPro at %s:%d in %s mode", gsproIP, gsproPort, gsproMode)
 		}
 
 		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
+		gsproIntegration.SetMode(gsproMode)
 		go func() {
 			gsproIntegration.EnableAutoReconnect()
 			gsproIntegration.Start()
@@ -315,6 +323,7 @@ func main() {
 	webPort := flag.Int("web-port", 8080, "Port for web server")
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
+	gsproMode := flag.String("gspro-mode", "connect", "GSPro mode: 'connect' for GSPro Connect, 'direct' for direct GSPro integration (experimental)")
 	enableGSPro := flag.Bool("enable-gspro", false, "Enable GSPro integration")
 	enableExternalCamera := flag.Bool("enable-external-camera", false, "Enable external camera integration (experimental)")
 	flag.Parse()
@@ -328,6 +337,7 @@ func main() {
 		WebPort:              *webPort,
 		GSProIP:              *gsproIP,
 		GSProPort:            *gsproPort,
+		GSProMode:            *gsproMode,
 		EnableGSPro:          *enableGSPro,
 		EnableExternalCamera: *enableExternalCamera,
 	}
