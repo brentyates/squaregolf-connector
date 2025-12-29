@@ -103,10 +103,7 @@ The web interface will be available at `http://localhost:8080`
 
 ## Configuration
 
-Settings are automatically saved and loaded from:
-- macOS: `~/Library/Application Support/squaregolf-connector/settings.json`
-- Linux: `~/.config/squaregolf-connector/settings.json`
-- Windows: `%APPDATA%\squaregolf-connector\settings.json`
+Settings are automatically saved and loaded from `~/.squaregolf-connector/config.json` on all platforms.
 
 ## Development
 
@@ -177,6 +174,16 @@ Currently, the connector **does not compile on Linux** due to limitations in the
 - Use mock modes (`--mock=stub` or `--mock=simulate`) on Linux for testing without hardware
 
 **Future**: Once PR #205 is tested and merged (or an alternative solution is implemented), Linux support will be available. Testing on Linux hardware with a SquareGolf device would help move this forward.
+
+## Planned Improvements
+
+### UI Consolidation
+
+The current UI has redundant status displays (page title, card header, status row, and global status bar all showing connection state). Consider:
+
+- **Merge native device screens**: Combine Device, Shot Monitor, and Alignment into a single "Device" page since they all relate to the native device functionality
+- **Remove redundant status displays**: The global status bar already shows connection status - remove duplicate "Connection Status" card headers and status rows
+- **Simplify navigation**: With consolidated screens, the sidebar can be reduced (Device, GSPro, Infinite Tees, Settings)
 
 ## License
 

@@ -95,8 +95,6 @@
                         <div class="error-message" id="deviceError" style="display: none;"></div>
                         
                         <div class="control-buttons">
-                            <input type="text" id="deviceNameInput" placeholder="Device name (leave empty to scan)" class="input-field">
-                            <p class="helper-text">💡 Leave empty to automatically scan and connect to any available SquareGolf device, or enter a specific device name to connect to that device.</p>
                             <div class="button-group">
                                 <button class="btn btn-primary" id="connectBtn">Connect</button>
                                 <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
@@ -426,20 +424,6 @@
                         <h3>Device Settings</h3>
                     </div>
                     <div class="card-content">
-                        <div class="form-group">
-                            <label for="settingsDeviceName">Preferred Device Name:</label>
-                            <div class="input-group">
-                                <input type="text" id="settingsDeviceName" class="input-field" placeholder="Device Name">
-                                <button class="btn btn-secondary" id="forgetDeviceBtn">Forget</button>
-                            </div>
-                            <p class="helper-text">Save a specific device name to always connect to the same device. Click "Forget" to clear and scan for any device.</p>
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="settingsAutoConnect">
-                                Connect automatically on start
-                            </label>
-                        </div>
                         <div class="form-group">
                             <label>Spin Detection Mode:</label>
                             <div class="radio-group">

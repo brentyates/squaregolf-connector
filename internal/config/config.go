@@ -65,7 +65,7 @@ func (m *Manager) initialize() {
 	// Set default settings
 	m.settings = Settings{
 		DeviceName:              "",
-		AutoConnect:             false,
+		AutoConnect:             true,
 		SpinMode:                "advanced",
 		GSProIP:                 "127.0.0.1",
 		GSProPort:               921,

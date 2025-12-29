@@ -77,12 +77,15 @@ type CameraConfig struct {
 }
 
 type AppSettings struct {
-	DeviceName       string `json:"deviceName"`
-	AutoConnect      bool   `json:"autoConnect"`
-	SpinMode         string `json:"spinMode"`
-	GSProIP          string `json:"gsproIP"`
-	GSProPort        int    `json:"gsproPort"`
-	GSProAutoConnect bool   `json:"gsproAutoConnect"`
+	DeviceName              string `json:"deviceName"`
+	AutoConnect             bool   `json:"autoConnect"`
+	SpinMode                string `json:"spinMode"`
+	GSProIP                 string `json:"gsproIP"`
+	GSProPort               int    `json:"gsproPort"`
+	GSProAutoConnect        bool   `json:"gsproAutoConnect"`
+	InfiniteTeesIP          string `json:"infiniteTeesIP"`
+	InfiniteTeesPort        int    `json:"infiniteTeesPort"`
+	InfiniteTeesAutoConnect bool   `json:"infiniteTeesAutoConnect"`
 }
 
 type FeatureFlags struct {
@@ -513,15 +516,14 @@ func (s *Server) handleGSProDisconnect(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGSProConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		ip, port := s.gsproIntegration.GetConnectionInfo()
 		settings := config.GetInstance().GetSettings()
 		configData := struct {
 			IP          string `json:"ip"`
 			Port        int    `json:"port"`
 			AutoConnect bool   `json:"autoConnect"`
 		}{
-			IP:          ip,
-			Port:        port,
+			IP:          settings.GSProIP,
+			Port:        settings.GSProPort,
 			AutoConnect: settings.GSProAutoConnect,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -581,15 +583,14 @@ func (s *Server) handleInfiniteTeesDisconnect(w http.ResponseWriter, r *http.Req
 
 func (s *Server) handleInfiniteTeesConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		ip, port := s.infiniteTeesIntegration.GetConnectionInfo()
 		settings := config.GetInstance().GetSettings()
 		configData := struct {
 			IP          string `json:"ip"`
 			Port        int    `json:"port"`
 			AutoConnect bool   `json:"autoConnect"`
 		}{
-			IP:          ip,
-			Port:        port,
+			IP:          settings.InfiniteTeesIP,
+			Port:        settings.InfiniteTeesPort,
 			AutoConnect: settings.InfiniteTeesAutoConnect,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -619,12 +620,15 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		settings := config.GetInstance().GetSettings()
 
 		appSettings := AppSettings{
-			DeviceName:       settings.DeviceName,
-			AutoConnect:      settings.AutoConnect,
-			SpinMode:         settings.SpinMode,
-			GSProIP:          settings.GSProIP,
-			GSProPort:        settings.GSProPort,
-			GSProAutoConnect: settings.GSProAutoConnect,
+			DeviceName:              settings.DeviceName,
+			AutoConnect:             settings.AutoConnect,
+			SpinMode:                settings.SpinMode,
+			GSProIP:                 settings.GSProIP,
+			GSProPort:               settings.GSProPort,
+			GSProAutoConnect:        settings.GSProAutoConnect,
+			InfiniteTeesIP:          settings.InfiniteTeesIP,
+			InfiniteTeesPort:        settings.InfiniteTeesPort,
+			InfiniteTeesAutoConnect: settings.InfiniteTeesAutoConnect,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(appSettings)
@@ -635,7 +639,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Update settings in config manager
 		cfg := config.GetInstance()
 		cfg.SetDeviceName(appSettings.DeviceName)
 		cfg.SetAutoConnect(appSettings.AutoConnect)
@@ -643,8 +646,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		cfg.SetGSProIP(appSettings.GSProIP)
 		cfg.SetGSProPort(appSettings.GSProPort)
 		cfg.SetGSProAutoConnect(appSettings.GSProAutoConnect)
+		cfg.SetInfiniteTeesIP(appSettings.InfiniteTeesIP)
+		cfg.SetInfiniteTeesPort(appSettings.InfiniteTeesPort)
+		cfg.SetInfiniteTeesAutoConnect(appSettings.InfiniteTeesAutoConnect)
 
-		// Update spin mode in state manager
 		var spinMode core.SpinMode
 		if appSettings.SpinMode == "standard" {
 			spinMode = core.Standard

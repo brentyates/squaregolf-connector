@@ -266,15 +266,6 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 		}()
 	}
 
-	// Start auto-connect if device name is provided via command line OR if auto-connect is enabled in settings
-	if config.DeviceName != "" {
-		log.Printf("Auto-connecting to device: %s", config.DeviceName)
-		go bluetoothManager.StartBluetoothConnection(config.DeviceName, "")
-	} else if settings.AutoConnect && settings.DeviceName != "" {
-		log.Printf("Auto-connecting to saved device: %s", settings.DeviceName)
-		go bluetoothManager.StartBluetoothConnection(settings.DeviceName, "")
-	}
-
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

@@ -166,8 +166,7 @@ export class SquareGolfApp {
 
         // Device controls
         document.getElementById('connectBtn')?.addEventListener('click', () => {
-            const deviceName = document.getElementById('deviceNameInput').value.trim();
-            this.deviceService.connect(deviceName);
+            this.deviceService.connect('');
         });
         document.getElementById('disconnectBtn')?.addEventListener('click', () => {
             this.deviceService.disconnect();
@@ -219,9 +218,6 @@ export class SquareGolfApp {
         });
 
         // Settings controls
-        document.getElementById('forgetDeviceBtn')?.addEventListener('click', () => this.forgetDevice());
-        document.getElementById('settingsDeviceName')?.addEventListener('change', () => this.saveSettings());
-        document.getElementById('settingsAutoConnect')?.addEventListener('change', () => this.saveSettings());
         document.querySelectorAll('input[name="spinMode"]').forEach(radio => {
             radio.addEventListener('change', () => this.saveSettings());
         });
@@ -682,35 +678,29 @@ export class SquareGolfApp {
     }
 
     applySettings(settings) {
-        const deviceNameField = document.getElementById('settingsDeviceName');
-        const autoConnectField = document.getElementById('settingsAutoConnect');
-
-        if (deviceNameField) deviceNameField.value = settings.deviceName || '';
-        if (autoConnectField) autoConnectField.checked = settings.autoConnect || false;
-
         const spinMode = settings.spinMode || 'advanced';
         const spinModeRadio = document.querySelector(`input[name="spinMode"][value="${spinMode}"]`);
         if (spinModeRadio) spinModeRadio.checked = true;
+
+        const gsproIP = document.getElementById('gsproIP');
+        const gsproPort = document.getElementById('gsproPort');
+        const gsproAutoConnect = document.getElementById('gsproAutoConnect');
+        if (gsproIP) gsproIP.value = settings.gsproIP || '127.0.0.1';
+        if (gsproPort) gsproPort.value = settings.gsproPort || 921;
+        if (gsproAutoConnect) gsproAutoConnect.checked = settings.gsproAutoConnect || false;
+
+        const itIP = document.getElementById('infiniteTeesIP');
+        const itPort = document.getElementById('infiniteTeesPort');
+        const itAutoConnect = document.getElementById('infiniteTeesAutoConnect');
+        if (itIP) itIP.value = settings.infiniteTeesIP || '127.0.0.1';
+        if (itPort) itPort.value = settings.infiniteTeesPort || 999;
+        if (itAutoConnect) itAutoConnect.checked = settings.infiniteTeesAutoConnect || false;
+
+        this.deviceService.connect('');
     }
 
     async saveSettings() {
-        const deviceName = document.getElementById('settingsDeviceName')?.value.trim();
-        const autoConnect = document.getElementById('settingsAutoConnect')?.checked;
         const spinMode = document.querySelector('input[name="spinMode"]:checked')?.value;
-
-        const settings = {
-            deviceName,
-            autoConnect,
-            spinMode
-        };
-
-        await this.settingsManager.save(settings);
-    }
-
-    forgetDevice() {
-        const deviceNameField = document.getElementById('settingsDeviceName');
-        if (deviceNameField) deviceNameField.value = '';
-        this.saveSettings();
-        this.toast.success('Device forgotten');
+        await this.settingsManager.save({ spinMode });
     }
 }
