@@ -29,6 +29,8 @@ type AppConfig struct {
 	GSProIP              string
 	GSProPort            int
 	EnableGSPro          bool
+	InfiniteTeesIP       string
+	InfiniteTeesPort     int
 	EnableExternalCamera bool
 }
 
@@ -242,7 +244,7 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	}
 
 	// Create web server
-	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort, config.EnableExternalCamera)
+	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort, config.InfiniteTeesIP, config.InfiniteTeesPort, config.EnableExternalCamera)
 
 	// Setup GSPro integration if enabled via command line OR auto-connect is enabled in settings
 	if config.EnableGSPro || settings.GSProAutoConnect {
@@ -316,10 +318,24 @@ func main() {
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
 	enableGSPro := flag.Bool("enable-gspro", false, "Enable GSPro integration")
+	itIP := flag.String("it-ip", "127.0.0.1", "IP address of Infinite Tees server")
+	itPort := flag.Int("it-port", 999, "Port of Infinite Tees server")
 	enableExternalCamera := flag.Bool("enable-external-camera", false, "Enable external camera integration (experimental)")
 	flag.Parse()
 
-	// Create configuration
+	// Load saved settings for defaults
+	savedSettings := appcfg.GetInstance().GetSettings()
+
+	// Create configuration - use saved settings as defaults for IT if not specified via CLI
+	infiniteTeesIP := *itIP
+	infiniteTeesPort := *itPort
+	if infiniteTeesIP == "127.0.0.1" && savedSettings.InfiniteTeesIP != "" {
+		infiniteTeesIP = savedSettings.InfiniteTeesIP
+	}
+	if infiniteTeesPort == 999 && savedSettings.InfiniteTeesPort != 0 {
+		infiniteTeesPort = savedSettings.InfiniteTeesPort
+	}
+
 	config := AppConfig{
 		UseMock:              core.MockMode(*useMock),
 		DeviceName:           *deviceName,
@@ -329,6 +345,8 @@ func main() {
 		GSProIP:              *gsproIP,
 		GSProPort:            *gsproPort,
 		EnableGSPro:          *enableGSPro,
+		InfiniteTeesIP:       infiniteTeesIP,
+		InfiniteTeesPort:     infiniteTeesPort,
 		EnableExternalCamera: *enableExternalCamera,
 	}
 

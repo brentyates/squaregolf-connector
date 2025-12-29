@@ -25,9 +25,11 @@ type AppState struct {
 	Club              *ClubType
 	ClubName          *string // Human-readable club name from GSPro (e.g., "Driver", "7-iron")
 	Handedness        *HandednessType
-	GSProStatus       GSProConnectionStatus
-	GSProError        error
-	SpinMode          *SpinMode
+	GSProStatus          GSProConnectionStatus
+	GSProError           error
+	InfiniteTeesStatus   InfiniteTeesConnectionStatus
+	InfiniteTeesError    error
+	SpinMode             *SpinMode
 	CameraURL         *string
 	CameraEnabled     bool
 	IsAligning        bool    // Whether alignment mode UI is active
@@ -56,9 +58,11 @@ type StateManager struct {
 		LastError         []StateCallback[error]
 		Club              []StateCallback[*ClubType]
 		Handedness        []StateCallback[*HandednessType]
-		GSProStatus       []StateCallback[GSProConnectionStatus]
-		GSProError        []StateCallback[error]
-		SpinMode          []StateCallback[*SpinMode]
+		GSProStatus        []StateCallback[GSProConnectionStatus]
+		GSProError         []StateCallback[error]
+		InfiniteTeesStatus []StateCallback[InfiniteTeesConnectionStatus]
+		InfiniteTeesError  []StateCallback[error]
+		SpinMode           []StateCallback[*SpinMode]
 		CameraURL         []StateCallback[*string]
 		CameraEnabled     []StateCallback[bool]
 		IsAligning        []StateCallback[bool]
@@ -89,15 +93,16 @@ func GetInstance() *StateManager {
 func (sm *StateManager) initialize() {
 	defaultCameraURL := "http://localhost:5000"
 	sm.state = AppState{
-		ConnectionStatus: ConnectionStatusDisconnected,
-		BallDetected:     false,
-		BallReady:        false,
-		GSProStatus:      GSProStatusDisconnected,
-		CameraURL:        &defaultCameraURL,
-		CameraEnabled:    false,
-		IsAligning:       false,
-		AlignmentAngle:   0.0,
-		IsAligned:        false,
+		ConnectionStatus:     ConnectionStatusDisconnected,
+		BallDetected:         false,
+		BallReady:            false,
+		GSProStatus:          GSProStatusDisconnected,
+		InfiniteTeesStatus:   InfiniteTeesStatusDisconnected,
+		CameraURL:            &defaultCameraURL,
+		CameraEnabled:        false,
+		IsAligning:           false,
+		AlignmentAngle:       0.0,
+		IsAligned:            false,
 	}
 }
 
@@ -464,6 +469,60 @@ func (sm *StateManager) RegisterGSProErrorCallback(callback StateCallback[error]
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.GSProError = append(sm.callbacks.GSProError, callback)
+}
+
+// GetInfiniteTeesStatus returns the Infinite Tees connection status
+func (sm *StateManager) GetInfiniteTeesStatus() InfiniteTeesConnectionStatus {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.InfiniteTeesStatus
+}
+
+// SetInfiniteTeesStatus sets the Infinite Tees connection status
+func (sm *StateManager) SetInfiniteTeesStatus(value InfiniteTeesConnectionStatus) {
+	sm.mu.Lock()
+	oldValue := sm.state.InfiniteTeesStatus
+	sm.state.InfiniteTeesStatus = value
+	callbacks := sm.callbacks.InfiniteTeesStatus
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// GetInfiniteTeesError returns the Infinite Tees error
+func (sm *StateManager) GetInfiniteTeesError() error {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.InfiniteTeesError
+}
+
+// SetInfiniteTeesError sets the Infinite Tees error
+func (sm *StateManager) SetInfiniteTeesError(value error) {
+	sm.mu.Lock()
+	oldValue := sm.state.InfiniteTeesError
+	sm.state.InfiniteTeesError = value
+	callbacks := sm.callbacks.InfiniteTeesError
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+// RegisterInfiniteTeesStatusCallback registers a callback for Infinite Tees status changes
+func (sm *StateManager) RegisterInfiniteTeesStatusCallback(callback StateCallback[InfiniteTeesConnectionStatus]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.InfiniteTeesStatus = append(sm.callbacks.InfiniteTeesStatus, callback)
+}
+
+// RegisterInfiniteTeesErrorCallback registers a callback for Infinite Tees error changes
+func (sm *StateManager) RegisterInfiniteTeesErrorCallback(callback StateCallback[error]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.InfiniteTeesError = append(sm.callbacks.InfiniteTeesError, callback)
 }
 
 // GetSpinMode returns the current spin mode

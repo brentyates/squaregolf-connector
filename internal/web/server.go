@@ -12,20 +12,22 @@ import (
 	"github.com/brentyates/squaregolf-connector/internal/core"
 	"github.com/brentyates/squaregolf-connector/internal/core/camera"
 	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
+	"github.com/brentyates/squaregolf-connector/internal/core/infinitetees"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
 type Server struct {
-	stateManager         *core.StateManager
-	bluetoothManager     *core.BluetoothManager
-	launchMonitor        *core.LaunchMonitor
-	gsproIntegration     *gspro.Integration
-	cameraManager        *camera.Manager
-	enableExternalCamera bool
-	upgrader             websocket.Upgrader
-	clients              map[*websocket.Conn]bool
-	broadcast            chan []byte
+	stateManager             *core.StateManager
+	bluetoothManager         *core.BluetoothManager
+	launchMonitor            *core.LaunchMonitor
+	gsproIntegration         *gspro.Integration
+	infiniteTeesIntegration  *infinitetees.Integration
+	cameraManager            *camera.Manager
+	enableExternalCamera     bool
+	upgrader                 websocket.Upgrader
+	clients                  map[*websocket.Conn]bool
+	broadcast                chan []byte
 }
 
 type WSMessage struct {
@@ -61,6 +63,14 @@ type GSProStatus struct {
 	LastError        string `json:"lastError"`
 }
 
+type InfiniteTeesStatus struct {
+	ConnectionStatus string `json:"connectionStatus"`
+	IP               string `json:"ip"`
+	Port             int    `json:"port"`
+	AutoConnect      bool   `json:"autoConnect"`
+	LastError        string `json:"lastError"`
+}
+
 type CameraConfig struct {
 	URL     string `json:"url"`
 	Enabled bool   `json:"enabled"`
@@ -79,20 +89,21 @@ type FeatureFlags struct {
 	ExternalCamera bool `json:"externalCamera"`
 }
 
-func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, cameraManager *camera.Manager, gsproIP string, gsproPort int, enableExternalCamera bool) *Server {
-	// Get GSPro integration
+func NewServer(stateManager *core.StateManager, bluetoothManager *core.BluetoothManager, launchMonitor *core.LaunchMonitor, cameraManager *camera.Manager, gsproIP string, gsproPort int, itIP string, itPort int, enableExternalCamera bool) *Server {
 	gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
+	itIntegration := infinitetees.GetInstance(stateManager, launchMonitor, itIP, itPort)
 
 	server := &Server{
-		stateManager:         stateManager,
-		bluetoothManager:     bluetoothManager,
-		launchMonitor:        launchMonitor,
-		gsproIntegration:     gsproIntegration,
-		cameraManager:        cameraManager,
-		enableExternalCamera: enableExternalCamera,
+		stateManager:            stateManager,
+		bluetoothManager:        bluetoothManager,
+		launchMonitor:           launchMonitor,
+		gsproIntegration:        gsproIntegration,
+		infiniteTeesIntegration: itIntegration,
+		cameraManager:           cameraManager,
+		enableExternalCamera:    enableExternalCamera,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow all origins for development
+				return true
 			},
 		},
 		clients:   make(map[*websocket.Conn]bool),
@@ -153,6 +164,10 @@ func (s *Server) setupCallbacks() {
 
 	s.stateManager.RegisterGSProStatusCallback(func(oldValue, newValue core.GSProConnectionStatus) {
 		s.broadcastGSProStatus()
+	})
+
+	s.stateManager.RegisterInfiniteTeesStatusCallback(func(oldValue, newValue core.InfiniteTeesConnectionStatus) {
+		s.broadcastInfiniteTeesStatus()
 	})
 
 	s.stateManager.RegisterCameraURLCallback(func(oldValue, newValue *string) {
@@ -229,6 +244,16 @@ func (s *Server) broadcastGSProStatus() {
 	}
 }
 
+func (s *Server) broadcastInfiniteTeesStatus() {
+	status := s.getInfiniteTeesStatus()
+	msg := WSMessage{Type: "infiniteTeesStatus", Data: status}
+	data, _ := json.Marshal(msg)
+	select {
+	case s.broadcast <- data:
+	default:
+	}
+}
+
 func (s *Server) getDeviceStatus() DeviceStatus {
 	var lastErrorStr string
 	if err := s.stateManager.GetLastError(); err != nil {
@@ -295,6 +320,34 @@ func (s *Server) getGSProStatus() GSProStatus {
 	}
 }
 
+func (s *Server) getInfiniteTeesStatus() InfiniteTeesStatus {
+	var lastErrorStr string
+	if err := s.stateManager.GetInfiniteTeesError(); err != nil {
+		lastErrorStr = err.Error()
+	}
+
+	connectionStatus := "disconnected"
+	switch s.stateManager.GetInfiniteTeesStatus() {
+	case core.InfiniteTeesStatusConnected:
+		connectionStatus = "connected"
+	case core.InfiniteTeesStatusConnecting:
+		connectionStatus = "connecting"
+	case core.InfiniteTeesStatusError:
+		connectionStatus = "error"
+	}
+
+	ip, port := s.infiniteTeesIntegration.GetConnectionInfo()
+	settings := config.GetInstance().GetSettings()
+
+	return InfiniteTeesStatus{
+		ConnectionStatus: connectionStatus,
+		IP:               ip,
+		Port:             port,
+		AutoConnect:      settings.InfiniteTeesAutoConnect,
+		LastError:        lastErrorStr,
+	}
+}
+
 func (s *Server) Start(port int) error {
 	router := mux.NewRouter()
 
@@ -314,6 +367,12 @@ func (s *Server) Start(port int) error {
 	api.HandleFunc("/gspro/connect", s.handleGSProConnect).Methods("POST")
 	api.HandleFunc("/gspro/disconnect", s.handleGSProDisconnect).Methods("POST")
 	api.HandleFunc("/gspro/config", s.handleGSProConfig).Methods("GET", "POST")
+
+	// Infinite Tees endpoints
+	api.HandleFunc("/infinitetees/status", s.handleInfiniteTeesStatus).Methods("GET")
+	api.HandleFunc("/infinitetees/connect", s.handleInfiniteTeesConnect).Methods("POST")
+	api.HandleFunc("/infinitetees/disconnect", s.handleInfiniteTeesDisconnect).Methods("POST")
+	api.HandleFunc("/infinitetees/config", s.handleInfiniteTeesConfig).Methods("GET", "POST")
 
 	// Camera endpoints
 	api.HandleFunc("/camera/config", s.handleCameraConfig).Methods("GET", "POST")
@@ -379,6 +438,12 @@ func (s *Server) sendInitialStatus(conn *websocket.Conn) {
 	// Send GSPro status
 	gsproStatus := s.getGSProStatus()
 	msg = WSMessage{Type: "gsproStatus", Data: gsproStatus}
+	data, _ = json.Marshal(msg)
+	conn.WriteMessage(websocket.TextMessage, data)
+
+	// Send Infinite Tees status
+	itStatus := s.getInfiniteTeesStatus()
+	msg = WSMessage{Type: "infiniteTeesStatus", Data: itStatus}
 	data, _ = json.Marshal(msg)
 	conn.WriteMessage(websocket.TextMessage, data)
 
@@ -472,11 +537,78 @@ func (s *Server) handleGSProConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Save GSPro settings
 		cfg := config.GetInstance()
 		cfg.SetGSProIP(configData.IP)
 		cfg.SetGSProPort(configData.Port)
 		cfg.SetGSProAutoConnect(configData.AutoConnect)
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handleInfiniteTeesStatus(w http.ResponseWriter, r *http.Request) {
+	status := s.getInfiniteTeesStatus()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+func (s *Server) handleInfiniteTeesConnect(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	go func() {
+		s.infiniteTeesIntegration.ResetReconnectionState()
+		s.infiniteTeesIntegration.EnableAutoReconnect()
+		s.infiniteTeesIntegration.Start()
+		s.infiniteTeesIntegration.Connect(req.IP, req.Port)
+	}()
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleInfiniteTeesDisconnect(w http.ResponseWriter, r *http.Request) {
+	go func() {
+		s.infiniteTeesIntegration.DisableAutoReconnect()
+		s.infiniteTeesIntegration.Disconnect()
+	}()
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleInfiniteTeesConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		ip, port := s.infiniteTeesIntegration.GetConnectionInfo()
+		settings := config.GetInstance().GetSettings()
+		configData := struct {
+			IP          string `json:"ip"`
+			Port        int    `json:"port"`
+			AutoConnect bool   `json:"autoConnect"`
+		}{
+			IP:          ip,
+			Port:        port,
+			AutoConnect: settings.InfiniteTeesAutoConnect,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(configData)
+	} else {
+		var configData struct {
+			IP          string `json:"ip"`
+			Port        int    `json:"port"`
+			AutoConnect bool   `json:"autoConnect"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&configData); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		cfg := config.GetInstance()
+		cfg.SetInfiniteTeesIP(configData.IP)
+		cfg.SetInfiniteTeesPort(configData.Port)
+		cfg.SetInfiniteTeesAutoConnect(configData.AutoConnect)
 
 		w.WriteHeader(http.StatusOK)
 	}

@@ -20,6 +20,16 @@ const (
 	GSProStatusError        GSProConnectionStatus = "error"
 )
 
+// InfiniteTeesConnectionStatus represents the current state of the Infinite Tees connection
+type InfiniteTeesConnectionStatus string
+
+const (
+	InfiniteTeesStatusDisconnected InfiniteTeesConnectionStatus = "disconnected"
+	InfiniteTeesStatusConnecting   InfiniteTeesConnectionStatus = "connecting"
+	InfiniteTeesStatusConnected    InfiniteTeesConnectionStatus = "connected"
+	InfiniteTeesStatusError        InfiniteTeesConnectionStatus = "error"
+)
+
 // MockMode represents the type of mock implementation to use
 type MockMode string
 

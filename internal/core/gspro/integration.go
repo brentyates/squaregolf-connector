@@ -1,12 +1,12 @@
 package gspro
 
 import (
+	"encoding/json"
 	"log"
-	"net"
 	"sync"
-	"time"
 
 	"github.com/brentyates/squaregolf-connector/internal/core"
+	"github.com/brentyates/squaregolf-connector/internal/core/simulator"
 )
 
 var (
@@ -14,121 +14,140 @@ var (
 	gsproOnce     sync.Once
 )
 
-// Integration handles communication with GSPro
 type Integration struct {
-	stateManager       *core.StateManager
-	launchMonitor      *core.LaunchMonitor
-	host               string
-	port               int
-	socket             net.Conn
-	connected          bool
-	running            bool
-	autoReconnect      bool
-	connectMutex       sync.Mutex
-	shotNumber         int
-	lastShotNumber     int
-	shotListeners      []func(ShotData)
-	lastPlayerInfo     *PlayerInfo
-	wg                 sync.WaitGroup
-	reconnectAttempts  int
-	lastConnectAttempt time.Time
-	backoffDuration    time.Duration
+	*simulator.Base
+	stateManager   *core.StateManager
+	launchMonitor  *core.LaunchMonitor
+	shotNumber     int
+	lastShotNumber int
+	shotListeners  []func(ShotData)
+	lastPlayerInfo *PlayerInfo
 }
 
-const (
-	initialBackoff    = 5 * time.Second
-	maxBackoff        = 30 * time.Minute
-	maxReconnectTime  = 20 * time.Minute
-	maxFailedAttempts = 20
-)
-
-// GetInstance returns the singleton instance of GSProIntegration
 func GetInstance(stateManager *core.StateManager, launchMonitor *core.LaunchMonitor, host string, port int) *Integration {
 	gsproOnce.Do(func() {
-		if host == "" {
-			host = "127.0.0.1"
-		}
-		if port == 0 {
-			port = 921
-		}
-
 		gsproInstance = &Integration{
-			stateManager:    stateManager,
-			launchMonitor:   launchMonitor,
-			host:            host,
-			port:            port,
-			shotListeners:   make([]func(ShotData), 0),
-			autoReconnect:   true,
-			backoffDuration: initialBackoff,
+			stateManager:  stateManager,
+			launchMonitor: launchMonitor,
+			shotListeners: make([]func(ShotData), 0),
 		}
-
-		// Register state listeners
+		gsproInstance.Base = simulator.NewBase(gsproInstance, host, port)
 		gsproInstance.registerStateListeners()
 	})
 	return gsproInstance
 }
 
-// Start starts the GSPro integration in a separate goroutine
-func (g *Integration) Start() {
-	g.connectMutex.Lock()
-	defer g.connectMutex.Unlock()
+func (g *Integration) Name() string {
+	return "GSPro"
+}
 
-	if g.running {
-		log.Println("GSPro integration already running")
+func (g *Integration) DefaultPort() int {
+	return 921
+}
+
+func (g *Integration) GetStateManager() *core.StateManager {
+	return g.stateManager
+}
+
+func (g *Integration) GetLaunchMonitor() *core.LaunchMonitor {
+	return g.launchMonitor
+}
+
+func (g *Integration) SetStatus(status simulator.ConnectionStatus) {
+	switch status {
+	case simulator.StatusDisconnected:
+		g.stateManager.SetGSProStatus(core.GSProStatusDisconnected)
+	case simulator.StatusConnecting:
+		g.stateManager.SetGSProStatus(core.GSProStatusConnecting)
+	case simulator.StatusConnected:
+		g.stateManager.SetGSProStatus(core.GSProStatusConnected)
+	case simulator.StatusError:
+		g.stateManager.SetGSProStatus(core.GSProStatusError)
+	}
+}
+
+func (g *Integration) SetError(err error) {
+	g.stateManager.SetGSProError(err)
+}
+
+func (g *Integration) OnConnected() {
+}
+
+func (g *Integration) OnDisconnected() {
+}
+
+func (g *Integration) ProcessMessage(rawMessage string) {
+	var baseMsg Message
+	if err := json.Unmarshal([]byte(rawMessage), &baseMsg); err != nil {
+		log.Printf("Invalid JSON from GSPro: %v", err)
 		return
 	}
 
-	g.running = true
-	g.wg.Add(1)
-	go func() {
-		defer g.wg.Done()
-		g.connectionThread()
-	}()
+	switch baseMsg.Message {
+	case "GSPro ready":
+		g.handleGSProReadyMessage()
+	case "GSPro Player Information":
+		var playerInfo PlayerInfo
+		if err := json.Unmarshal([]byte(rawMessage), &playerInfo); err != nil {
+			log.Printf("Error parsing player info: %v", err)
+			return
+		}
+		g.handlePlayerMessage(&playerInfo)
+		g.handleGSProReadyMessage()
+	case "Ball Data received":
+		log.Printf("Received ball data confirmation from GSPro")
+	case "Club & Ball Data received":
+		log.Printf("Received club and ball data confirmation from GSPro")
+	default:
+		log.Printf("Unknown GSPro message type: %s", baseMsg.Message)
+	}
 }
 
-// Stop stops the GSPro integration
-func (g *Integration) Stop() {
-	g.connectMutex.Lock()
-	defer g.connectMutex.Unlock()
-
-	if !g.running {
+func (g *Integration) handleGSProReadyMessage() {
+	err := g.launchMonitor.ActivateBallDetection()
+	if err != nil {
+		log.Printf("Failed to activate ball detection: %v", err)
 		return
 	}
-
-	g.running = false
-	g.Disconnect()
-	g.wg.Wait()
 }
 
-// GetConnectionInfo returns the current host and port configuration
-func (g *Integration) GetConnectionInfo() (string, int) {
-	return g.host, g.port
+func (g *Integration) handlePlayerMessage(playerInfo *PlayerInfo) {
+	g.lastPlayerInfo = playerInfo
+
+	if clubName := playerInfo.Player.Club; clubName != "" {
+		clubType := g.mapGSProClubToInternal(clubName)
+		if clubType != nil {
+			log.Printf("GSPro selected club: %s (mapped to %v)", clubName, clubType)
+			g.stateManager.SetClub(clubType)
+		} else {
+			log.Printf("Unmapped GSPro club: %s", clubName)
+		}
+
+		friendlyName := mapGSProClubToFriendlyName(clubName)
+		g.stateManager.SetClubName(&friendlyName)
+	}
+
+	if handed := playerInfo.Player.Handed; handed != "" {
+		var handednessType core.HandednessType
+		if handed == "LH" {
+			handednessType = core.LeftHanded
+			log.Printf("GSPro selected handedness: Left-handed")
+		} else {
+			handednessType = core.RightHanded
+			log.Printf("GSPro selected handedness: Right-handed")
+		}
+		g.stateManager.SetHandedness(&handednessType)
+	}
 }
 
-// EnableAutoReconnect enables automatic reconnection
-func (g *Integration) EnableAutoReconnect() {
-	g.connectMutex.Lock()
-	defer g.connectMutex.Unlock()
-	g.autoReconnect = true
-	g.reconnectAttempts = 0
-	g.backoffDuration = initialBackoff
-	log.Println("GSPro auto-reconnect enabled")
+func (g *Integration) sendData(shotData ShotData) error {
+	jsonData, err := json.Marshal(shotData)
+	if err != nil {
+		return err
+	}
+	return g.Base.SendMessage(jsonData)
 }
 
-// DisableAutoReconnect disables automatic reconnection
-func (g *Integration) DisableAutoReconnect() {
-	g.connectMutex.Lock()
-	defer g.connectMutex.Unlock()
-	g.autoReconnect = false
-	log.Println("GSPro auto-reconnect disabled")
-}
-
-// ResetReconnectionState resets the reconnection attempt counter and backoff
-func (g *Integration) ResetReconnectionState() {
-	g.connectMutex.Lock()
-	defer g.connectMutex.Unlock()
-	g.reconnectAttempts = 0
-	g.backoffDuration = initialBackoff
-	g.lastConnectAttempt = time.Time{}
-	log.Println("GSPro reconnection state reset")
+func (g *Integration) AddShotListener(listener func(ShotData)) {
+	g.shotListeners = append(g.shotListeners, listener)
 }

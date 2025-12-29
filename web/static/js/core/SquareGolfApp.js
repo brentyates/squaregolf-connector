@@ -3,6 +3,7 @@ import { EventBus } from './EventBus.js';
 import { WebSocketService } from '../services/WebSocketService.js';
 import { DeviceService } from '../services/DeviceService.js';
 import { GSProService } from '../services/GSProService.js';
+import { InfiniteTeesService } from '../services/InfiniteTeesService.js';
 import { ApiClient } from '../services/ApiClient.js';
 import { AlignmentManager } from '../features/AlignmentManager.js';
 import { SettingsManager } from '../features/SettingsManager.js';
@@ -27,6 +28,7 @@ export class SquareGolfApp {
         this.ws = new WebSocketService(this.eventBus);
         this.deviceService = new DeviceService(this.api, this.eventBus);
         this.gsproService = new GSProService(this.api, this.eventBus);
+        this.infiniteTeesService = new InfiniteTeesService(this.api, this.eventBus);
 
         // Features
         this.alignmentManager = new AlignmentManager(this.api, this.eventBus);
@@ -78,6 +80,16 @@ export class SquareGolfApp {
         });
         this.eventBus.on('gspro:error', (msg) => this.toast.error(`GSPro: ${msg}`));
         this.eventBus.on('gspro:status', (status) => this.updateGSProStatus(status));
+
+        // Infinite Tees events
+        this.eventBus.on('infinitetees:connecting', () => {
+            this.toast.info('Infinite Tees connection initiated...');
+        });
+        this.eventBus.on('infinitetees:disconnecting', () => {
+            this.toast.info('Infinite Tees disconnection initiated...');
+        });
+        this.eventBus.on('infinitetees:error', (msg) => this.toast.error(`Infinite Tees: ${msg}`));
+        this.eventBus.on('infinitetees:status', (status) => this.updateInfiniteTeesStatus(status));
 
         // Alignment events
         this.eventBus.on('alignment:saved', () => {
@@ -149,6 +161,7 @@ export class SquareGolfApp {
         // Status bar navigation
         document.getElementById('statusDevice')?.addEventListener('click', () => this.screen.show('device'));
         document.getElementById('statusGSPro')?.addEventListener('click', () => this.screen.show('gspro'));
+        document.getElementById('statusInfiniteTees')?.addEventListener('click', () => this.screen.show('infiniteTees'));
         document.getElementById('statusBallReady')?.addEventListener('click', () => this.screen.show('shotMonitor'));
 
         // Device controls
@@ -174,6 +187,21 @@ export class SquareGolfApp {
         document.getElementById('gsproIP')?.addEventListener('change', () => this.saveGSProConfig());
         document.getElementById('gsproPort')?.addEventListener('change', () => this.saveGSProConfig());
         document.getElementById('gsproAutoConnect')?.addEventListener('change', () => this.saveGSProConfig());
+
+        // Infinite Tees controls
+        document.getElementById('infiniteTeesConnectBtn')?.addEventListener('click', () => {
+            const ip = document.getElementById('infiniteTeesIP').value.trim();
+            const port = parseInt(document.getElementById('infiniteTeesPort').value);
+            this.infiniteTeesService.connect(ip, port);
+        });
+        document.getElementById('infiniteTeesDisconnectBtn')?.addEventListener('click', () => {
+            this.infiniteTeesService.disconnect();
+        });
+
+        // Infinite Tees settings
+        document.getElementById('infiniteTeesIP')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
+        document.getElementById('infiniteTeesPort')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
+        document.getElementById('infiniteTeesAutoConnect')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
 
         // Camera controls
         document.getElementById('cameraSaveBtn')?.addEventListener('click', () => this.cameraManager.save());
@@ -217,6 +245,9 @@ export class SquareGolfApp {
                 break;
             case 'gsproStatus':
                 this.gsproService.updateStatus(message.data);
+                break;
+            case 'infiniteTeesStatus':
+                this.infiniteTeesService.updateStatus(message.data);
                 break;
             case 'cameraConfig':
                 this.cameraManager.updateConfig(message.data);
@@ -482,6 +513,78 @@ export class SquareGolfApp {
         const autoConnect = document.getElementById('gsproAutoConnect')?.checked;
 
         await this.gsproService.saveConfig(ip, port, autoConnect);
+    }
+
+    updateInfiniteTeesStatus(status) {
+        // Update the global status bar IT indicator
+        const statusIT = document.getElementById('statusInfiniteTees');
+        if (statusIT) {
+            if (status.connectionStatus === 'connected') {
+                statusIT.classList.add('connected');
+                statusIT.classList.remove('disconnected');
+            } else {
+                statusIT.classList.remove('connected');
+                statusIT.classList.add('disconnected');
+            }
+        }
+
+        const statusElement = document.getElementById('infiniteTeesStatus');
+        const errorElement = document.getElementById('infiniteTeesError');
+        const connectBtn = document.getElementById('infiniteTeesConnectBtn');
+        const disconnectBtn = document.getElementById('infiniteTeesDisconnectBtn');
+        const ipField = document.getElementById('infiniteTeesIP');
+        const portField = document.getElementById('infiniteTeesPort');
+
+        if (statusElement) {
+            statusElement.className = 'status-value';
+            statusElement.classList.add(status.connectionStatus);
+
+            switch (status.connectionStatus) {
+                case 'connected':
+                    statusElement.textContent = 'Connected';
+                    if (connectBtn) connectBtn.disabled = true;
+                    if (disconnectBtn) disconnectBtn.disabled = false;
+                    if (ipField) ipField.disabled = true;
+                    if (portField) portField.disabled = true;
+                    if (errorElement) errorElement.style.display = 'none';
+                    break;
+                case 'connecting':
+                    statusElement.textContent = 'Connecting...';
+                    if (connectBtn) connectBtn.disabled = true;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                    if (ipField) ipField.disabled = true;
+                    if (portField) portField.disabled = true;
+                    if (errorElement) errorElement.style.display = 'none';
+                    break;
+                case 'disconnected':
+                    statusElement.textContent = 'Disconnected';
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                    if (ipField) ipField.disabled = false;
+                    if (portField) portField.disabled = false;
+                    if (errorElement) errorElement.style.display = 'none';
+                    break;
+                case 'error':
+                    statusElement.textContent = 'Error';
+                    if (connectBtn) connectBtn.disabled = false;
+                    if (disconnectBtn) disconnectBtn.disabled = true;
+                    if (ipField) ipField.disabled = false;
+                    if (portField) portField.disabled = false;
+                    if (status.lastError && errorElement) {
+                        errorElement.textContent = status.lastError;
+                        errorElement.style.display = 'block';
+                    }
+                    break;
+            }
+        }
+    }
+
+    async saveInfiniteTeesConfig() {
+        const ip = document.getElementById('infiniteTeesIP')?.value.trim();
+        const port = parseInt(document.getElementById('infiniteTeesPort')?.value);
+        const autoConnect = document.getElementById('infiniteTeesAutoConnect')?.checked;
+
+        await this.infiniteTeesService.saveConfig(ip, port, autoConnect);
     }
 
     updateAlignmentDisplay(angle, isAligned) {

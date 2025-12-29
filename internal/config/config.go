@@ -11,14 +11,17 @@ import (
 
 // Settings represents all persisted application settings
 type Settings struct {
-	DeviceName       string `json:"deviceName"`
-	AutoConnect      bool   `json:"autoConnect"`
-	SpinMode         string `json:"spinMode"`
-	GSProIP          string `json:"gsproIP"`
-	GSProPort        int    `json:"gsproPort"`
-	GSProAutoConnect bool   `json:"gsproAutoConnect"`
-	CameraURL        string `json:"cameraURL"`
-	CameraEnabled    bool   `json:"cameraEnabled"`
+	DeviceName              string `json:"deviceName"`
+	AutoConnect             bool   `json:"autoConnect"`
+	SpinMode                string `json:"spinMode"`
+	GSProIP                 string `json:"gsproIP"`
+	GSProPort               int    `json:"gsproPort"`
+	GSProAutoConnect        bool   `json:"gsproAutoConnect"`
+	InfiniteTeesIP          string `json:"infiniteTeesIP"`
+	InfiniteTeesPort        int    `json:"infiniteTeesPort"`
+	InfiniteTeesAutoConnect bool   `json:"infiniteTeesAutoConnect"`
+	CameraURL               string `json:"cameraURL"`
+	CameraEnabled           bool   `json:"cameraEnabled"`
 }
 
 // Manager handles loading and saving configuration
@@ -61,14 +64,17 @@ func (m *Manager) initialize() {
 
 	// Set default settings
 	m.settings = Settings{
-		DeviceName:       "",
-		AutoConnect:      false,
-		SpinMode:         "advanced",
-		GSProIP:          "127.0.0.1",
-		GSProPort:        921,
-		GSProAutoConnect: false,
-		CameraURL:        "http://localhost:5000",
-		CameraEnabled:    false,
+		DeviceName:              "",
+		AutoConnect:             false,
+		SpinMode:                "advanced",
+		GSProIP:                 "127.0.0.1",
+		GSProPort:               921,
+		GSProAutoConnect:        false,
+		InfiniteTeesIP:          "127.0.0.1",
+		InfiniteTeesPort:        999,
+		InfiniteTeesAutoConnect: false,
+		CameraURL:               "http://localhost:5000",
+		CameraEnabled:           false,
 	}
 
 	// Try to load existing settings
@@ -170,6 +176,27 @@ func (m *Manager) SetGSProPort(port int) error {
 func (m *Manager) SetGSProAutoConnect(autoConnect bool) error {
 	m.mu.Lock()
 	m.settings.GSProAutoConnect = autoConnect
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetInfiniteTeesIP(ip string) error {
+	m.mu.Lock()
+	m.settings.InfiniteTeesIP = ip
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetInfiniteTeesPort(port int) error {
+	m.mu.Lock()
+	m.settings.InfiniteTeesPort = port
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetInfiniteTeesAutoConnect(autoConnect bool) error {
+	m.mu.Lock()
+	m.settings.InfiniteTeesAutoConnect = autoConnect
 	m.mu.Unlock()
 	return m.Save()
 }
