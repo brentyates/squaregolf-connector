@@ -266,6 +266,8 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 	switch s.stateManager.GetConnectionStatus() {
 	case core.ConnectionStatusConnected:
 		connectionStatus = "connected"
+	case core.ConnectionStatusScanning:
+		connectionStatus = "scanning"
 	case core.ConnectionStatusConnecting:
 		connectionStatus = "connecting"
 	case core.ConnectionStatusError:
@@ -353,8 +355,14 @@ func (s *Server) getInfiniteTeesStatus() InfiniteTeesStatus {
 func (s *Server) Start(port int) error {
 	router := mux.NewRouter()
 
-	// Serve static files
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
+	// Serve static files with no-cache headers for development
+	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/")))
+	router.PathPrefix("/static/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		staticHandler.ServeHTTP(w, r)
+	}))
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()

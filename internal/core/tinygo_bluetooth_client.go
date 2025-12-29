@@ -70,6 +70,14 @@ func releaseAdapter() {
 	}
 }
 
+// ConnectionPhase represents the current phase of the connection process
+type ConnectionPhase string
+
+const (
+	PhaseScanning   ConnectionPhase = "scanning"
+	PhaseConnecting ConnectionPhase = "connecting"
+)
+
 // TinyGoBluetoothClient implements BluetoothClient interface using tinygo-org/bluetooth
 type TinyGoBluetoothClient struct {
 	adapter              *bluetooth.Adapter
@@ -79,6 +87,7 @@ type TinyGoBluetoothClient struct {
 	characteristics      map[string]*bluetooth.DeviceCharacteristic
 	notificationHandlers map[string]func([]byte)
 	connectedDeviceName  string // Store the name of the connected device
+	onPhaseChange        func(ConnectionPhase)
 
 	// New fields for scan management
 	scanning    bool
@@ -102,6 +111,20 @@ func NewTinyGoBluetoothClient() (*TinyGoBluetoothClient, error) {
 		notificationHandlers: make(map[string]func([]byte)),
 		scanResults:          make(map[string]bluetooth.ScanResult),
 	}, nil
+}
+
+// SetPhaseChangeCallback sets a callback to be notified of connection phase changes
+func (t *TinyGoBluetoothClient) SetPhaseChangeCallback(callback func(ConnectionPhase)) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.onPhaseChange = callback
+}
+
+// notifyPhaseChange notifies the callback of a phase change if set
+func (t *TinyGoBluetoothClient) notifyPhaseChange(phase ConnectionPhase) {
+	if t.onPhaseChange != nil {
+		t.onPhaseChange(phase)
+	}
 }
 
 // StartScan starts scanning for BLE devices in the background
@@ -227,6 +250,9 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 	if !found {
 		log.Printf("Target device not in scan results, starting new scan for '%s' or '%s'...", targetName, targetAddress)
 
+		// Notify that we're in scanning phase
+		t.notifyPhaseChange(PhaseScanning)
+
 		// Use a local scan just for this connection attempt
 		foundDevice := false
 
@@ -258,6 +284,9 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 			return errors.New("device not found")
 		}
 	}
+
+	// Notify that we're in connecting phase
+	t.notifyPhaseChange(PhaseConnecting)
 
 	// Connect to the device
 	log.Printf("Connecting to device %s [%s]...", deviceToConnect.LocalName(), deviceToConnect.Address.String())

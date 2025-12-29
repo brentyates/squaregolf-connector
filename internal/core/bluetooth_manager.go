@@ -51,6 +51,21 @@ func (bm *BluetoothManager) GetClient() BluetoothClient {
 // SetClient sets a new Bluetooth client
 func (bm *BluetoothManager) SetClient(client BluetoothClient) {
 	bm.bluetoothClient = client
+	bm.setupPhaseCallback()
+}
+
+// setupPhaseCallback sets up the phase change callback on the Bluetooth client
+func (bm *BluetoothManager) setupPhaseCallback() {
+	if tinyGoClient, ok := bm.bluetoothClient.(*TinyGoBluetoothClient); ok {
+		tinyGoClient.SetPhaseChangeCallback(func(phase ConnectionPhase) {
+			switch phase {
+			case PhaseScanning:
+				bm.stateManager.SetConnectionStatus(ConnectionStatusScanning)
+			case PhaseConnecting:
+				bm.stateManager.SetConnectionStatus(ConnectionStatusConnecting)
+			}
+		})
+	}
 }
 
 // StartBluetoothConnection starts the Bluetooth connection in a background goroutine
@@ -93,16 +108,20 @@ func (bm *BluetoothManager) StartBluetoothConnection(deviceName, deviceAddress s
 
 		// Set the new client
 		bm.bluetoothClient = bleClient
+		bm.setupPhaseCallback()
 		log.Println("BluetoothManager: Successfully reinitialized Bluetooth client")
 	}
+
+	// Ensure phase callback is set
+	bm.setupPhaseCallback()
 
 	// Create a new context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	bm.currentCtx = ctx
 	bm.currentCancelFunc = cancel
 
-	// Update state
-	bm.stateManager.SetConnectionStatus(ConnectionStatusConnecting)
+	// Update state to scanning initially (will transition to connecting when device found)
+	bm.stateManager.SetConnectionStatus(ConnectionStatusScanning)
 
 	// Start connection in a goroutine
 	go func() {

@@ -5,6 +5,7 @@ type ConnectionStatus string
 
 const (
 	ConnectionStatusDisconnected ConnectionStatus = "disconnected"
+	ConnectionStatusScanning     ConnectionStatus = "scanning"
 	ConnectionStatusConnecting   ConnectionStatus = "connecting"
 	ConnectionStatusConnected    ConnectionStatus = "connected"
 	ConnectionStatusError        ConnectionStatus = "error"

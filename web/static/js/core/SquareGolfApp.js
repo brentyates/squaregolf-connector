@@ -296,6 +296,9 @@ export class SquareGolfApp {
                     case 'connected':
                         icon.textContent = 'bluetooth_connected';
                         break;
+                    case 'scanning':
+                        icon.textContent = 'bluetooth_searching';
+                        break;
                     case 'connecting':
                         icon.textContent = 'bluetooth_searching';
                         break;
@@ -315,6 +318,15 @@ export class SquareGolfApp {
                     if (deviceInfoInline) deviceInfoInline.style.display = 'flex';
                     if (errorElement) errorElement.style.display = 'none';
                     this.loading.hide();
+                    break;
+                case 'scanning':
+                    statusElement.textContent = 'Scanning...';
+                    if (connectBtn) connectBtn.disabled = true;
+                    if (disconnectBtn) disconnectBtn.disabled = false;
+                    if (calibrateBtn) calibrateBtn.style.display = 'none';
+                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
+                    if (errorElement) errorElement.style.display = 'none';
+                    this.loading.show('Scanning for device...');
                     break;
                 case 'connecting':
                     statusElement.textContent = 'Connecting...';
