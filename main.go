@@ -246,46 +246,31 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	// Create web server
 	server := web.NewServer(stateManager, bluetoothManager, launchMonitor, cameraManager, config.GSProIP, config.GSProPort, config.InfiniteTeesIP, config.InfiniteTeesPort, config.EnableExternalCamera)
 
-	// Setup GSPro integration if enabled via command line OR auto-connect is enabled in settings
+	// Setup auto-connects based on settings
 	if config.EnableGSPro || settings.GSProAutoConnect {
-		log.Println("GSPro integration enabled for web mode")
-		// Use command line args if provided, otherwise use saved settings
 		gsproIP := config.GSProIP
 		gsproPort := config.GSProPort
 		if !config.EnableGSPro && settings.GSProAutoConnect {
 			gsproIP = settings.GSProIP
 			gsproPort = settings.GSProPort
-			log.Printf("Auto-connecting to GSPro at %s:%d", gsproIP, gsproPort)
 		}
-
+		log.Printf("Auto-connecting to GSPro at %s:%d", gsproIP, gsproPort)
 		gsproIntegration := gspro.GetInstance(stateManager, launchMonitor, gsproIP, gsproPort)
-		go func() {
-			gsproIntegration.EnableAutoReconnect()
-			gsproIntegration.Start()
-			gsproIntegration.Connect(gsproIP, gsproPort)
-		}()
+		gsproIntegration.EnableAutoReconnect()
+		gsproIntegration.Start()
+		go gsproIntegration.Connect(gsproIP, gsproPort)
 	}
 
-	// Setup Infinite Tees auto-connect if enabled in settings
 	if settings.InfiniteTeesAutoConnect {
-		itIP := settings.InfiniteTeesIP
-		itPort := settings.InfiniteTeesPort
-		log.Printf("Auto-connecting to Infinite Tees at %s:%d", itIP, itPort)
-
-		go func() {
-			itIntegration := server.GetInfiniteTeesIntegration()
-			itIntegration.EnableAutoReconnect()
-			itIntegration.Start()
-			itIntegration.Connect(itIP, itPort)
-		}()
+		log.Printf("Auto-connecting to Infinite Tees at %s:%d", settings.InfiniteTeesIP, settings.InfiniteTeesPort)
+		itIntegration := server.GetInfiniteTeesIntegration()
+		itIntegration.EnableAutoReconnect()
+		itIntegration.Start()
+		go itIntegration.Connect(settings.InfiniteTeesIP, settings.InfiniteTeesPort)
 	}
 
-	// Setup Device auto-connect if enabled in settings
-	if settings.AutoConnect {
-		deviceName := settings.DeviceName
-		log.Printf("Auto-connecting to device: %s", deviceName)
-		go bluetoothManager.StartBluetoothConnection(deviceName, "")
-	}
+	log.Printf("Auto-connecting to device: %s", settings.DeviceName)
+	bluetoothManager.StartBluetoothConnection(settings.DeviceName, "")
 
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)

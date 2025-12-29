@@ -78,7 +78,6 @@ type CameraConfig struct {
 
 type AppSettings struct {
 	DeviceName              string `json:"deviceName"`
-	AutoConnect             bool   `json:"autoConnect"`
 	SpinMode                string `json:"spinMode"`
 	GSProIP                 string `json:"gsproIP"`
 	GSProPort               int    `json:"gsproPort"`
@@ -621,7 +620,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 		appSettings := AppSettings{
 			DeviceName:              settings.DeviceName,
-			AutoConnect:             settings.AutoConnect,
 			SpinMode:                settings.SpinMode,
 			GSProIP:                 settings.GSProIP,
 			GSProPort:               settings.GSProPort,
@@ -641,7 +639,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 		cfg := config.GetInstance()
 		cfg.SetDeviceName(appSettings.DeviceName)
-		cfg.SetAutoConnect(appSettings.AutoConnect)
 		cfg.SetSpinMode(appSettings.SpinMode)
 		cfg.SetGSProIP(appSettings.GSProIP)
 		cfg.SetGSProPort(appSettings.GSProPort)

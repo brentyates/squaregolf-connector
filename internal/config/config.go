@@ -12,7 +12,6 @@ import (
 // Settings represents all persisted application settings
 type Settings struct {
 	DeviceName              string `json:"deviceName"`
-	AutoConnect             bool   `json:"autoConnect"`
 	SpinMode                string `json:"spinMode"`
 	GSProIP                 string `json:"gsproIP"`
 	GSProPort               int    `json:"gsproPort"`
@@ -65,7 +64,6 @@ func (m *Manager) initialize() {
 	// Set default settings
 	m.settings = Settings{
 		DeviceName:              "",
-		AutoConnect:             true,
 		SpinMode:                "advanced",
 		GSProIP:                 "127.0.0.1",
 		GSProPort:               921,
@@ -145,12 +143,6 @@ func (m *Manager) SetDeviceName(name string) error {
 	return m.Save()
 }
 
-func (m *Manager) SetAutoConnect(autoConnect bool) error {
-	m.mu.Lock()
-	m.settings.AutoConnect = autoConnect
-	m.mu.Unlock()
-	return m.Save()
-}
 
 func (m *Manager) SetSpinMode(spinMode string) error {
 	m.mu.Lock()
