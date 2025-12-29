@@ -1,0 +1,347 @@
+/* Device Unified Page Styles - GSPro-inspired */
+
+/* Device Header - Connection Row */
+.device-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-xl);
+}
+
+.device-connection-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.device-connection-status .material-icons {
+    font-size: var(--icon-xl);
+}
+
+.device-connection-status.connected .material-icons {
+    color: var(--color-success);
+}
+
+.device-connection-status.disconnected .material-icons {
+    color: var(--text-muted);
+}
+
+.device-connection-status.connecting .material-icons {
+    color: var(--color-warning);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.device-connection-status.error .material-icons {
+    color: var(--color-danger);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.device-status-text {
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+
+.device-info-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xl);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+}
+
+.device-info-inline .device-name {
+    font-weight: var(--weight-medium);
+}
+
+.device-info-inline .battery {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.device-info-inline .battery .material-icons {
+    font-size: var(--icon-sm);
+}
+
+.connection-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: var(--gray-100);
+    color: var(--color-primary);
+}
+
+.btn-icon .material-icons {
+    font-size: var(--icon-lg);
+}
+
+/* Ball Position Overlay - GSPro style floating */
+.ball-overlay {
+    position: fixed !important;
+    bottom: 100px !important;
+    left: calc(var(--sidebar-width) + var(--spacing-xl)) !important;
+    width: 140px !important;
+    height: 170px !important;
+    background: rgba(20, 30, 48, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: var(--radius-lg) !important;
+    z-index: 50 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.ball-overlay .ball-position-svg,
+.ball-overlay svg.ball-position-svg {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    transition: none !important;
+}
+
+.ball-overlay .ball-position-svg:hover,
+.ball-overlay svg.ball-position-svg:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.ball-overlay.no-ball {
+    border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Shot Metrics Bar - GSPro style fixed bottom */
+.metrics-bar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: var(--sidebar-width) !important;
+    right: 0 !important;
+    background: rgba(20, 30, 48, 0.95) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 100 !important;
+    backdrop-filter: blur(10px);
+}
+
+.metrics-bar .metrics-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: var(--spacing-xs) var(--spacing-lg) !important;
+    gap: var(--spacing-sm) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.metrics-bar .metrics-row:last-child {
+    border-bottom: none !important;
+}
+
+.metrics-bar .row-label {
+    font-size: var(--font-xs) !important;
+    font-weight: var(--weight-bold) !important;
+    color: rgba(255, 255, 255, 0.4) !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    text-transform: uppercase !important;
+    letter-spacing: var(--letter-spacing-wide) !important;
+}
+
+.metrics-bar .metric-item {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+    min-width: 0 !important;
+}
+
+.metrics-bar .metric-label {
+    font-size: 10px !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    text-transform: uppercase !important;
+    letter-spacing: var(--letter-spacing-normal) !important;
+    display: block !important;
+    margin-bottom: 2px !important;
+}
+
+.metrics-bar .metric-value {
+    font-size: var(--font-base) !important;
+    font-weight: var(--weight-semibold) !important;
+    color: white !important;
+    font-variant-numeric: tabular-nums !important;
+}
+
+.metric-value.highlight {
+    color: var(--color-primary);
+}
+
+/* Alignment Panel - Slide-in from right */
+.alignment-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.alignment-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.alignment-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 400px;
+    max-width: 100vw;
+    background: var(--bg-sidebar);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.alignment-panel.open {
+    transform: translateX(0);
+}
+
+.alignment-panel .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.alignment-panel .panel-header h3 {
+    color: white;
+    margin: 0;
+    font-size: var(--font-xl);
+    font-weight: var(--weight-semibold);
+}
+
+.alignment-panel .btn-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.alignment-panel .btn-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.alignment-panel .panel-content {
+    flex: 1;
+    padding: var(--spacing-xl);
+}
+
+.alignment-panel .alignment-actions {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: var(--spacing-xl);
+    margin-top: auto;
+}
+
+/* Main content area adjustment for metrics bar */
+.main-content.has-metrics-bar {
+    padding-bottom: 100px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .device-header {
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        align-items: stretch;
+    }
+
+    .device-connection-status {
+        justify-content: center;
+    }
+
+    .device-info-inline {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .connection-actions {
+        justify-content: center;
+    }
+
+    .ball-overlay {
+        left: var(--spacing-lg);
+        bottom: 110px;
+        width: 100px;
+        height: 120px;
+    }
+
+    .metrics-bar {
+        left: 0;
+    }
+
+    .metrics-row {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .row-label {
+        width: 30px;
+        font-size: 9px;
+    }
+
+    .metric-item {
+        padding: var(--spacing-xs);
+    }
+
+    .metric-label {
+        font-size: 8px;
+    }
+
+    .metric-value {
+        font-size: var(--font-sm);
+    }
+
+    .alignment-panel {
+        width: 100%;
+    }
+}

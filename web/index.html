@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SquareGolf Connector</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/device.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
@@ -22,10 +23,6 @@
                     <span class="material-icons">bluetooth</span>
                     Device
                 </button>
-                <button class="nav-button" data-screen="shotMonitor">
-                    <span class="material-icons">assessment</span>
-                    Shot Monitor
-                </button>
                 <button class="nav-button" data-screen="gspro">
                     <span class="material-icons">computer</span>
                     GSPro
@@ -33,14 +30,6 @@
                 <button class="nav-button" data-screen="infiniteTees">
                     <span class="material-icons">golf_course</span>
                     Infinite Tees
-                </button>
-                <button class="nav-button" data-screen="camera">
-                    <span class="material-icons">videocam</span>
-                    Camera
-                </button>
-                <button class="nav-button" data-screen="alignment">
-                    <span class="material-icons">tune</span>
-                    Alignment
                 </button>
                 <button class="nav-button" data-screen="settings">
                     <span class="material-icons">settings</span>
@@ -53,7 +42,7 @@
         <main class="main-content">
             <!-- Global Status Bar -->
             <div class="global-status-bar compact" id="statusBar">
-                <h1 class="page-title" id="pageTitle">Device Connection</h1>
+                <h1 class="page-title" id="pageTitle">Device</h1>
                 <div class="status-item" id="statusWebSocket">
                     <span class="status-icon material-icons">cloud</span>
                     <span class="status-label">Server</span>
@@ -81,142 +70,120 @@
                 </div>
             </div>
 
-            <!-- Device Screen -->
+            <!-- Device Screen (Unified) -->
             <div class="screen active" id="deviceScreen">
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Connection Status</h3>
+                <!-- Connection Header -->
+                <div class="device-header">
+                    <div class="device-connection-status disconnected" id="deviceConnectionStatus">
+                        <span class="material-icons">bluetooth_disabled</span>
+                        <span class="device-status-text" id="deviceStatus">Disconnected</span>
                     </div>
-                    <div class="card-content">
-                        <div class="status-row">
-                            <span class="status-label">Status:</span>
-                            <span class="status-value" id="deviceStatus">Disconnected</span>
-                        </div>
-                        <div class="error-message" id="deviceError" style="display: none;"></div>
-                        
-                        <div class="control-buttons">
-                            <div class="button-group">
-                                <button class="btn btn-primary" id="connectBtn">Connect</button>
-                                <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
-                            </div>
-                        </div>
+                    <div class="device-info-inline" id="deviceInfoInline" style="display: none;">
+                        <span class="device-name" id="connectedDeviceName"></span>
+                        <span class="battery" id="batteryInline">
+                            <span class="material-icons">battery_full</span>
+                            <span id="batteryLevel">-</span>
+                        </span>
+                    </div>
+                    <div class="connection-actions">
+                        <button class="btn btn-primary" id="connectBtn">Connect</button>
+                        <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
+                        <button class="btn-icon" id="calibrateBtn" title="Calibrate Alignment" style="display: none;">
+                            <span class="material-icons">tune</span>
+                        </button>
                     </div>
                 </div>
+                <div class="error-message" id="deviceError" style="display: none;"></div>
+            </div>
 
-                <!-- Device Information -->
-                <div class="card" id="deviceInfoCard" style="display: none;">
-                    <div class="card-header">
-                        <h3>Device Information</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <span class="info-label">Device Name:</span>
-                                <span class="info-value" id="connectedDeviceName">-</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Battery Level:</span>
-                                <span class="info-value" id="batteryLevel">-</span>
-                            </div>
-                        </div>
-                        <div class="info-grid" style="margin-top: var(--spacing-md);">
-                            <div class="info-item">
-                                <span class="info-label">Firmware:</span>
-                                <span class="info-value" id="firmwareVersion">-</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">MMI Version:</span>
-                                <span class="info-value" id="mmiVersion">-</span>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Ball Position Overlay (floating) -->
+            <div class="ball-overlay" id="ballOverlay">
+                <svg class="ball-position-svg" viewBox="0 0 140 170" id="ballPositionSvg">
+                    <defs>
+                        <pattern id="gridSmall" width="28" height="28" patternUnits="userSpaceOnUse">
+                            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
+                        </pattern>
+                    </defs>
+                    <rect width="140" height="170" fill="url(#gridSmall)" />
+                    <line x1="70" y1="0" x2="70" y2="170" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                    <line x1="0" y1="85" x2="140" y2="85" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                    <rect x="43" y="58" width="54" height="54" fill="none" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,3"/>
+                    <circle id="ballDot" cx="70" cy="85" r="6" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
+                </svg>
+            </div>
+
+            <!-- Shot Metrics Bar (fixed bottom) -->
+            <div class="metrics-bar" id="metricsBar">
+                <div class="metrics-row">
+                    <span class="row-label">BALL</span>
+                    <div class="metric-item"><span class="metric-label">Speed</span><span class="metric-value" id="metricBallSpeed">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Launch</span><span class="metric-value" id="metricLaunchAngle">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Dir</span><span class="metric-value" id="metricDirection">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Carry</span><span class="metric-value" id="metricCarry">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Total</span><span class="metric-value" id="metricTotal">-</span></div>
+                </div>
+                <div class="metrics-row">
+                    <span class="row-label">CLUB</span>
+                    <div class="metric-item"><span class="metric-label">Speed</span><span class="metric-value" id="metricClubSpeed">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Face</span><span class="metric-value" id="metricFaceAngle">-</span></div>
+                    <div class="metric-item"><span class="metric-label">Smash</span><span class="metric-value" id="metricSmashFactor">-</span></div>
+                    <div class="metric-item"></div>
+                    <div class="metric-item"></div>
                 </div>
             </div>
 
-            <!-- Shot Monitor Screen -->
-            <div class="screen" id="shotMonitorScreen">
-                <!-- Ball Position Visualization -->
-                <div class="card">
-                        <div class="card-header">
-                            <h3>Ball Position</h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="ball-position-container">
-                                <svg class="ball-position-svg" viewBox="0 0 300 400" id="ballPositionSvg">
-                                    <!-- Grid lines -->
-                                    <defs>
-                                        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                                            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
-                                        </pattern>
-                                    </defs>
-                                    <rect width="300" height="400" fill="url(#grid)" />
-
-                                    <!-- Axes -->
-                                    <line x1="150" y1="0" x2="150" y2="400" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
-                                    <line x1="0" y1="200" x2="300" y2="200" stroke="#64748b" stroke-width="1" stroke-dasharray="5,5"/>
-
-                                    <!-- Hitting area (15cm x 15cm rectangle) -->
-                                    <!-- Center is at 150, 200. 15cm = 150mm scaled at 150/500 = 45px each direction -->
-                                    <!-- So 45px left/right and up/down from center = 90px x 90px rectangle -->
-                                    <rect x="105" y="155" width="90" height="90" fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="5,5"/>
-
-                                    <!-- Ball position dot -->
-                                    <circle id="ballDot" cx="150" cy="200" r="8" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
-
-                                    <!-- Distance labels -->
-                                    <text x="155" y="50" fill="#64748b" font-size="10">-150mm</text>
-                                    <text x="155" y="350" fill="#64748b" font-size="10">+150mm</text>
-                                    <text x="10" y="205" fill="#64748b" font-size="10">-150mm</text>
-                                    <text x="250" y="205" fill="#64748b" font-size="10">+150mm</text>
-                                </svg>
-
-                                <!-- Position Coordinates Display -->
-                                <div class="position-coords" id="positionCoords">
-                                    <div class="coord-item">
-                                        <span class="coord-label">X:</span>
-                                        <span class="coord-value" id="coordX">--</span>
-                                    </div>
-                                    <div class="coord-item">
-                                        <span class="coord-label">Y:</span>
-                                        <span class="coord-value" id="coordY">--</span>
-                                    </div>
-                                    <div class="coord-item">
-                                        <span class="coord-label">Z:</span>
-                                        <span class="coord-value" id="coordZ">--</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Alignment Panel (slide-in, hidden by default) -->
+            <div class="alignment-overlay" id="alignmentOverlay" style="display: none;"></div>
+            <div class="alignment-panel" id="alignmentPanel" style="display: none;">
+                <div class="panel-header">
+                    <h3>Device Alignment</h3>
+                    <button class="btn-close" id="closeAlignmentBtn">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="panel-content alignment-display">
+                    <div class="error-message" id="alignmentError" style="display: none;">
+                        <p class="error-text"></p>
+                        <button class="btn btn-primary btn-sm" id="retryAlignmentBtn">Retry</button>
                     </div>
-
-                <!-- Last Shot Metrics -->
-                <div class="card" id="monitorCurrentShotCard">
-                    <div class="card-header">
-                        <h3>Last Shot Metrics</h3>
+                    <div class="compass-container">
+                        <svg class="compass-svg" viewBox="0 0 200 200" id="compassSvg">
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="#2a3f5f" stroke-width="2"/>
+                            <path id="targetZone" d="" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="2"/>
+                            <line x1="100" y1="20" x2="100" y2="30" stroke="#64748b" stroke-width="2"/>
+                            <line x1="170" y1="100" x2="180" y2="100" stroke="#64748b" stroke-width="1"/>
+                            <line x1="100" y1="170" x2="100" y2="180" stroke="#64748b" stroke-width="1"/>
+                            <line x1="20" y1="100" x2="30" y2="100" stroke="#64748b" stroke-width="1"/>
+                            <circle cx="100" cy="100" r="5" fill="#64748b"/>
+                            <g id="aimPointer" transform="rotate(0 100 100)">
+                                <line x1="100" y1="100" x2="100" y2="30" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
+                                <circle cx="100" cy="30" r="8" fill="#3b82f6"/>
+                            </g>
+                        </svg>
                     </div>
-                    <div class="card-content">
-                        <!-- Placeholder when no shot data -->
-                        <div id="monitorShotPlaceholder" class="shot-placeholder">
-                            <span class="material-icons shot-placeholder-icon">sports_golf</span>
-                            <p class="shot-placeholder-title">Waiting for shot data...</p>
-                            <p class="shot-placeholder-subtitle">Hit a shot to see ball and club metrics</p>
-                        </div>
-
-                        <!-- Actual metrics (hidden by default) -->
-                        <div id="monitorShotData" style="display: none;">
-                            <div class="monitor-metrics-tabs">
-                                <button class="tab-button active" data-tab="monitorBall">Ball Data</button>
-                                <button class="tab-button" data-tab="monitorClub">Club Data</button>
-                            </div>
-                            <div class="monitor-metrics-content">
-                                <div class="metrics-tab active" id="monitorBallMetrics"></div>
-                                <div class="metrics-tab" id="monitorClubMetrics"></div>
-                            </div>
-                        </div>
+                    <div class="alignment-numbers">
+                        <div class="alignment-angle" id="alignmentAngle">0.0°</div>
+                        <div class="alignment-direction" id="alignmentDirection">Aimed straight</div>
+                    </div>
+                    <div class="aligned-status" id="alignedStatus">
+                        <span class="aligned-icon">⚪</span>
+                        <span class="aligned-text">Waiting for data...</span>
+                    </div>
+                    <div class="handedness-toggle">
+                        <button class="handedness-btn" id="leftHandedBtn">Left</button>
+                        <button class="handedness-btn active" id="rightHandedBtn">Right</button>
                     </div>
                 </div>
-
+                <div class="alignment-actions">
+                    <button class="btn btn-secondary" id="cancelAlignmentBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveAlignmentBtn">Save Calibration</button>
+                </div>
             </div>
+
 
             <!-- GSPro Screen -->
             <div class="screen" id="gsproScreen">
@@ -292,130 +259,6 @@
                 </div>
             </div>
 
-            <!-- Camera Screen -->
-            <div class="screen" id="cameraScreen">
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Camera Configuration</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label for="cameraURL">Camera URL:</label>
-                            <input type="text" id="cameraURL" class="input-field" value="http://localhost:5000" placeholder="http://localhost:5000">
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="cameraEnabled">
-                                Enable camera integration
-                            </label>
-                        </div>
-                        <div class="button-group">
-                            <button class="btn btn-primary" id="cameraSaveBtn">Save Settings</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3>How It Works</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="camera-info">
-                            <p>The camera integration automatically:</p>
-                            <ul>
-                                <li><strong>Arms the camera</strong> when the ball is detected and ready</li>
-                                <li><strong>Triggers recording</strong> when shot metrics are received</li>
-                                <li><strong>Cancels recording</strong> if the ball is removed before a shot</li>
-                            </ul>
-                            <p class="info-note">⚠️ Make sure your camera server is running and accessible at the configured URL.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Alignment Screen -->
-            <div class="screen" id="alignmentScreen">
-                <!-- Alignment Display Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Aim Direction</h3>
-                    </div>
-                    <div class="card-content alignment-display">
-                        <!-- Inline Error Message -->
-                        <div class="error-message" id="alignmentError" style="display: none;">
-                            <p class="error-text"></p>
-                            <button class="btn btn-primary btn-sm" id="retryAlignmentBtn">Retry Alignment</button>
-                        </div>
-                        <!-- Visual Compass -->
-                        <div class="compass-container">
-                            <svg class="compass-svg" viewBox="0 0 200 200" id="compassSvg">
-                                <!-- Background circle -->
-                                <circle cx="100" cy="100" r="90" fill="none" stroke="#2a3f5f" stroke-width="2"/>
-
-                                <!-- Target zone (±2 degrees) -->
-                                <path id="targetZone" d="" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="2"/>
-
-                                <!-- Degree markers -->
-                                <line x1="100" y1="20" x2="100" y2="30" stroke="#64748b" stroke-width="2"/> <!-- 0° -->
-                                <line x1="170" y1="100" x2="180" y2="100" stroke="#64748b" stroke-width="1"/> <!-- 90° -->
-                                <line x1="100" y1="170" x2="100" y2="180" stroke="#64748b" stroke-width="1"/> <!-- 180° -->
-                                <line x1="20" y1="100" x2="30" y2="100" stroke="#64748b" stroke-width="1"/> <!-- -90° -->
-
-                                <!-- Center target -->
-                                <circle cx="100" cy="100" r="5" fill="#64748b"/>
-
-                                <!-- Aim pointer (rotates based on angle) -->
-                                <g id="aimPointer" transform="rotate(0 100 100)">
-                                    <line x1="100" y1="100" x2="100" y2="30" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
-                                    <circle cx="100" cy="30" r="8" fill="#3b82f6"/>
-                                </g>
-                            </svg>
-                        </div>
-
-                        <!-- Numeric Display -->
-                        <div class="alignment-numbers">
-                            <div class="alignment-angle" id="alignmentAngle">0.0°</div>
-                            <div class="alignment-direction" id="alignmentDirection">Aimed straight</div>
-                        </div>
-
-                        <!-- Aligned Status Indicator -->
-                        <div class="aligned-status" id="alignedStatus">
-                            <span class="aligned-icon">⚪</span>
-                            <span class="aligned-text">Waiting for data...</span>
-                        </div>
-
-                        <!-- Handedness Toggle -->
-                        <div class="handedness-toggle">
-                            <button class="handedness-btn" id="leftHandedBtn">Left-Handed Mode</button>
-                            <button class="handedness-btn active" id="rightHandedBtn">Right-Handed Mode</button>
-                        </div>
-
-                        <!-- Alignment Action Buttons -->
-                        <div class="alignment-actions">
-                            <button class="btn btn-secondary" id="cancelAlignmentBtn">Cancel</button>
-                            <button class="btn btn-primary" id="saveAlignmentBtn">OK - Save Calibration</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Instructions Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>How to Use</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="instructions">
-                            <ul>
-                                <li>Alignment starts automatically when you open this tab</li>
-                                <li>Point the device at your target</li>
-                                <li>Green circle appears when aligned (within ±2°)</li>
-                                <li>Aim arrow shows current direction</li>
-                                <li>Alignment stops when you leave this tab</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Settings Screen -->
             <div class="screen" id="settingsScreen">

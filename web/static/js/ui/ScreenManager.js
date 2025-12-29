@@ -4,11 +4,9 @@ export class ScreenManager {
         this.currentScreen = 'device';
         this.eventBus = eventBus;
         this.pageTitles = {
-            device: 'Device Connection',
-            shotMonitor: 'Shot Monitor',
-            gspro: 'GSPro Connection',
-            camera: 'Swing Camera',
-            alignment: 'Device Alignment',
+            device: 'Device',
+            gspro: 'GSPro',
+            infiniteTees: 'Infinite Tees',
             settings: 'Settings'
         };
     }

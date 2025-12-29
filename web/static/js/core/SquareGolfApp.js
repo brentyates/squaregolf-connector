@@ -40,6 +40,7 @@ export class SquareGolfApp {
         this.features = {};
         this.currentHandedness = 'right';
         this.alignmentExplicitlyStopped = false;
+        this.alignmentPanelClosing = false;
 
         this.init();
     }
@@ -93,17 +94,17 @@ export class SquareGolfApp {
 
         // Alignment events
         this.eventBus.on('alignment:saved', () => {
-            this.toast.success('Calibration saved successfully');
+            this.toast.success('Calibration saved');
             this.updateAlignmentDisplay(0, false);
-            this.screen.show('device');
+            this.closeAlignmentPanel();
         });
         this.eventBus.on('alignment:cancelled', ({ skipNavigation }) => {
             if (!skipNavigation) {
                 this.toast.info('Calibration cancelled');
             }
             this.updateAlignmentDisplay(0, false);
-            if (this.screen.getCurrent() === 'alignment' && !skipNavigation) {
-                this.screen.show('device');
+            if (!skipNavigation) {
+                this.closeAlignmentPanel();
             }
         });
         this.eventBus.on('alignment:error', (msg) => this.toast.error(msg));
@@ -117,18 +118,13 @@ export class SquareGolfApp {
 
         // Screen navigation events
         this.eventBus.on('screen:before-change', ({ from, to }) => {
-            // Auto-cancel alignment if leaving alignment screen without explicit save/cancel
-            if (from === 'alignment' && to !== 'alignment') {
-                if (!this.alignmentExplicitlyStopped) {
-                    this.alignmentManager.cancel();
-                }
-                this.alignmentExplicitlyStopped = false; // Reset for next time
+            // Close alignment panel if leaving device screen
+            if (from === 'device' && to !== 'device') {
+                this.closeAlignmentPanel();
             }
         });
-        this.eventBus.on('screen:changed', (screenName) => {
-            if (screenName === 'alignment') {
-                this.alignmentManager.start();
-            }
+        this.eventBus.on('screen:changed', () => {
+            // No auto-start logic needed - alignment is now triggered by button
         });
 
         // Settings events
@@ -145,15 +141,6 @@ export class SquareGolfApp {
         document.querySelectorAll('.nav-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const screen = e.target.dataset.screen || e.target.closest('[data-screen]').dataset.screen;
-
-                // Check if alignment requires device
-                if (screen === 'alignment' &&
-                    (!this.deviceService.getStatus() ||
-                     this.deviceService.getStatus().connectionStatus !== 'connected')) {
-                    this.toast.warning('Please connect to device first');
-                    return;
-                }
-
                 this.screen.show(screen);
             });
         });
@@ -162,7 +149,11 @@ export class SquareGolfApp {
         document.getElementById('statusDevice')?.addEventListener('click', () => this.screen.show('device'));
         document.getElementById('statusGSPro')?.addEventListener('click', () => this.screen.show('gspro'));
         document.getElementById('statusInfiniteTees')?.addEventListener('click', () => this.screen.show('infiniteTees'));
-        document.getElementById('statusBallReady')?.addEventListener('click', () => this.screen.show('shotMonitor'));
+        document.getElementById('statusBallReady')?.addEventListener('click', () => this.screen.show('device'));
+
+        // Alignment panel controls
+        document.getElementById('calibrateBtn')?.addEventListener('click', () => this.openAlignmentPanel());
+        document.getElementById('closeAlignmentBtn')?.addEventListener('click', () => this.closeAlignmentPanel());
 
         // Device controls
         document.getElementById('connectBtn')?.addEventListener('click', () => {
@@ -291,51 +282,73 @@ export class SquareGolfApp {
         // Update the main navigation device connection indicator
         this.updateDeviceConnectionIndicator(status.connectionStatus);
 
-        // Update connection status
+        // Update connection status display
         const statusElement = document.getElementById('deviceStatus');
+        const connectionStatusEl = document.getElementById('deviceConnectionStatus');
         const errorElement = document.getElementById('deviceError');
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
+        const calibrateBtn = document.getElementById('calibrateBtn');
+        const deviceInfoInline = document.getElementById('deviceInfoInline');
+
+        // Update icon and status in the new header
+        if (connectionStatusEl) {
+            connectionStatusEl.className = 'device-connection-status ' + status.connectionStatus;
+            const icon = connectionStatusEl.querySelector('.material-icons');
+            if (icon) {
+                switch (status.connectionStatus) {
+                    case 'connected':
+                        icon.textContent = 'bluetooth_connected';
+                        break;
+                    case 'connecting':
+                        icon.textContent = 'bluetooth_searching';
+                        break;
+                    default:
+                        icon.textContent = 'bluetooth_disabled';
+                }
+            }
+        }
 
         if (statusElement) {
-            statusElement.className = 'status-value';
-            statusElement.classList.add(status.connectionStatus);
-
             switch (status.connectionStatus) {
                 case 'connected':
                     statusElement.textContent = 'Connected';
                     if (connectBtn) connectBtn.disabled = true;
                     if (disconnectBtn) disconnectBtn.disabled = false;
+                    if (calibrateBtn) calibrateBtn.style.display = 'flex';
+                    if (deviceInfoInline) deviceInfoInline.style.display = 'flex';
                     if (errorElement) errorElement.style.display = 'none';
                     this.loading.hide();
-                    this.showDeviceInfo(true);
                     break;
                 case 'connecting':
                     statusElement.textContent = 'Connecting...';
                     if (connectBtn) connectBtn.disabled = true;
                     if (disconnectBtn) disconnectBtn.disabled = false;
+                    if (calibrateBtn) calibrateBtn.style.display = 'none';
+                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
                     if (errorElement) errorElement.style.display = 'none';
                     this.loading.show('Connecting to device...');
-                    this.showDeviceInfo(false);
                     break;
                 case 'disconnected':
                     statusElement.textContent = 'Disconnected';
                     if (connectBtn) connectBtn.disabled = false;
                     if (disconnectBtn) disconnectBtn.disabled = true;
+                    if (calibrateBtn) calibrateBtn.style.display = 'none';
+                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
                     if (errorElement) errorElement.style.display = 'none';
                     this.loading.hide();
-                    this.showDeviceInfo(false);
                     break;
                 case 'error':
                     statusElement.textContent = 'Error';
                     if (connectBtn) connectBtn.disabled = false;
                     if (disconnectBtn) disconnectBtn.disabled = false;
+                    if (calibrateBtn) calibrateBtn.style.display = 'none';
+                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
                     if (status.lastError && errorElement) {
                         errorElement.textContent = status.lastError;
                         errorElement.style.display = 'block';
                     }
                     this.loading.hide();
-                    this.showDeviceInfo(false);
                     break;
             }
         }
@@ -432,11 +445,55 @@ export class SquareGolfApp {
         }
     }
 
-    showDeviceInfo(show) {
-        const deviceInfoCard = document.getElementById('deviceInfoCard');
-        if (deviceInfoCard) {
-            deviceInfoCard.style.display = show ? 'block' : 'none';
+    openAlignmentPanel() {
+        const panel = document.getElementById('alignmentPanel');
+        const overlay = document.getElementById('alignmentOverlay');
+
+        if (panel) {
+            panel.style.display = 'flex';
+            requestAnimationFrame(() => {
+                panel.classList.add('open');
+            });
         }
+        if (overlay) {
+            overlay.style.display = 'block';
+            requestAnimationFrame(() => {
+                overlay.classList.add('open');
+            });
+            overlay.addEventListener('click', () => this.closeAlignmentPanel(), { once: true });
+        }
+
+        this.alignmentManager.start();
+    }
+
+    closeAlignmentPanel() {
+        if (this.alignmentPanelClosing) return;
+        this.alignmentPanelClosing = true;
+
+        const panel = document.getElementById('alignmentPanel');
+        const overlay = document.getElementById('alignmentOverlay');
+
+        if (panel) {
+            panel.classList.remove('open');
+            setTimeout(() => {
+                panel.style.display = 'none';
+            }, 300);
+        }
+        if (overlay) {
+            overlay.classList.remove('open');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+        }
+
+        if (!this.alignmentExplicitlyStopped) {
+            this.alignmentManager.cancel();
+        }
+        this.alignmentExplicitlyStopped = false;
+
+        setTimeout(() => {
+            this.alignmentPanelClosing = false;
+        }, 350);
     }
 
     updateGSProStatus(status) {
@@ -669,12 +726,7 @@ export class SquareGolfApp {
     }
 
     applyFeatures() {
-        if (!this.features.externalCamera) {
-            const cameraNavButton = document.querySelector('.nav-button[data-screen="camera"]');
-            if (cameraNavButton) cameraNavButton.style.display = 'none';
-            const cameraScreen = document.getElementById('cameraScreen');
-            if (cameraScreen) cameraScreen.style.display = 'none';
-        }
+        // Feature flags applied here if needed
     }
 
     applySettings(settings) {

@@ -19,6 +19,7 @@
 /* Features */
 @import './alignment.css';
 @import './shot-monitor.css';
+@import './device.css';
 
 /* Utilities & Responsive */
 @import './responsive.css';
