@@ -76,20 +76,22 @@ export class ShotMonitor {
 
     updateCurrentShot(ballData, clubData) {
         // Update ball metrics in the metrics bar
-        this.updateMetricValue('metricBallSpeed', ballData?.ballSpeed, 'mph');
+        // Backend field names: speed (m/s), launchAngle, horizontalAngle, totalSpin, spinAxis, backSpin, sideSpin
+        const ballSpeedMPH = ballData?.speed ? ballData.speed * 2.237 : null;
+        this.updateMetricValue('metricBallSpeed', ballSpeedMPH, 'mph');
         this.updateMetricValue('metricLaunchAngle', ballData?.launchAngle, '°');
-        this.updateMetricValue('metricDirection', ballData?.direction, '°', true);
+        this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', true);
         this.updateMetricValue('metricBackSpin', ballData?.backSpin, 'rpm');
         this.updateMetricValue('metricSideSpin', ballData?.sideSpin, 'rpm', true);
-        this.updateMetricValue('metricCarry', ballData?.carry, 'yd');
-        this.updateMetricValue('metricTotal', ballData?.totalDistance, 'yd');
+        this.updateMetricValue('metricTotalSpin', ballData?.totalSpin, 'rpm');
+        this.updateMetricValue('metricSpinAxis', ballData?.spinAxis, '°');
 
         // Update club metrics in the metrics bar
-        this.updateMetricValue('metricClubSpeed', clubData?.clubSpeed, 'mph');
+        // Backend field names: path, angle, attackAngle, dynamicLoft
         this.updateMetricValue('metricAttackAngle', clubData?.attackAngle, '°', true);
-        this.updateMetricValue('metricClubPath', clubData?.clubPath, '°', true);
-        this.updateMetricValue('metricFaceAngle', clubData?.faceAngle, '°', true);
-        this.updateMetricValue('metricSmashFactor', clubData?.smashFactor, '');
+        this.updateMetricValue('metricClubPath', clubData?.path, '°', true);
+        this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', true);
+        this.updateMetricValue('metricDynamicLoft', clubData?.dynamicLoft, '°');
     }
 
     updateMetricValue(elementId, value, unit, showSign = false) {

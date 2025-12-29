@@ -104,15 +104,15 @@
     position: fixed !important;
     bottom: 100px !important;
     left: calc(var(--sidebar-width) + var(--spacing-xl)) !important;
-    width: 140px !important;
-    height: 170px !important;
+    width: 160px !important;
+    height: 190px !important;
     background: rgba(20, 30, 48, 0.9) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: var(--radius-lg) !important;
     z-index: 50 !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
     overflow: hidden !important;
-    padding: 0 !important;
+    padding: 10px !important;
     margin: 0 !important;
 }
 
@@ -312,8 +312,9 @@
     .ball-overlay {
         left: var(--spacing-lg);
         bottom: 110px;
-        width: 100px;
-        height: 120px;
+        width: 120px;
+        height: 140px;
+        padding: 8px !important;
     }
 
     .metrics-bar {
