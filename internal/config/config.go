@@ -9,18 +9,28 @@ import (
 	"github.com/brentyates/squaregolf-connector/internal/core"
 )
 
+// KidsBoostSettings represents the kids boost configuration
+type KidsBoostSettings struct {
+	Enabled           bool    `json:"enabled"`
+	SpeedMultiplier   float64 `json:"speedMultiplier"`
+	HeightMultiplier  float64 `json:"heightMultiplier"`
+	StraightnessBoost float64 `json:"straightnessBoost"`
+	PuttStraightness  float64 `json:"puttStraightness"`
+}
+
 // Settings represents all persisted application settings
 type Settings struct {
-	DeviceName              string `json:"deviceName"`
-	SpinMode                string `json:"spinMode"`
-	GSProIP                 string `json:"gsproIP"`
-	GSProPort               int    `json:"gsproPort"`
-	GSProAutoConnect        bool   `json:"gsproAutoConnect"`
-	InfiniteTeesIP          string `json:"infiniteTeesIP"`
-	InfiniteTeesPort        int    `json:"infiniteTeesPort"`
-	InfiniteTeesAutoConnect bool   `json:"infiniteTeesAutoConnect"`
-	CameraURL               string `json:"cameraURL"`
-	CameraEnabled           bool   `json:"cameraEnabled"`
+	DeviceName              string            `json:"deviceName"`
+	SpinMode                string            `json:"spinMode"`
+	GSProIP                 string            `json:"gsproIP"`
+	GSProPort               int               `json:"gsproPort"`
+	GSProAutoConnect        bool              `json:"gsproAutoConnect"`
+	InfiniteTeesIP          string            `json:"infiniteTeesIP"`
+	InfiniteTeesPort        int               `json:"infiniteTeesPort"`
+	InfiniteTeesAutoConnect bool              `json:"infiniteTeesAutoConnect"`
+	CameraURL               string            `json:"cameraURL"`
+	CameraEnabled           bool              `json:"cameraEnabled"`
+	KidsBoost               KidsBoostSettings `json:"kidsBoost"`
 }
 
 // Manager handles loading and saving configuration
@@ -73,6 +83,13 @@ func (m *Manager) initialize() {
 		InfiniteTeesAutoConnect: false,
 		CameraURL:               "http://localhost:5000",
 		CameraEnabled:           false,
+		KidsBoost: KidsBoostSettings{
+			Enabled:           false,
+			SpeedMultiplier:   10.0,
+			HeightMultiplier:  2.0,
+			StraightnessBoost: 0.8,
+			PuttStraightness:  0.5,
+		},
 	}
 
 	// Try to load existing settings
@@ -203,6 +220,26 @@ func (m *Manager) SetCameraURL(url string) error {
 func (m *Manager) SetCameraEnabled(enabled bool) error {
 	m.mu.Lock()
 	m.settings.CameraEnabled = enabled
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) GetKidsBoost() KidsBoostSettings {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.settings.KidsBoost
+}
+
+func (m *Manager) SetKidsBoost(settings KidsBoostSettings) error {
+	m.mu.Lock()
+	m.settings.KidsBoost = settings
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetKidsBoostEnabled(enabled bool) error {
+	m.mu.Lock()
+	m.settings.KidsBoost.Enabled = enabled
 	m.mu.Unlock()
 	return m.Save()
 }

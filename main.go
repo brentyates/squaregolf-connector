@@ -82,6 +82,19 @@ func initializeBackend(config AppConfig) (*core.StateManager, *core.BluetoothMan
 	// Set up launch monitor to handle notifications from the bluetooth manager
 	launchMonitor.SetupNotifications(bluetoothManager)
 
+	// Set up state middleware
+	kidsBoostMiddleware := core.NewKidsBoostMiddleware(func() core.KidsBoostConfig {
+		cfg := appcfg.GetInstance().GetKidsBoost()
+		return core.KidsBoostConfig{
+			Enabled:           cfg.Enabled,
+			SpeedMultiplier:   cfg.SpeedMultiplier,
+			HeightMultiplier:  cfg.HeightMultiplier,
+			StraightnessBoost: cfg.StraightnessBoost,
+			PuttStraightness:  cfg.PuttStraightness,
+		}
+	})
+	stateManager.SetMiddleware(kidsBoostMiddleware)
+
 	return stateManager, bluetoothManager, launchMonitor
 }
 

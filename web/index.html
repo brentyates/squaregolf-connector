@@ -31,6 +31,10 @@
                     <span class="material-icons">golf_course</span>
                     Infinite Tees
                 </button>
+                <button class="nav-button" data-screen="kidsBoost">
+                    <span class="material-icons">child_care</span>
+                    Kids Boost
+                </button>
                 <button class="nav-button" data-screen="settings">
                     <span class="material-icons">settings</span>
                     Settings
@@ -258,6 +262,47 @@
                 </div>
             </div>
 
+            <!-- Kids Boost Screen -->
+            <div class="screen" id="kidsBoostScreen">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Kids Boost</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="kidsBoostEnabled">
+                                Enable Kids Boost
+                            </label>
+                            <p class="helper-text">Boost shot parameters for young players. Makes shots go further and straighter.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="speedMultiplier">Speed Multiplier: <span id="speedMultiplierValue">10</span>x</label>
+                            <input type="range" id="speedMultiplier" min="1" max="200" step="1" value="10">
+                            <p class="helper-text">Multiplies ball speed (10x = toddler can hit ~200 yards)</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="heightMultiplier">Height Multiplier: <span id="heightMultiplierValue">2.0</span>x</label>
+                            <input type="range" id="heightMultiplier" min="1.0" max="5.0" step="0.1" value="2.0">
+                            <p class="helper-text">Multiplies launch angle for higher shots</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="straightnessBoost">Straightness: <span id="straightnessBoostValue">80</span>%</label>
+                            <input type="range" id="straightnessBoost" min="0" max="100" step="5" value="80">
+                            <p class="helper-text">Reduces hook/slice (100% = perfectly straight)</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="puttStraightness">Putt Straightness: <span id="puttStraightnessValue">50</span>%</label>
+                            <input type="range" id="puttStraightness" min="0" max="100" step="5" value="50">
+                            <p class="helper-text">Makes putts straighter without affecting speed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Settings Screen -->
             <div class="screen" id="settingsScreen">

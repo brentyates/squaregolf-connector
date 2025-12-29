@@ -399,6 +399,10 @@ func (s *Server) Start(port int) error {
 	api.HandleFunc("/alignment/cancel", s.handleAlignmentCancel).Methods("POST")
 	api.HandleFunc("/alignment/handedness", s.handleAlignmentHandedness).Methods("POST")
 
+	// Kids Boost endpoints
+	api.HandleFunc("/kidsboost/config", s.handleKidsBoostConfig).Methods("GET", "POST")
+	api.HandleFunc("/kidsboost/toggle", s.handleKidsBoostToggle).Methods("POST")
+
 	// WebSocket endpoint
 	router.HandleFunc("/ws", s.handleWebSocket)
 
@@ -786,6 +790,41 @@ func (s *Server) handleAlignmentHandedness(w http.ResponseWriter, r *http.Reques
 	s.stateManager.SetHandedness(&handedness)
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleKidsBoostConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		kidsBoost := config.GetInstance().GetKidsBoost()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(kidsBoost)
+	} else {
+		var kidsBoost config.KidsBoostSettings
+		if err := json.NewDecoder(r.Body).Decode(&kidsBoost); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if err := config.GetInstance().SetKidsBoost(kidsBoost); err != nil {
+			http.Error(w, "Failed to save settings", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) handleKidsBoostToggle(w http.ResponseWriter, r *http.Request) {
+	cfg := config.GetInstance()
+	currentSettings := cfg.GetKidsBoost()
+	newEnabled := !currentSettings.Enabled
+
+	if err := cfg.SetKidsBoostEnabled(newEnabled); err != nil {
+		http.Error(w, "Failed to toggle", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"enabled": newEnabled})
 }
 
 func (s *Server) GetInfiniteTeesIntegration() *infinitetees.Integration {

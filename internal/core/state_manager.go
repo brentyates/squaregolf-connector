@@ -72,7 +72,8 @@ type StateManager struct {
 		LauncherVersion   []StateCallback[*string]
 		MMIVersion        []StateCallback[*string]
 	}
-	mu sync.RWMutex
+	middleware StateMiddleware
+	mu         sync.RWMutex
 }
 
 var (
@@ -233,16 +234,30 @@ func (sm *StateManager) GetLastBallMetrics() *BallMetrics {
 	return sm.state.LastBallMetrics
 }
 
+// SetMiddleware sets the state middleware for transforming values before storage
+func (sm *StateManager) SetMiddleware(middleware StateMiddleware) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.middleware = middleware
+}
+
 // SetLastBallMetrics sets the last ball metrics
 func (sm *StateManager) SetLastBallMetrics(value *BallMetrics) {
 	sm.mu.Lock()
 	oldValue := sm.state.LastBallMetrics
-	sm.state.LastBallMetrics = value
+
+	// Apply middleware if set
+	transformedValue := value
+	if sm.middleware != nil && value != nil {
+		transformedValue = sm.middleware.TransformBallMetrics(value)
+	}
+
+	sm.state.LastBallMetrics = transformedValue
 	callbacks := sm.callbacks.LastBallMetrics
 	sm.mu.Unlock()
 
 	for _, callback := range callbacks {
-		callback(oldValue, value)
+		callback(oldValue, transformedValue)
 	}
 }
 
@@ -257,12 +272,19 @@ func (sm *StateManager) GetLastClubMetrics() *ClubMetrics {
 func (sm *StateManager) SetLastClubMetrics(value *ClubMetrics) {
 	sm.mu.Lock()
 	oldValue := sm.state.LastClubMetrics
-	sm.state.LastClubMetrics = value
+
+	// Apply middleware if set
+	transformedValue := value
+	if sm.middleware != nil && value != nil {
+		transformedValue = sm.middleware.TransformClubMetrics(value)
+	}
+
+	sm.state.LastClubMetrics = transformedValue
 	callbacks := sm.callbacks.LastClubMetrics
 	sm.mu.Unlock()
 
 	for _, callback := range callbacks {
-		callback(oldValue, value)
+		callback(oldValue, transformedValue)
 	}
 }
 

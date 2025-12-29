@@ -9,6 +9,7 @@ import { AlignmentManager } from '../features/AlignmentManager.js';
 import { SettingsManager } from '../features/SettingsManager.js';
 import { CameraManager } from '../features/CameraManager.js';
 import { ShotMonitor } from '../features/ShotMonitor.js';
+import { KidsBoostManager } from '../features/KidsBoostManager.js';
 import { ToastManager } from '../ui/ToastManager.js';
 import { LoadingManager } from '../ui/LoadingManager.js';
 import { ScreenManager } from '../ui/ScreenManager.js';
@@ -35,6 +36,7 @@ export class SquareGolfApp {
         this.settingsManager = new SettingsManager(this.api, this.eventBus);
         this.cameraManager = new CameraManager(this.api, this.eventBus);
         this.shotMonitor = new ShotMonitor(this.api, this.eventBus);
+        this.kidsBoostManager = new KidsBoostManager(this.api, this.eventBus);
 
         // Local state
         this.features = {};
@@ -51,6 +53,7 @@ export class SquareGolfApp {
             this.setupEventBusListeners();
             this.ws.connect();
             this.settingsManager.load();
+            this.kidsBoostManager.load();
         });
     }
 
@@ -130,6 +133,9 @@ export class SquareGolfApp {
         // Camera events
         this.eventBus.on('camera:saved', () => this.toast.success('Camera settings saved successfully'));
         this.eventBus.on('camera:error', (msg) => this.toast.error(`Failed to save camera config: ${msg}`));
+
+        // Kids Boost events
+        this.eventBus.on('kidsboost:error', (msg) => this.toast.error(msg));
     }
 
     setupEventListeners() {
