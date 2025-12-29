@@ -98,14 +98,10 @@ export class SquareGolfApp {
             this.updateAlignmentDisplay(0, false);
             this.closeAlignmentPanel();
         });
-        this.eventBus.on('alignment:cancelled', ({ skipNavigation }) => {
-            if (!skipNavigation) {
-                this.toast.info('Calibration cancelled');
-            }
+        this.eventBus.on('alignment:cancelled', () => {
+            this.toast.info('Calibration cancelled');
             this.updateAlignmentDisplay(0, false);
-            if (!skipNavigation) {
-                this.closeAlignmentPanel();
-            }
+            this.closeAlignmentPanel();
         });
         this.eventBus.on('alignment:error', (msg) => this.toast.error(msg));
         this.eventBus.on('alignment:update', ({ angle, isAligned }) => {
@@ -217,9 +213,9 @@ export class SquareGolfApp {
     async handleHandednessChange(handedness) {
         const result = await this.alignmentManager.setHandedness(handedness);
 
-        if (result.success && this.screen.getCurrent() === 'alignment') {
+        if (result.success && document.getElementById('alignmentPanel')?.classList.contains('open')) {
             // Restart alignment with new handedness
-            await this.alignmentManager.cancel(true);
+            await this.alignmentManager.stop();
             await new Promise(resolve => setTimeout(resolve, 100));
             await this.alignmentManager.start();
         }
@@ -486,8 +482,10 @@ export class SquareGolfApp {
             }, 300);
         }
 
+        // Only stop alignment (no toast) when panel is closed via X or overlay
+        // Cancel button handles its own toast via the cancelled event
         if (!this.alignmentExplicitlyStopped) {
-            this.alignmentManager.cancel();
+            this.alignmentManager.stop();
         }
         this.alignmentExplicitlyStopped = false;
 

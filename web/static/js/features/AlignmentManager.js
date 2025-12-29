@@ -56,7 +56,7 @@ export class AlignmentManager {
         }
     }
 
-    async cancel(skipNavigation = false) {
+    async cancel() {
         try {
             this.explicitlyStopped = true;
 
@@ -67,7 +67,7 @@ export class AlignmentManager {
             }
 
             console.log('Alignment cancelled');
-            this.eventBus.emit('alignment:cancelled', { skipNavigation });
+            this.eventBus.emit('alignment:cancelled');
         } catch (error) {
             console.error('Error cancelling alignment:', error);
             this.eventBus.emit('alignment:error', 'Failed to cancel alignment');
