@@ -745,8 +745,6 @@ export class SquareGolfApp {
         if (itIP) itIP.value = settings.infiniteTeesIP || '127.0.0.1';
         if (itPort) itPort.value = settings.infiniteTeesPort || 999;
         if (itAutoConnect) itAutoConnect.checked = settings.infiniteTeesAutoConnect || false;
-
-        this.deviceService.connect('');
     }
 
     async saveSettings() {

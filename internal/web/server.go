@@ -782,3 +782,7 @@ func (s *Server) handleAlignmentHandedness(w http.ResponseWriter, r *http.Reques
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (s *Server) GetInfiniteTeesIntegration() *infinitetees.Integration {
+	return s.infiniteTeesIntegration
+}

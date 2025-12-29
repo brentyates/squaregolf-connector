@@ -266,6 +266,27 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 		}()
 	}
 
+	// Setup Infinite Tees auto-connect if enabled in settings
+	if settings.InfiniteTeesAutoConnect {
+		itIP := settings.InfiniteTeesIP
+		itPort := settings.InfiniteTeesPort
+		log.Printf("Auto-connecting to Infinite Tees at %s:%d", itIP, itPort)
+
+		go func() {
+			itIntegration := server.GetInfiniteTeesIntegration()
+			itIntegration.EnableAutoReconnect()
+			itIntegration.Start()
+			itIntegration.Connect(itIP, itPort)
+		}()
+	}
+
+	// Setup Device auto-connect if enabled in settings
+	if settings.AutoConnect {
+		deviceName := settings.DeviceName
+		log.Printf("Auto-connecting to device: %s", deviceName)
+		go bluetoothManager.StartBluetoothConnection(deviceName, "")
+	}
+
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
