@@ -371,6 +371,7 @@ func (s *Server) Start(port int) error {
 	api.HandleFunc("/device/status", s.handleDeviceStatus).Methods("GET")
 	api.HandleFunc("/device/connect", s.handleDeviceConnect).Methods("POST")
 	api.HandleFunc("/device/disconnect", s.handleDeviceDisconnect).Methods("POST")
+	api.HandleFunc("/device/practice", s.handlePracticeMode).Methods("POST")
 
 	// GSPro endpoints
 	api.HandleFunc("/gspro/status", s.handleGSProStatus).Methods("GET")
@@ -790,4 +791,27 @@ func (s *Server) handleAlignmentHandedness(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) GetInfiniteTeesIntegration() *infinitetees.Integration {
 	return s.infiniteTeesIntegration
+}
+
+func (s *Server) handlePracticeMode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	if req.Enabled {
+		err = s.launchMonitor.ActivateBallDetection()
+	} else {
+		err = s.launchMonitor.DeactivateBallDetection()
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
