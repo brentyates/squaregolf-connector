@@ -529,44 +529,44 @@ export class SquareGolfApp {
         if (statusElement) {
             statusElement.className = 'status-value';
             statusElement.classList.add(status.connectionStatus);
+        }
 
-            switch (status.connectionStatus) {
-                case 'connected':
-                    statusElement.textContent = 'Connected';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (ipField) ipField.disabled = true;
-                    if (portField) portField.disabled = true;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'connecting':
-                    statusElement.textContent = 'Connecting...';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = true;
-                    if (portField) portField.disabled = true;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'disconnected':
-                    statusElement.textContent = 'Disconnected';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = false;
-                    if (portField) portField.disabled = false;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'error':
-                    statusElement.textContent = 'Error';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = false;
-                    if (portField) portField.disabled = false;
-                    if (status.lastError && errorElement) {
-                        errorElement.textContent = status.lastError;
-                        errorElement.style.display = 'block';
-                    }
-                    break;
-            }
+        switch (status.connectionStatus) {
+            case 'connected':
+                if (statusElement) statusElement.textContent = 'Connected';
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (ipField) ipField.disabled = true;
+                if (portField) portField.disabled = true;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'connecting':
+                if (statusElement) statusElement.textContent = 'Connecting...';
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = true;
+                if (portField) portField.disabled = true;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'disconnected':
+                if (statusElement) statusElement.textContent = 'Disconnected';
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = false;
+                if (portField) portField.disabled = false;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'error':
+                if (statusElement) statusElement.textContent = 'Error';
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = false;
+                if (portField) portField.disabled = false;
+                if (status.lastError && errorElement) {
+                    errorElement.textContent = status.lastError;
+                    errorElement.style.display = 'block';
+                }
+                break;
         }
     }
 
@@ -601,44 +601,44 @@ export class SquareGolfApp {
         if (statusElement) {
             statusElement.className = 'status-value';
             statusElement.classList.add(status.connectionStatus);
+        }
 
-            switch (status.connectionStatus) {
-                case 'connected':
-                    statusElement.textContent = 'Connected';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (ipField) ipField.disabled = true;
-                    if (portField) portField.disabled = true;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'connecting':
-                    statusElement.textContent = 'Connecting...';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = true;
-                    if (portField) portField.disabled = true;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'disconnected':
-                    statusElement.textContent = 'Disconnected';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = false;
-                    if (portField) portField.disabled = false;
-                    if (errorElement) errorElement.style.display = 'none';
-                    break;
-                case 'error':
-                    statusElement.textContent = 'Error';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (ipField) ipField.disabled = false;
-                    if (portField) portField.disabled = false;
-                    if (status.lastError && errorElement) {
-                        errorElement.textContent = status.lastError;
-                        errorElement.style.display = 'block';
-                    }
-                    break;
-            }
+        switch (status.connectionStatus) {
+            case 'connected':
+                if (statusElement) statusElement.textContent = 'Connected';
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (ipField) ipField.disabled = true;
+                if (portField) portField.disabled = true;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'connecting':
+                if (statusElement) statusElement.textContent = 'Connecting...';
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = true;
+                if (portField) portField.disabled = true;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'disconnected':
+                if (statusElement) statusElement.textContent = 'Disconnected';
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = false;
+                if (portField) portField.disabled = false;
+                if (errorElement) errorElement.style.display = 'none';
+                break;
+            case 'error':
+                if (statusElement) statusElement.textContent = 'Error';
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (ipField) ipField.disabled = false;
+                if (portField) portField.disabled = false;
+                if (status.lastError && errorElement) {
+                    errorElement.textContent = status.lastError;
+                    errorElement.style.display = 'block';
+                }
+                break;
         }
     }
 

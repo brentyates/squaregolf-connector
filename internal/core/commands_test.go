@@ -107,16 +107,16 @@ func TestAlignmentStickCommand(t *testing.T) {
 		handedness HandednessType
 		expected   string
 	}{
-		{"RightHanded", 0, RightHanded, "118200080800000000"},
-		{"LeftHanded", 5, LeftHanded, "118205080801000000"},
-		{"RightHanded Max Seq", 255, RightHanded, "1182ff080800000000"},
+		{"RightHanded", 0, RightHanded, "118200000800000000"},
+		{"LeftHanded", 5, LeftHanded, "118205000801000000"},
+		{"RightHanded Max Seq", 255, RightHanded, "1182ff000800000000"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := AlignmentStickCommand(tt.sequence, tt.handedness)
+			result := ClubCommand(tt.sequence, ClubAlignmentStick, tt.handedness)
 			if result != tt.expected {
-				t.Errorf("AlignmentStickCommand(%d, %d) = %s, want %s",
+				t.Errorf("ClubCommand(%d, ClubAlignmentStick, %d) = %s, want %s",
 					tt.sequence, tt.handedness, result, tt.expected)
 			}
 		})

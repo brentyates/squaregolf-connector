@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/brentyates/squaregolf-connector/internal/config"
@@ -26,7 +27,8 @@ type Server struct {
 	cameraManager            *camera.Manager
 	enableExternalCamera     bool
 	upgrader                 websocket.Upgrader
-	clients                  map[*websocket.Conn]bool
+	clients                  map[*websocket.Conn]chan []byte
+	clientsMu                sync.Mutex
 	broadcast                chan []byte
 }
 
@@ -108,7 +110,7 @@ func NewServer(stateManager *core.StateManager, bluetoothManager *core.Bluetooth
 				return true
 			},
 		},
-		clients:   make(map[*websocket.Conn]bool),
+		clients:   make(map[*websocket.Conn]chan []byte),
 		broadcast: make(chan []byte, 100),
 	}
 
@@ -208,18 +210,20 @@ func (s *Server) setupCallbacks() {
 func (s *Server) handleMessages() {
 	for {
 		message := <-s.broadcast
-		log.Printf("WebSocket broadcast received, sending to %d clients", len(s.clients))
-		for client := range s.clients {
+		
+		s.clientsMu.Lock()
+		clientCount := len(s.clients)
+		activeChannels := make([]chan []byte, 0, clientCount)
+		for _, clientChan := range s.clients {
+			activeChannels = append(activeChannels, clientChan)
+		}
+		s.clientsMu.Unlock()
+		
+		for _, clientChan := range activeChannels {
 			select {
-			case <-time.After(time.Second):
-				log.Printf("WebSocket client timed out, removing")
-				delete(s.clients, client)
+			case clientChan <- message:
 			default:
-				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
-					log.Printf("WebSocket send error: %v, removing client", err)
-					delete(s.clients, client)
-					client.Close()
-				}
+				log.Printf("WebSocket client buffer full, dropping message")
 			}
 		}
 	}
@@ -422,47 +426,68 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Printf("WebSocket upgrade failed: %v", err)
 		return
 	}
-	defer conn.Close()
 
-	s.clients[conn] = true
+	clientChan := make(chan []byte, 100)
 
-	// Send initial status
-	s.sendInitialStatus(conn)
+	s.clientsMu.Lock()
+	s.clients[conn] = clientChan
+	s.clientsMu.Unlock()
 
-	// Keep connection alive and handle client messages
+	go func() {
+		defer conn.Close()
+		for msg := range clientChan {
+			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				log.Printf("WebSocket send error: %v, closing client", err)
+				return
+			}
+		}
+	}()
+
+	s.sendInitialStatus(clientChan)
+
+	defer func() {
+		s.clientsMu.Lock()
+		if ch, exists := s.clients[conn]; exists {
+			delete(s.clients, conn)
+			close(ch)
+		}
+		s.clientsMu.Unlock()
+		conn.Close()
+	}()
+
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			delete(s.clients, conn)
 			break
 		}
 	}
 }
 
-func (s *Server) sendInitialStatus(conn *websocket.Conn) {
+func (s *Server) sendInitialStatus(clientChan chan []byte) {
 	// Send device status
 	deviceStatus := s.getDeviceStatus()
 	msg := WSMessage{Type: "deviceStatus", Data: deviceStatus}
 	data, _ := json.Marshal(msg)
-	conn.WriteMessage(websocket.TextMessage, data)
+	clientChan <- data
 
 	// Send GSPro status
 	gsproStatus := s.getGSProStatus()
 	msg = WSMessage{Type: "gsproStatus", Data: gsproStatus}
 	data, _ = json.Marshal(msg)
-	conn.WriteMessage(websocket.TextMessage, data)
+	clientChan <- data
 
 	// Send Infinite Tees status
 	itStatus := s.getInfiniteTeesStatus()
 	msg = WSMessage{Type: "infiniteTeesStatus", Data: itStatus}
 	data, _ = json.Marshal(msg)
-	conn.WriteMessage(websocket.TextMessage, data)
+	clientChan <- data
 
 	// Send camera config
 	cameraConfig := s.getCameraConfig()
 	msg = WSMessage{Type: "cameraConfig", Data: cameraConfig}
 	data, _ = json.Marshal(msg)
-	conn.WriteMessage(websocket.TextMessage, data)
+	clientChan <- data
 }
 
 func (s *Server) handleDeviceStatus(w http.ResponseWriter, r *http.Request) {

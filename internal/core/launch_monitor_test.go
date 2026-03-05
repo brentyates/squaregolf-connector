@@ -833,19 +833,19 @@ func TestAlignmentStickCommand_ExactBytes(t *testing.T) {
 		{
 			name:       "RightHanded",
 			handedness: RightHanded,
-			expected:   []byte{0x11, 0x82, 0x00, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00},
+			expected:   []byte{0x11, 0x82, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00},
 		},
 		{
 			name:       "LeftHanded",
 			handedness: LeftHanded,
-			expected:   []byte{0x11, 0x82, 0x00, 0x08, 0x08, 0x01, 0x00, 0x00, 0x00},
+			expected:   []byte{0x11, 0x82, 0x00, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockClient.ClearWriteHistory()
-			command := AlignmentStickCommand(0, tc.handedness)
+			command := ClubCommand(0, ClubAlignmentStick, tc.handedness)
 			err := lm.SendCommand(command)
 			if err != nil {
 				t.Errorf("Expected no error, got %v", err)

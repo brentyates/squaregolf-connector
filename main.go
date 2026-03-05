@@ -300,7 +300,7 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	case <-sigChan:
 		log.Println("Shutting down web server...")
 		bluetoothManager.DisconnectBluetooth()
-		os.Exit(0)
+		return
 	case err := <-serverErr:
 		log.Fatalf("Web server failed to start: %v", err)
 	}
@@ -323,13 +323,23 @@ func main() {
 	// Load saved settings for defaults
 	savedSettings := appcfg.GetInstance().GetSettings()
 
+	itIPProvided := false
+	itPortProvided := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "it-ip" {
+			itIPProvided = true
+		} else if f.Name == "it-port" {
+			itPortProvided = true
+		}
+	})
+
 	// Create configuration - use saved settings as defaults for IT if not specified via CLI
 	infiniteTeesIP := *itIP
 	infiniteTeesPort := *itPort
-	if infiniteTeesIP == "127.0.0.1" && savedSettings.InfiniteTeesIP != "" {
+	if !itIPProvided && savedSettings.InfiniteTeesIP != "" {
 		infiniteTeesIP = savedSettings.InfiniteTeesIP
 	}
-	if infiniteTeesPort == 999 && savedSettings.InfiniteTeesPort != 0 {
+	if !itPortProvided && savedSettings.InfiniteTeesPort != 0 {
 		infiniteTeesPort = savedSettings.InfiniteTeesPort
 	}
 
