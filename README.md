@@ -175,16 +175,6 @@ Currently, the connector **does not compile on Linux** due to limitations in the
 
 **Future**: Once PR #205 is tested and merged (or an alternative solution is implemented), Linux support will be available. Testing on Linux hardware with a SquareGolf device would help move this forward.
 
-## Planned Improvements
-
-### UI Consolidation
-
-The current UI has redundant status displays (page title, card header, status row, and global status bar all showing connection state). Consider:
-
-- **Merge native device screens**: Combine Device, Shot Monitor, and Alignment into a single "Device" page since they all relate to the native device functionality
-- **Remove redundant status displays**: The global status bar already shows connection status - remove duplicate "Connection Status" card headers and status rows
-- **Simplify navigation**: With consolidated screens, the sidebar can be reduced (Device, GSPro, Infinite Tees, Settings)
-
 ## License
 
 See [LICENSE](LICENSE) file for details.
