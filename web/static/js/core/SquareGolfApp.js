@@ -279,86 +279,56 @@ export class SquareGolfApp {
         this.updateDeviceConnectionIndicator(status.connectionStatus);
 
         // Update connection status display
-        const statusElement = document.getElementById('deviceStatus');
-        const connectionStatusEl = document.getElementById('deviceConnectionStatus');
         const errorElement = document.getElementById('deviceError');
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const calibrateBtn = document.getElementById('calibrateBtn');
         const deviceInfoInline = document.getElementById('deviceInfoInline');
 
-        // Update icon and status in the new header
-        if (connectionStatusEl) {
-            connectionStatusEl.className = 'device-connection-status ' + status.connectionStatus;
-            const icon = connectionStatusEl.querySelector('.material-icons');
-            if (icon) {
-                switch (status.connectionStatus) {
-                    case 'connected':
-                        icon.textContent = 'bluetooth_connected';
-                        break;
-                    case 'scanning':
-                        icon.textContent = 'bluetooth_searching';
-                        break;
-                    case 'connecting':
-                        icon.textContent = 'bluetooth_searching';
-                        break;
-                    default:
-                        icon.textContent = 'bluetooth_disabled';
+        switch (status.connectionStatus) {
+            case 'connected':
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (calibrateBtn) calibrateBtn.style.display = 'flex';
+                if (deviceInfoInline) deviceInfoInline.style.display = 'flex';
+                if (errorElement) errorElement.style.display = 'none';
+                this.loading.hide();
+                break;
+            case 'scanning':
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (calibrateBtn) calibrateBtn.style.display = 'none';
+                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
+                if (errorElement) errorElement.style.display = 'none';
+                this.loading.show('Scanning for device...');
+                break;
+            case 'connecting':
+                if (connectBtn) connectBtn.disabled = true;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (calibrateBtn) calibrateBtn.style.display = 'none';
+                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
+                if (errorElement) errorElement.style.display = 'none';
+                this.loading.show('Connecting to device...');
+                break;
+            case 'disconnected':
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = true;
+                if (calibrateBtn) calibrateBtn.style.display = 'none';
+                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
+                if (errorElement) errorElement.style.display = 'none';
+                this.loading.hide();
+                break;
+            case 'error':
+                if (connectBtn) connectBtn.disabled = false;
+                if (disconnectBtn) disconnectBtn.disabled = false;
+                if (calibrateBtn) calibrateBtn.style.display = 'none';
+                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
+                if (status.lastError && errorElement) {
+                    errorElement.textContent = status.lastError;
+                    errorElement.style.display = 'block';
                 }
-            }
-        }
-
-        if (statusElement) {
-            switch (status.connectionStatus) {
-                case 'connected':
-                    statusElement.textContent = 'Connected';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (calibrateBtn) calibrateBtn.style.display = 'flex';
-                    if (deviceInfoInline) deviceInfoInline.style.display = 'flex';
-                    if (errorElement) errorElement.style.display = 'none';
-                    this.loading.hide();
-                    break;
-                case 'scanning':
-                    statusElement.textContent = 'Scanning...';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (calibrateBtn) calibrateBtn.style.display = 'none';
-                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                    if (errorElement) errorElement.style.display = 'none';
-                    this.loading.show('Scanning for device...');
-                    break;
-                case 'connecting':
-                    statusElement.textContent = 'Connecting...';
-                    if (connectBtn) connectBtn.disabled = true;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (calibrateBtn) calibrateBtn.style.display = 'none';
-                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                    if (errorElement) errorElement.style.display = 'none';
-                    this.loading.show('Connecting to device...');
-                    break;
-                case 'disconnected':
-                    statusElement.textContent = 'Disconnected';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = true;
-                    if (calibrateBtn) calibrateBtn.style.display = 'none';
-                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                    if (errorElement) errorElement.style.display = 'none';
-                    this.loading.hide();
-                    break;
-                case 'error':
-                    statusElement.textContent = 'Error';
-                    if (connectBtn) connectBtn.disabled = false;
-                    if (disconnectBtn) disconnectBtn.disabled = false;
-                    if (calibrateBtn) calibrateBtn.style.display = 'none';
-                    if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                    if (status.lastError && errorElement) {
-                        errorElement.textContent = status.lastError;
-                        errorElement.style.display = 'block';
-                    }
-                    this.loading.hide();
-                    break;
-            }
+                this.loading.hide();
+                break;
         }
 
         // Update device information
@@ -441,10 +411,9 @@ export class SquareGolfApp {
         // Update Shot Monitor
         this.shotMonitor.updateStatus(status);
 
-        // If we have new shot data, update current shot and add to history
+        // If we have new shot data, update current shot
         if (status.lastBallMetrics && Object.keys(status.lastBallMetrics).length > 0) {
             this.shotMonitor.updateCurrentShot(status.lastBallMetrics, status.lastClubMetrics);
-            this.shotMonitor.addShotToHistory(status.lastBallMetrics, status.lastClubMetrics || {});
         }
 
         // Update alignment display if alignment data is present

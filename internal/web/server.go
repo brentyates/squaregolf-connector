@@ -208,9 +208,7 @@ func (s *Server) setupCallbacks() {
 }
 
 func (s *Server) handleMessages() {
-	for {
-		message := <-s.broadcast
-		
+	for message := range s.broadcast {
 		s.clientsMu.Lock()
 		clientCount := len(s.clients)
 		activeChannels := make([]chan []byte, 0, clientCount)
@@ -220,11 +218,18 @@ func (s *Server) handleMessages() {
 		s.clientsMu.Unlock()
 		
 		for _, clientChan := range activeChannels {
-			select {
-			case clientChan <- message:
-			default:
-				log.Printf("WebSocket client buffer full, dropping message")
-			}
+			func(ch chan []byte) {
+				defer func() {
+					if r := recover(); r != nil {
+						// Channel was closed by client disconnect, ignore panic
+					}
+				}()
+				select {
+				case ch <- message:
+				default:
+					log.Printf("WebSocket client buffer full, dropping message")
+				}
+			}(clientChan)
 		}
 	}
 }

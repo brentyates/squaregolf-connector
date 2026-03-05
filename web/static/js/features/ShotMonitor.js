@@ -24,9 +24,9 @@ export class ShotMonitor {
         if (!ballDot) return;
 
         const hasValidPosition = position &&
-                                typeof position.x === 'number' && !isNaN(position.x) &&
-                                typeof position.y === 'number' && !isNaN(position.y) &&
-                                typeof position.z === 'number' && !isNaN(position.z);
+            typeof position.x === 'number' && !isNaN(position.x) &&
+            typeof position.y === 'number' && !isNaN(position.y) &&
+            typeof position.z === 'number' && !isNaN(position.z);
 
         if (!hasValidPosition || !ballDetected) {
             ballDot.style.display = 'none';
@@ -114,7 +114,4 @@ export class ShotMonitor {
         element.textContent = unit ? `${displayValue}` : displayValue;
     }
 
-    addShotToHistory(ballData, clubData) {
-        // Shot history could be implemented if needed
-    }
 }

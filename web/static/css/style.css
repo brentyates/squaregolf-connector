@@ -13,12 +13,10 @@
 @import './forms.css';
 @import './buttons.css';
 @import './status-elements.css';
-@import './tabs.css';
 @import './loading.css';
 
 /* Features */
 @import './alignment.css';
-@import './shot-monitor.css';
 @import './device.css';
 
 /* Utilities & Responsive */
