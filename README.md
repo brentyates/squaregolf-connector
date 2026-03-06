@@ -14,19 +14,25 @@ When the app is running, it opens its own desktop window. Closing the window shu
 
 ## First Launch On macOS
 
-Because this app is not signed with a paid Apple Developer ID, macOS may warn that it is from an unidentified developer.
+Because this app is not signed with a paid Apple Developer ID, macOS may block it the first time you open it.
 
-If that happens:
+You may see a message like:
 
-1. Right-click the app and choose `Open`.
-2. Click `Open` again in the confirmation dialog.
+- `"SquareGolf Connector.app" can't be opened because Apple could not verify it for malware`
+- `"SquareGolf Connector.app" is from an unidentified developer`
 
-If macOS still blocks it:
+If that happens, do this:
 
-1. Open `System Settings`.
-2. Go to `Privacy & Security`.
-3. Find the message about `SquareGolf Connector`.
-4. Click `Open Anyway`.
+1. Try to open `SquareGolf Connector.app` once, then close the warning message.
+2. Right-click `SquareGolf Connector.app` and choose `Open`.
+3. Click `Open` in the confirmation dialog.
+4. If macOS still blocks it, open `System Settings`.
+5. Go to `Privacy & Security`.
+6. Scroll down until you see the message about `SquareGolf Connector`.
+7. Click `Open Anyway`.
+8. If macOS asks again, click `Open`.
+
+You usually only need to do this once.
 
 ## What It Does
 
@@ -68,8 +74,10 @@ Windows is still a supported development target in the codebase, but the automat
 
 ### macOS says the app cannot be opened
 
-- Right-click the app and choose `Open`
-- If needed, allow it in `System Settings` -> `Privacy & Security`
+1. Try to open the app once and close the warning.
+2. Right-click the app and choose `Open`.
+3. Click `Open`.
+4. If it is still blocked, open `System Settings` -> `Privacy & Security` and click `Open Anyway`.
 
 ### Cannot connect to Bluetooth device
 
