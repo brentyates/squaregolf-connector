@@ -1,52 +1,52 @@
 /* CSS Variables */
 :root {
     /* Colors */
-    --color-primary: #0ea5e9;
-    --color-primary-dark: #0284c7;
-    --color-primary-darker: #0369a1;
-    --color-success: #22c55e;
-    --color-success-dark: #16a34a;
-    --color-success-darker: #166534;
-    --color-danger: #f97316;
-    --color-danger-dark: #ea580c;
-    --color-danger-darker: #c2410c;
-    --color-warning: #f59e0b;
-    --color-warning-dark: #d97706;
-    --color-warning-darker: #b45309;
+    --color-primary: #b7791f;
+    --color-primary-dark: #975a16;
+    --color-primary-darker: #7b4514;
+    --color-success: #5f8d4e;
+    --color-success-dark: #4d733f;
+    --color-success-darker: #3f5f34;
+    --color-danger: #c76834;
+    --color-danger-dark: #a75428;
+    --color-danger-darker: #87431f;
+    --color-warning: #c5962d;
+    --color-warning-dark: #a87c22;
+    --color-warning-darker: #8c651b;
 
     /* Grays */
-    --gray-50: #f4f7fb;
-    --gray-100: #ebf0f5;
-    --gray-200: #d9e1ea;
-    --gray-300: #bcc8d6;
-    --gray-400: #94a3b8;
-    --gray-500: #64748b;
-    --gray-600: #475569;
-    --gray-700: #334155;
-    --gray-800: #18212f;
-    --gray-900: #0b1220;
+    --gray-50: #f4eee4;
+    --gray-100: #ede4d7;
+    --gray-200: #ddcfbc;
+    --gray-300: #c3b196;
+    --gray-400: #9e8d76;
+    --gray-500: #7c6d5a;
+    --gray-600: #5f5346;
+    --gray-700: #473d34;
+    --gray-800: #261f1a;
+    --gray-900: #17120f;
 
     /* Semantic colors */
-    --bg-primary: #eef3f8;
-    --bg-card: rgba(255, 255, 255, 0.76);
+    --bg-primary: #efe6d7;
+    --bg-card: rgba(255, 250, 243, 0.78);
     --bg-sidebar: var(--gray-900);
-    --bg-card-strong: rgba(255, 255, 255, 0.92);
-    --bg-panel: rgba(11, 18, 32, 0.92);
-    --bg-panel-muted: rgba(24, 33, 47, 0.88);
-    --text-primary: #142033;
-    --text-secondary: #43536a;
-    --text-muted: #66768d;
-    --text-light: #dbe5f1;
-    --border-color: rgba(148, 163, 184, 0.26);
-    --border-strong: rgba(71, 85, 105, 0.32);
+    --bg-card-strong: rgba(255, 251, 246, 0.94);
+    --bg-panel: rgba(23, 18, 15, 0.94);
+    --bg-panel-muted: rgba(38, 31, 26, 0.9);
+    --text-primary: #201814;
+    --text-secondary: #56473b;
+    --text-muted: #7b6858;
+    --text-light: #f1e4d3;
+    --border-color: rgba(123, 104, 88, 0.24);
+    --border-strong: rgba(95, 83, 70, 0.34);
 
     /* Status colors */
-    --status-connected-bg: rgba(34, 197, 94, 0.14);
-    --status-connected-text: #166534;
-    --status-warning-bg: rgba(245, 158, 11, 0.14);
-    --status-warning-text: #b45309;
-    --status-error-bg: rgba(249, 115, 22, 0.14);
-    --status-error-text: #c2410c;
+    --status-connected-bg: rgba(95, 141, 78, 0.14);
+    --status-connected-text: #3f5f34;
+    --status-warning-bg: rgba(197, 150, 45, 0.16);
+    --status-warning-text: #8c651b;
+    --status-error-bg: rgba(199, 104, 52, 0.14);
+    --status-error-text: #87431f;
 
     /* Spacing */
     --spacing-xs: 0.25rem;
@@ -69,10 +69,10 @@
     --transition-slow: 0.4s ease;
 
     /* Shadows */
-    --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
-    --shadow-md: 0 18px 42px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 20px 48px rgba(15, 23, 42, 0.12);
-    --shadow-xl: 0 24px 56px rgba(15, 23, 42, 0.16);
+    --shadow-sm: 0 10px 26px rgba(37, 27, 18, 0.08);
+    --shadow-md: 0 18px 42px rgba(37, 27, 18, 0.1);
+    --shadow-lg: 0 22px 52px rgba(37, 27, 18, 0.14);
+    --shadow-xl: 0 28px 60px rgba(37, 27, 18, 0.18);
 
     /* Font sizes */
     --font-xs: 0.75rem;
@@ -145,24 +145,24 @@
     --breakpoint-md: 768px;
 
     /* Common shadow values */
-    --shadow-sidebar: 24px 0 48px rgba(2, 6, 23, 0.28);
-    --shadow-button-primary: 0 8px 24px rgba(14, 165, 233, 0.22);
-    --shadow-button-primary-hover: 0 14px 30px rgba(14, 165, 233, 0.28);
-    --shadow-button-success: 0 8px 24px rgba(34, 197, 94, 0.22);
-    --shadow-button-success-hover: 0 14px 30px rgba(34, 197, 94, 0.28);
-    --shadow-button-danger: 0 8px 24px rgba(249, 115, 22, 0.22);
-    --shadow-button-danger-hover: 0 14px 30px rgba(249, 115, 22, 0.28);
-    --shadow-hover-lift: 0 16px 36px rgba(15, 23, 42, 0.12);
-    --shadow-hover-primary: 0 12px 28px rgba(14, 165, 233, 0.18);
+    --shadow-sidebar: 24px 0 48px rgba(23, 18, 15, 0.3);
+    --shadow-button-primary: 0 8px 24px rgba(183, 121, 31, 0.2);
+    --shadow-button-primary-hover: 0 14px 30px rgba(183, 121, 31, 0.26);
+    --shadow-button-success: 0 8px 24px rgba(95, 141, 78, 0.2);
+    --shadow-button-success-hover: 0 14px 30px rgba(95, 141, 78, 0.26);
+    --shadow-button-danger: 0 8px 24px rgba(199, 104, 52, 0.2);
+    --shadow-button-danger-hover: 0 14px 30px rgba(199, 104, 52, 0.26);
+    --shadow-hover-lift: 0 16px 36px rgba(37, 27, 18, 0.14);
+    --shadow-hover-primary: 0 12px 28px rgba(183, 121, 31, 0.16);
 
     /* Focus ring */
-    --focus-ring-primary: 0 0 0 3px rgba(14, 165, 233, 0.18);
-    --focus-ring-danger: 0 0 0 3px rgba(249, 115, 22, 0.18);
+    --focus-ring-primary: 0 0 0 3px rgba(183, 121, 31, 0.18);
+    --focus-ring-danger: 0 0 0 3px rgba(199, 104, 52, 0.18);
 
     /* Overlay opacity */
     --overlay-dark: rgba(0, 0, 0, 0.5);
-    --overlay-light: rgba(15, 23, 42, 0.05);
-    --overlay-medium: rgba(15, 23, 42, 0.12);
+    --overlay-light: rgba(37, 27, 18, 0.05);
+    --overlay-medium: rgba(37, 27, 18, 0.12);
 
     /* Common gradient stops */
     --gradient-angle: 180deg;

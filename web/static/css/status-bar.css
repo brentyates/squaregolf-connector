@@ -45,6 +45,11 @@
     color: var(--gray-600);
     transition: color var(--transition-fast);
     flex-shrink: 0;
+    font-variation-settings:
+        "FILL" 0,
+        "wght" 500,
+        "GRAD" 0,
+        "opsz" 20;
 }
 
 .status-item .status-label {
@@ -67,6 +72,11 @@
 
 .status-item.connected .status-icon {
     color: var(--color-success);
+    font-variation-settings:
+        "FILL" 1,
+        "wght" 600,
+        "GRAD" 0,
+        "opsz" 20;
 }
 
 .status-item.connected .status-label {
@@ -75,6 +85,11 @@
 
 .status-item.disconnected .status-icon {
     color: var(--color-danger);
+    font-variation-settings:
+        "FILL" 1,
+        "wght" 600,
+        "GRAD" 0,
+        "opsz" 20;
 }
 
 .status-item.disconnected .status-label {

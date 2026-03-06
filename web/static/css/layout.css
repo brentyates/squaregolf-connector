@@ -9,8 +9,9 @@
 .sidebar {
     width: var(--sidebar-width);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 24%),
-        linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+        radial-gradient(circle at top left, rgba(183, 121, 31, 0.18), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(95, 141, 78, 0.12), transparent 30%),
+        linear-gradient(180deg, #17120f 0%, #221b16 100%);
     color: white;
     display: flex;
     flex-direction: column;
@@ -33,7 +34,7 @@
 
 .app-subtitle {
     font-size: var(--font-xs);
-    color: rgba(219, 229, 241, 0.7);
+    color: rgba(241, 228, 211, 0.72);
     font-weight: var(--weight-medium);
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -51,7 +52,7 @@
     padding: var(--spacing-md) var(--spacing-xl);
     background: none;
     border: none;
-    color: rgba(219, 229, 241, 0.66);
+    color: rgba(241, 228, 211, 0.7);
     cursor: pointer;
     transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
     font-size: var(--font-sm);
@@ -61,13 +62,13 @@
 }
 
 .nav-button:hover {
-    background: rgba(148, 163, 184, 0.08);
+    background: rgba(183, 121, 31, 0.08);
     color: white;
     transform: translateX(2px);
 }
 
 .nav-button.active {
-    background: linear-gradient(90deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.06));
+    background: linear-gradient(90deg, rgba(183, 121, 31, 0.24), rgba(183, 121, 31, 0.08));
     border-left-color: var(--color-primary);
     color: white;
 }
@@ -76,6 +77,19 @@
     margin-right: var(--spacing-md);
     font-size: var(--icon-sm);
     opacity: 0.9;
+    font-variation-settings:
+        "FILL" 0,
+        "wght" 500,
+        "GRAD" 0,
+        "opsz" 20;
+}
+
+.nav-button.active .material-icons {
+    font-variation-settings:
+        "FILL" 1,
+        "wght" 600,
+        "GRAD" 0,
+        "opsz" 20;
 }
 
 /* Main content */
@@ -89,7 +103,7 @@
 }
 
 .nav-button:focus-visible {
-    background: rgba(148, 163, 184, 0.08);
+    background: rgba(183, 121, 31, 0.08);
     color: white;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
