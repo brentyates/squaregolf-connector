@@ -5,18 +5,20 @@ export class ShotMonitor {
         this.eventBus = eventBus;
     }
 
+    updateBinaryIndicator(elementId, isConnected) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        element.classList.toggle('connected', isConnected);
+        element.classList.toggle('disconnected', !isConnected);
+    }
+
+    clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
     updateBallPosition(position, ballDetected, ballReady) {
-        // Update the global status bar Ball Ready indicator
-        const statusBallReady = document.getElementById('statusBallReady');
-        if (statusBallReady) {
-            if (ballReady) {
-                statusBallReady.classList.add('connected');
-                statusBallReady.classList.remove('disconnected');
-            } else {
-                statusBallReady.classList.remove('connected');
-                statusBallReady.classList.add('disconnected');
-            }
-        }
+        this.updateBinaryIndicator('statusBallReady', ballReady);
 
         const ballDot = document.getElementById('ballDot');
         const ballOverlay = document.getElementById('ballOverlay');
@@ -29,13 +31,13 @@ export class ShotMonitor {
             typeof position.z === 'number' && !isNaN(position.z);
 
         if (!hasValidPosition || !ballDetected) {
-            ballDot.style.display = 'none';
+            ballDot.classList.add('hidden');
             if (ballOverlay) ballOverlay.classList.add('no-ball');
             return;
         }
 
         if (ballOverlay) ballOverlay.classList.remove('no-ball');
-        ballDot.style.display = 'block';
+        ballDot.classList.remove('hidden');
 
         // Convert sensor units to SVG coordinates
         // New SVG viewBox: 0 0 140 170, center at 70, 85
@@ -52,8 +54,8 @@ export class ShotMonitor {
         const scale = svgVisualRange / actualRange;
 
         // Transform coordinates
-        const svgX = centerX + (actualY * scale);
-        const svgY = centerY + (actualX * scale);
+        const svgX = this.clamp(centerX + (actualY * scale), 6, 134);
+        const svgY = this.clamp(centerY + (actualX * scale), 6, 164);
 
         ballDot.setAttribute('cx', svgX);
         ballDot.setAttribute('cy', svgY);
@@ -77,7 +79,7 @@ export class ShotMonitor {
     updateCurrentShot(ballData, clubData) {
         // Update ball metrics in the metrics bar
         // Backend field names: speed (m/s), launchAngle, horizontalAngle, totalSpin, spinAxis, backSpin, sideSpin
-        const ballSpeedMPH = ballData?.speed ? ballData.speed * 2.237 : null;
+        const ballSpeedMPH = typeof ballData?.speed === 'number' ? ballData.speed * 2.237 : null;
         this.updateMetricValue('metricBallSpeed', ballSpeedMPH, 'mph');
         this.updateMetricValue('metricLaunchAngle', ballData?.launchAngle, '°');
         this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', true);
@@ -100,6 +102,7 @@ export class ShotMonitor {
 
         if (value === null || value === undefined) {
             element.textContent = '-';
+            element.removeAttribute('title');
             return;
         }
 
@@ -111,7 +114,11 @@ export class ShotMonitor {
             displayValue = `${prefix}${Math.abs(value).toFixed(1)}`;
         }
 
-        element.textContent = unit ? `${displayValue}` : displayValue;
+        element.textContent = displayValue;
+        if (unit) {
+            element.title = `${displayValue} ${unit}`;
+        } else {
+            element.removeAttribute('title');
+        }
     }
-
 }

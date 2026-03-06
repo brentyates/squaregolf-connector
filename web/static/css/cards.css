@@ -5,35 +5,40 @@
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-xl);
     overflow: hidden;
-    border: 1px solid var(--gray-50);
-    transition: all var(--transition-normal);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(18px);
+    transition: box-shadow var(--transition-normal), border-color var(--transition-normal), transform var(--transition-normal);
 }
 
 .card:hover {
     box-shadow: var(--shadow-md);
-    border-color: var(--border-color);
-    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
 }
 
 .card-header {
-    padding: var(--spacing-xl) var(--spacing-xl) 0;
+    padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .card-header h3 {
+    font-family: var(--font-family-display);
     font-size: var(--font-lg);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-bold);
     color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    letter-spacing: -0.02em;
 }
 
 .card-header h3 .material-icons {
-    font-size: var(--font-xl);
+    font-size: var(--font-lg);
     color: var(--color-primary);
+    opacity: 0.9;
 }
 
 .card-content {
@@ -47,7 +52,7 @@
 }
 
 .collapsible-card .card-header.clickable:hover {
-    background: var(--gray-50);
+    background: rgba(148, 163, 184, 0.06);
 }
 
 .collapsible-card .card-header .collapse-icon {
@@ -75,7 +80,7 @@
 /* Card sections */
 .card-section {
     padding: var(--spacing-xl) 0;
-    border-top: var(--border-width-thin) solid var(--gray-50);
+    border-top: var(--border-width-thin) solid rgba(148, 163, 184, 0.12);
 }
 
 .card-section:first-child {
@@ -89,9 +94,9 @@
 
 .section-title {
     font-size: var(--font-sm);
-    font-weight: var(--weight-semibold);
-    color: var(--gray-600);
+    font-weight: var(--weight-bold);
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: var(--letter-spacing-normal);
+    letter-spacing: 0.14em;
     margin-bottom: var(--spacing-lg);
 }

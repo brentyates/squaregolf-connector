@@ -3,34 +3,41 @@
     display: flex;
     gap: var(--spacing-md);
     padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--gray-100);
-    border-bottom: var(--border-width-thin) solid var(--border-color);
+    background: rgba(255, 255, 255, 0.52);
+    border-bottom: var(--border-width-thin) solid rgba(148, 163, 184, 0.16);
     align-items: center;
-    transition: all var(--transition-fast);
+    flex-wrap: wrap;
+    backdrop-filter: blur(18px);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .page-title {
-    font-size: var(--font-lg);
-    font-weight: var(--weight-semibold);
+    font-family: var(--font-family-display);
+    font-size: 1.9rem;
+    font-weight: var(--weight-black);
     color: var(--text-primary);
     margin: 0;
     margin-right: auto;
+    letter-spacing: -0.04em;
 }
 
 .status-item {
     display: flex;
     align-items: center;
-    gap: var(--spacing-2xs);
-    padding: var(--spacing-xs) 0.4rem;
-    background: transparent;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition-fast);
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.36);
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
     cursor: pointer;
     position: relative;
 }
 
 .status-item:hover {
-    background: var(--overlay-light);
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(14, 165, 233, 0.16);
+    transform: translateY(-1px);
 }
 
 .status-item .status-icon {
@@ -42,14 +49,20 @@
 
 .status-item .status-label {
     font-size: var(--font-xs);
-    font-weight: var(--weight-medium);
+    font-weight: var(--weight-bold);
     color: var(--text-secondary);
     white-space: nowrap;
-    display: none;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity var(--transition-fast), max-width var(--transition-fast);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .status-item:hover .status-label {
-    display: block;
+    opacity: 1;
+    max-width: 10rem;
 }
 
 .status-item.connected .status-icon {
@@ -58,7 +71,6 @@
 
 .status-item.connected .status-label {
     color: var(--color-success-darker);
-    font-weight: var(--weight-semibold);
 }
 
 .status-item.disconnected .status-icon {
@@ -78,4 +90,24 @@
 
 .screen.active {
     display: block;
+}
+
+@media (max-width: var(--breakpoint-md)) {
+    .global-status-bar {
+        gap: var(--spacing-sm);
+    }
+
+    .page-title {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    .status-item {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .status-item .status-label {
+        opacity: 1;
+        max-width: 10rem;
+    }
 }

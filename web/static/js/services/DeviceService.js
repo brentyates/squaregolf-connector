@@ -6,36 +6,23 @@ export class DeviceService {
         this.deviceStatus = null;
     }
 
-    async connect(deviceName) {
-        try {
-            const response = await this.api.post('/api/device/connect', {
-                deviceName: deviceName || ""
-            });
-
-            if (response.ok) {
-                this.eventBus.emit('device:connecting');
-                return { success: true };
-            } else {
-                throw new Error(`Failed to initiate connection: ${response.statusText}`);
-            }
-        } catch (error) {
-            this.eventBus.emit('device:error', error.message);
-            return { success: false, error: error.message };
-        }
+    async connect(deviceName = '') {
+        return this.#submitAction({
+            url: '/api/device/connect',
+            body: { deviceName },
+            successEvent: 'device:connecting',
+            errorEvent: 'device:error',
+            defaultErrorMessage: 'Failed to initiate connection'
+        });
     }
 
     async disconnect() {
-        try {
-            const response = await this.api.post('/api/device/disconnect');
-
-            if (response.ok) {
-                this.eventBus.emit('device:disconnecting');
-                return { success: true };
-            }
-        } catch (error) {
-            this.eventBus.emit('device:error', error.message);
-            return { success: false, error: error.message };
-        }
+        return this.#submitAction({
+            url: '/api/device/disconnect',
+            successEvent: 'device:disconnecting',
+            errorEvent: 'device:error',
+            defaultErrorMessage: 'Failed to disconnect'
+        });
     }
 
     updateStatus(status) {
@@ -45,5 +32,21 @@ export class DeviceService {
 
     getStatus() {
         return this.deviceStatus;
+    }
+
+    async #submitAction({ url, body, successEvent, errorEvent, defaultErrorMessage }) {
+        try {
+            const response = await this.api.post(url, body);
+
+            if (!response.ok) {
+                throw new Error(`${defaultErrorMessage}: ${response.statusText}`);
+            }
+
+            this.eventBus.emit(successEvent);
+            return { success: true };
+        } catch (error) {
+            this.eventBus.emit(errorEvent, error.message);
+            return { success: false, error: error.message };
+        }
     }
 }

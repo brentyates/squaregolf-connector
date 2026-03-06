@@ -10,7 +10,6 @@ import { SettingsManager } from '../features/SettingsManager.js';
 import { CameraManager } from '../features/CameraManager.js';
 import { ShotMonitor } from '../features/ShotMonitor.js';
 import { ToastManager } from '../ui/ToastManager.js';
-import { LoadingManager } from '../ui/LoadingManager.js';
 import { ScreenManager } from '../ui/ScreenManager.js';
 
 export class SquareGolfApp {
@@ -21,7 +20,6 @@ export class SquareGolfApp {
 
         // UI managers
         this.toast = new ToastManager();
-        this.loading = new LoadingManager();
         this.screen = new ScreenManager(this.eventBus);
 
         // Services
@@ -41,8 +39,23 @@ export class SquareGolfApp {
         this.currentHandedness = 'right';
         this.alignmentExplicitlyStopped = false;
         this.alignmentPanelClosing = false;
+        this.alignmentInFlight = false;
+        this.pendingDeviceAction = null;
+        this.alignmentCloseDelayMs = 300;
 
         this.init();
+    }
+
+    $(id) {
+        return document.getElementById(id);
+    }
+
+    $$(selector) {
+        return [...document.querySelectorAll(selector)];
+    }
+
+    bind(id, eventName, handler) {
+        this.$(id)?.addEventListener(eventName, handler);
     }
 
     init() {
@@ -64,10 +77,11 @@ export class SquareGolfApp {
         // Device events
         this.eventBus.on('device:connecting', () => {
             this.toast.info('Connection initiated...');
-            this.loading.show('Connecting to device...');
+            this.pendingDeviceAction = 'manual-connect';
         });
         this.eventBus.on('device:disconnecting', () => {
             this.toast.info('Disconnection initiated...');
+            this.pendingDeviceAction = 'manual-disconnect';
         });
         this.eventBus.on('device:error', (msg) => this.toast.error(`Connection failed: ${msg}`));
         this.eventBus.on('device:status', (status) => this.updateDeviceStatus(status));
@@ -94,19 +108,29 @@ export class SquareGolfApp {
 
         // Alignment events
         this.eventBus.on('alignment:saved', () => {
+            this.setAlignmentBusy(false);
             this.toast.success('Calibration saved');
+            this.setAlignmentError('');
             this.updateAlignmentDisplay(0, false);
             this.closeAlignmentPanel();
         });
         this.eventBus.on('alignment:cancelled', () => {
+            this.setAlignmentBusy(false);
             this.toast.info('Calibration cancelled');
+            this.setAlignmentError('');
             this.updateAlignmentDisplay(0, false);
             this.closeAlignmentPanel();
         });
-        this.eventBus.on('alignment:error', (msg) => this.toast.error(msg));
+        this.eventBus.on('alignment:error', (msg) => {
+            this.setAlignmentBusy(false);
+            this.setAlignmentError(msg);
+            this.toast.error(msg);
+        });
         this.eventBus.on('alignment:update', ({ angle, isAligned }) => {
             this.updateAlignmentDisplay(angle, isAligned);
         });
+        this.eventBus.on('alignment:started', () => this.setAlignmentBusy(false));
+        this.eventBus.on('alignment:stopped', () => this.setAlignmentBusy(false));
         this.eventBus.on('alignment:handedness-changed', (handedness) => {
             this.currentHandedness = handedness;
             this.updateHandednessDisplay(handedness);
@@ -134,78 +158,86 @@ export class SquareGolfApp {
 
     setupEventListeners() {
         // Navigation
-        document.querySelectorAll('.nav-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const screen = e.target.dataset.screen || e.target.closest('[data-screen]').dataset.screen;
-                this.screen.show(screen);
+        this.screen.navButtons.forEach((button) => {
+            button.addEventListener('click', ({ currentTarget }) => {
+                this.screen.show(currentTarget.dataset.screen);
             });
         });
 
         // Status bar navigation
-        document.getElementById('statusDevice')?.addEventListener('click', () => this.screen.show('device'));
-        document.getElementById('statusGSPro')?.addEventListener('click', () => this.screen.show('gspro'));
-        document.getElementById('statusInfiniteTees')?.addEventListener('click', () => this.screen.show('infiniteTees'));
-        document.getElementById('statusBallReady')?.addEventListener('click', () => this.screen.show('device'));
+        this.bind('statusDevice', 'click', () => this.screen.show('device'));
+        this.bind('statusGSPro', 'click', () => this.screen.show('gspro'));
+        this.bind('statusInfiniteTees', 'click', () => this.screen.show('infiniteTees'));
+        this.bind('statusBallReady', 'click', () => this.screen.show('device'));
 
         // Alignment panel controls
-        document.getElementById('calibrateBtn')?.addEventListener('click', () => this.openAlignmentPanel());
-        document.getElementById('closeAlignmentBtn')?.addEventListener('click', () => this.closeAlignmentPanel());
+        this.bind('calibrateBtn', 'click', () => this.openAlignmentPanel());
+        this.bind('closeAlignmentBtn', 'click', () => this.closeAlignmentPanel());
+        this.bind('retryAlignmentBtn', 'click', () => this.retryAlignment());
 
         // Device controls
-        document.getElementById('connectBtn')?.addEventListener('click', () => {
+        this.bind('connectBtn', 'click', () => {
+            this.pendingDeviceAction = 'manual-connect';
             this.deviceService.connect('');
         });
-        document.getElementById('disconnectBtn')?.addEventListener('click', () => {
+        this.bind('disconnectBtn', 'click', () => {
+            this.pendingDeviceAction = 'manual-disconnect';
             this.deviceService.disconnect();
         });
 
         // GSPro controls
-        document.getElementById('gsproConnectBtn')?.addEventListener('click', () => {
-            const ip = document.getElementById('gsproIP').value.trim();
-            const port = parseInt(document.getElementById('gsproPort').value);
+        this.bind('gsproConnectBtn', 'click', () => {
+            const config = this.getConnectionConfig('gspro', true);
+            if (!config) return;
+            const { ip, port } = config;
             this.gsproService.connect(ip, port);
         });
-        document.getElementById('gsproDisconnectBtn')?.addEventListener('click', () => {
+        this.bind('gsproDisconnectBtn', 'click', () => {
             this.gsproService.disconnect();
         });
 
         // GSPro settings
-        document.getElementById('gsproIP')?.addEventListener('change', () => this.saveGSProConfig());
-        document.getElementById('gsproPort')?.addEventListener('change', () => this.saveGSProConfig());
-        document.getElementById('gsproAutoConnect')?.addEventListener('change', () => this.saveGSProConfig());
+        this.bind('gsproIP', 'change', () => this.saveGSProConfig());
+        this.bind('gsproPort', 'change', () => this.saveGSProConfig());
+        this.bind('gsproAutoConnect', 'change', () => this.saveGSProConfig());
+        this.bind('gsproIP', 'input', () => this.clearFieldError('gsproIP'));
+        this.bind('gsproPort', 'input', () => this.clearFieldError('gsproPort'));
 
         // Infinite Tees controls
-        document.getElementById('infiniteTeesConnectBtn')?.addEventListener('click', () => {
-            const ip = document.getElementById('infiniteTeesIP').value.trim();
-            const port = parseInt(document.getElementById('infiniteTeesPort').value);
+        this.bind('infiniteTeesConnectBtn', 'click', () => {
+            const config = this.getConnectionConfig('infiniteTees', true);
+            if (!config) return;
+            const { ip, port } = config;
             this.infiniteTeesService.connect(ip, port);
         });
-        document.getElementById('infiniteTeesDisconnectBtn')?.addEventListener('click', () => {
+        this.bind('infiniteTeesDisconnectBtn', 'click', () => {
             this.infiniteTeesService.disconnect();
         });
 
         // Infinite Tees settings
-        document.getElementById('infiniteTeesIP')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
-        document.getElementById('infiniteTeesPort')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
-        document.getElementById('infiniteTeesAutoConnect')?.addEventListener('change', () => this.saveInfiniteTeesConfig());
+        this.bind('infiniteTeesIP', 'change', () => this.saveInfiniteTeesConfig());
+        this.bind('infiniteTeesPort', 'change', () => this.saveInfiniteTeesConfig());
+        this.bind('infiniteTeesAutoConnect', 'change', () => this.saveInfiniteTeesConfig());
+        this.bind('infiniteTeesIP', 'input', () => this.clearFieldError('infiniteTeesIP'));
+        this.bind('infiniteTeesPort', 'input', () => this.clearFieldError('infiniteTeesPort'));
 
         // Camera controls
-        document.getElementById('cameraSaveBtn')?.addEventListener('click', () => this.cameraManager.save());
+        this.bind('cameraSaveBtn', 'click', () => this.cameraManager.save());
 
         // Alignment controls
-        document.getElementById('leftHandedBtn')?.addEventListener('click', () => this.handleHandednessChange('left'));
-        document.getElementById('rightHandedBtn')?.addEventListener('click', () => this.handleHandednessChange('right'));
-        document.getElementById('saveAlignmentBtn')?.addEventListener('click', () => {
+        this.bind('leftHandedBtn', 'click', () => this.handleHandednessChange('left'));
+        this.bind('rightHandedBtn', 'click', () => this.handleHandednessChange('right'));
+        this.bind('saveAlignmentBtn', 'click', () => {
             this.alignmentExplicitlyStopped = true;
             this.alignmentManager.save();
         });
-        document.getElementById('cancelAlignmentBtn')?.addEventListener('click', () => {
+        this.bind('cancelAlignmentBtn', 'click', () => {
             this.alignmentExplicitlyStopped = true;
             this.alignmentManager.cancel();
         });
 
         // Settings controls
-        document.querySelectorAll('input[name="spinMode"]').forEach(radio => {
+        this.$$('input[name="spinMode"]').forEach((radio) => {
             radio.addEventListener('change', () => this.saveSettings());
         });
     }
@@ -213,7 +245,7 @@ export class SquareGolfApp {
     async handleHandednessChange(handedness) {
         const result = await this.alignmentManager.setHandedness(handedness);
 
-        if (result.success && document.getElementById('alignmentPanel')?.classList.contains('open')) {
+        if (result.success && this.$('alignmentPanel')?.classList.contains('open')) {
             // Restart alignment with new handedness
             await this.alignmentManager.stop();
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -249,161 +281,292 @@ export class SquareGolfApp {
     }
 
     updateConnectionIndicator(connected) {
-        const statusWebSocket = document.getElementById('statusWebSocket');
-        if (statusWebSocket) {
-            if (connected) {
-                statusWebSocket.classList.add('connected');
-                statusWebSocket.classList.remove('disconnected');
+        this.updateBinaryIndicator('statusWebSocket', connected);
+    }
+
+    updateDeviceConnectionIndicator(deviceStatus) {
+        this.updateBinaryIndicator('statusDevice', deviceStatus === 'connected');
+    }
+
+    setHidden(element, shouldHide) {
+        if (!element) return;
+        element.classList.toggle('hidden', shouldHide);
+    }
+
+    updateBinaryIndicator(elementId, isConnected) {
+        const element = this.$(elementId);
+        if (!element) return;
+
+        element.classList.toggle('connected', isConnected);
+        element.classList.toggle('disconnected', !isConnected);
+    }
+
+    updateGlobalConnectionIndicator(elementId, connectionStatus) {
+        this.updateBinaryIndicator(elementId, connectionStatus === 'connected');
+    }
+
+    updateConnectionPanel({
+        status,
+        statusElementId,
+        errorElementId,
+        connectBtnId,
+        disconnectBtnId,
+        ipFieldId,
+        portFieldId
+    }) {
+        const statusElement = this.$(statusElementId);
+        const errorElement = this.$(errorElementId);
+        const connectBtn = this.$(connectBtnId);
+        const disconnectBtn = this.$(disconnectBtnId);
+        const ipField = this.$(ipFieldId);
+        const portField = this.$(portFieldId);
+
+        if (statusElement) {
+            statusElement.className = 'status-value';
+            statusElement.classList.add(status.connectionStatus);
+        }
+
+        const isConnected = status.connectionStatus === 'connected';
+        const isConnecting = status.connectionStatus === 'connecting';
+        const isDisconnected = status.connectionStatus === 'disconnected';
+        const isError = status.connectionStatus === 'error';
+        const statusText = {
+            connected: 'Connected',
+            connecting: 'Connecting...',
+            disconnected: 'Disconnected',
+            error: 'Error'
+        };
+
+        if (statusElement) {
+            statusElement.textContent = statusText[status.connectionStatus] || 'Disconnected';
+        }
+
+        if (connectBtn) connectBtn.disabled = isConnected || isConnecting;
+        if (disconnectBtn) disconnectBtn.disabled = !isConnected;
+        if (ipField) ipField.disabled = isConnected || isConnecting;
+        if (portField) portField.disabled = isConnected || isConnecting;
+
+        if (errorElement) {
+            if (isError && status.lastError) {
+                errorElement.textContent = status.lastError;
+                this.setHidden(errorElement, false);
             } else {
-                statusWebSocket.classList.remove('connected');
-                statusWebSocket.classList.add('disconnected');
+                this.setHidden(errorElement, true);
             }
         }
     }
 
-    updateDeviceConnectionIndicator(deviceStatus) {
-        const statusDevice = document.getElementById('statusDevice');
-        if (statusDevice) {
-            if (deviceStatus === 'connected') {
-                statusDevice.classList.add('connected');
-                statusDevice.classList.remove('disconnected');
+    updateDeviceControls({ canConnect, canDisconnect, showCalibrate, showDeviceInfo, errorMessage = '' }) {
+        const connectBtn = this.$('connectBtn');
+        const disconnectBtn = this.$('disconnectBtn');
+        const calibrateBtn = this.$('calibrateBtn');
+        const deviceInfoInline = this.$('deviceInfoInline');
+        const errorElement = this.$('deviceError');
+
+        if (connectBtn) connectBtn.disabled = !canConnect;
+        if (disconnectBtn) disconnectBtn.disabled = !canDisconnect;
+
+        this.setHidden(calibrateBtn, !showCalibrate);
+        this.setHidden(deviceInfoInline, !showDeviceInfo);
+
+        if (errorElement) {
+            if (errorMessage) {
+                errorElement.textContent = errorMessage;
+                this.setHidden(errorElement, false);
             } else {
-                statusDevice.classList.remove('connected');
-                statusDevice.classList.add('disconnected');
+                this.setHidden(errorElement, true);
             }
         }
+    }
+
+    showSlidingPanel(panelId, overlayId) {
+        const panel = this.$(panelId);
+        const overlay = this.$(overlayId);
+
+        if (panel) {
+            panel.classList.remove('hidden');
+        }
+
+        if (overlay) {
+            overlay.classList.remove('hidden');
+        }
+
+        requestAnimationFrame(() => {
+            if (panel) {
+                panel.classList.add('open');
+            }
+            if (overlay) {
+                overlay.classList.add('open');
+            }
+        });
+
+        return { panel, overlay };
+    }
+
+    hideSlidingPanel(panelId, overlayId, delayMs) {
+        const panel = this.$(panelId);
+        const overlay = this.$(overlayId);
+        const finalizeHide = (element) => {
+            this.setHidden(element, true);
+        };
+        const hideAfterTransition = (element) => {
+            if (!element) return;
+
+            let finalized = false;
+            const complete = () => {
+                if (finalized) return;
+                finalized = true;
+                element.removeEventListener('transitionend', onTransitionEnd);
+                finalizeHide(element);
+            };
+            const onTransitionEnd = (event) => {
+                if (event.target !== element) return;
+                complete();
+            };
+
+            element.addEventListener('transitionend', onTransitionEnd);
+            window.setTimeout(complete, delayMs + 50);
+        };
+
+        if (panel) {
+            panel.classList.remove('open');
+            hideAfterTransition(panel);
+        }
+
+        if (overlay) {
+            overlay.classList.remove('open');
+            hideAfterTransition(overlay);
+        }
+    }
+
+    setTextContent(elementId, value, fallback = '-') {
+        const element = this.$(elementId);
+        if (element) {
+            element.textContent = value ?? fallback;
+        }
+    }
+
+    updateOptionalDeviceInfo({ itemId, valueId, value, formatter = (entry) => entry }) {
+        const itemElement = this.$(itemId);
+        const valueElement = this.$(valueId);
+        const hasValue = value !== null && value !== undefined && value !== '';
+
+        this.setHidden(itemElement, !hasValue);
+        if (valueElement) {
+            valueElement.textContent = hasValue ? formatter(value) : '-';
+        }
+    }
+
+    updateBatteryDisplay(level) {
+        const batteryElement = this.$('batteryLevel');
+        const batteryIconElement = this.$('batteryIcon');
+        if (!batteryElement || !batteryIconElement) return;
+
+        if (typeof level !== 'number') {
+            batteryIconElement.textContent = '—';
+            batteryIconElement.className = 'battery-icon';
+            batteryElement.textContent = '—';
+            return;
+        }
+
+        let icon = '';
+        let className = '';
+
+        if (level >= 80) {
+            icon = '🔋';
+            className = 'battery-high';
+        } else if (level >= 50) {
+            icon = '🔋';
+            className = 'battery-medium';
+        } else if (level >= 20) {
+            icon = '⚠️';
+            className = 'battery-medium';
+        } else {
+            icon = '🪫';
+            className = 'battery-low';
+        }
+
+        batteryIconElement.textContent = icon;
+        batteryIconElement.className = `battery-icon ${className}`;
+        batteryElement.textContent = `${level}%`;
+    }
+
+    updateVersionDisplay(status) {
+        this.setTextContent('firmwareVersion', status.firmwareVersion !== null ? status.firmwareVersion : null);
+        this.setTextContent('launcherVersion', status.launcherVersion !== null ? status.launcherVersion : null);
+        this.setTextContent('mmiVersion', status.mmiVersion !== null ? status.mmiVersion : null);
     }
 
     updateDeviceStatus(status) {
         // Update the main navigation device connection indicator
         this.updateDeviceConnectionIndicator(status.connectionStatus);
-
-        // Update connection status display
-        const errorElement = document.getElementById('deviceError');
-        const connectBtn = document.getElementById('connectBtn');
-        const disconnectBtn = document.getElementById('disconnectBtn');
-        const calibrateBtn = document.getElementById('calibrateBtn');
-        const deviceInfoInline = document.getElementById('deviceInfoInline');
+        this.updateDeviceHeaderStatus(status);
 
         switch (status.connectionStatus) {
             case 'connected':
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (calibrateBtn) calibrateBtn.style.display = 'flex';
-                if (deviceInfoInline) deviceInfoInline.style.display = 'flex';
-                if (errorElement) errorElement.style.display = 'none';
-                this.loading.hide();
+                this.updateDeviceControls({
+                    canConnect: false,
+                    canDisconnect: true,
+                    showCalibrate: true,
+                    showDeviceInfo: true
+                });
+                this.pendingDeviceAction = null;
                 break;
             case 'scanning':
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (calibrateBtn) calibrateBtn.style.display = 'none';
-                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                if (errorElement) errorElement.style.display = 'none';
-                this.loading.show('Scanning for device...');
+                this.updateDeviceControls({
+                    canConnect: false,
+                    canDisconnect: true,
+                    showCalibrate: false,
+                    showDeviceInfo: false
+                });
                 break;
             case 'connecting':
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (calibrateBtn) calibrateBtn.style.display = 'none';
-                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                if (errorElement) errorElement.style.display = 'none';
-                this.loading.show('Connecting to device...');
+                this.updateDeviceControls({
+                    canConnect: false,
+                    canDisconnect: true,
+                    showCalibrate: false,
+                    showDeviceInfo: false
+                });
                 break;
             case 'disconnected':
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (calibrateBtn) calibrateBtn.style.display = 'none';
-                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                if (errorElement) errorElement.style.display = 'none';
-                this.loading.hide();
+                this.updateDeviceControls({
+                    canConnect: true,
+                    canDisconnect: false,
+                    showCalibrate: false,
+                    showDeviceInfo: false
+                });
+                this.pendingDeviceAction = null;
                 break;
             case 'error':
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (calibrateBtn) calibrateBtn.style.display = 'none';
-                if (deviceInfoInline) deviceInfoInline.style.display = 'none';
-                if (status.lastError && errorElement) {
-                    errorElement.textContent = status.lastError;
-                    errorElement.style.display = 'block';
-                }
-                this.loading.hide();
+                this.updateDeviceControls({
+                    canConnect: true,
+                    canDisconnect: true,
+                    showCalibrate: false,
+                    showDeviceInfo: false,
+                    errorMessage: status.lastError || ''
+                });
+                this.pendingDeviceAction = null;
                 break;
         }
 
-        // Update device information
-        if (status.deviceName) {
-            const nameElement = document.getElementById('connectedDeviceName');
-            if (nameElement) nameElement.textContent = status.deviceName;
-        }
+        this.setTextContent('connectedDeviceName', status.deviceName || 'SquareGolf');
+        this.updateBatteryDisplay(status.batteryLevel);
+        this.updateVersionDisplay(status);
+        this.updateOptionalDeviceInfo({
+            itemId: 'clubItem',
+            valueId: 'clubValue',
+            value: status.club,
+            formatter: (club) => club.regularCode || club.name
+        });
 
-        if (status.batteryLevel !== null) {
-            const batteryElement = document.getElementById('batteryLevel');
-            if (batteryElement) {
-                const level = status.batteryLevel;
-                let icon = '';
-                let className = '';
+        const handedness = status.handedness === null ? null : (status.handedness === 0 ? 'Right' : 'Left');
+        this.updateOptionalDeviceInfo({
+            itemId: 'handednessItem',
+            valueId: 'handednessValue',
+            value: handedness
+        });
 
-                if (level >= 80) {
-                    icon = '🔋';
-                    className = 'battery-high';
-                } else if (level >= 50) {
-                    icon = '🔋';
-                    className = 'battery-medium';
-                } else if (level >= 20) {
-                    icon = '⚠️';
-                    className = 'battery-medium';
-                } else {
-                    icon = '🪫';
-                    className = 'battery-low';
-                }
-
-                batteryElement.innerHTML = `<span class="battery-indicator"><span class="battery-icon ${className}">${icon}</span> ${level}%</span>`;
-            }
-        }
-
-        // Update version information
-        const firmwareElement = document.getElementById('firmwareVersion');
-        if (firmwareElement) {
-            firmwareElement.textContent = status.firmwareVersion !== null ? status.firmwareVersion : '-';
-        }
-
-        const launcherElement = document.getElementById('launcherVersion');
-        if (launcherElement) {
-            launcherElement.textContent = status.launcherVersion !== null ? status.launcherVersion : '-';
-        }
-
-        const mmiElement = document.getElementById('mmiVersion');
-        if (mmiElement) {
-            mmiElement.textContent = status.mmiVersion !== null ? status.mmiVersion : '-';
-        }
-
-        // Update club info
-        if (status.club) {
-            const clubValueElement = document.getElementById('clubValue');
-            const clubItemElement = document.getElementById('clubItem');
-            if (clubValueElement) {
-                clubValueElement.textContent = status.club.regularCode || status.club.name;
-            }
-            if (clubItemElement) {
-                clubItemElement.style.display = 'block';
-            }
-        }
-
-        // Update handedness
-        if (status.handedness !== null) {
-            const handedness = status.handedness === 0 ? 'Right' : 'Left';
-            const handednessValueElement = document.getElementById('handednessValue');
-            const handednessItemElement = document.getElementById('handednessItem');
-
-            if (handednessValueElement) {
-                handednessValueElement.textContent = handedness;
-            }
-            if (handednessItemElement) {
-                handednessItemElement.style.display = 'block';
-            }
-
-            // Update alignment screen handedness display
+        if (handedness) {
             this.currentHandedness = handedness.toLowerCase();
             this.updateHandednessDisplay(this.currentHandedness);
         }
@@ -423,207 +586,222 @@ export class SquareGolfApp {
     }
 
     openAlignmentPanel() {
-        const panel = document.getElementById('alignmentPanel');
-        const overlay = document.getElementById('alignmentOverlay');
-
-        if (panel) {
-            panel.style.display = 'flex';
-            requestAnimationFrame(() => {
-                panel.classList.add('open');
-            });
+        if (this.alignmentInFlight || this.$('alignmentPanel')?.classList.contains('open')) {
+            return;
         }
+
+        this.setAlignmentError('');
+        const { overlay } = this.showSlidingPanel('alignmentPanel', 'alignmentOverlay');
+
         if (overlay) {
-            overlay.style.display = 'block';
-            requestAnimationFrame(() => {
-                overlay.classList.add('open');
-            });
             overlay.addEventListener('click', () => this.closeAlignmentPanel(), { once: true });
         }
 
+        this.setAlignmentBusy(true);
         this.alignmentManager.start();
     }
 
     closeAlignmentPanel() {
         if (this.alignmentPanelClosing) return;
         this.alignmentPanelClosing = true;
-
-        const panel = document.getElementById('alignmentPanel');
-        const overlay = document.getElementById('alignmentOverlay');
-
-        if (panel) {
-            panel.classList.remove('open');
-            setTimeout(() => {
-                panel.style.display = 'none';
-            }, 300);
-        }
-        if (overlay) {
-            overlay.classList.remove('open');
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 300);
-        }
+        this.hideSlidingPanel('alignmentPanel', 'alignmentOverlay', this.alignmentCloseDelayMs);
 
         // Only stop alignment (no toast) when panel is closed via X or overlay
         // Cancel button handles its own toast via the cancelled event
         if (!this.alignmentExplicitlyStopped) {
+            this.setAlignmentBusy(true);
             this.alignmentManager.stop();
         }
         this.alignmentExplicitlyStopped = false;
 
         setTimeout(() => {
             this.alignmentPanelClosing = false;
-        }, 350);
+        }, this.alignmentCloseDelayMs + 50);
+    }
+
+    updateDeviceHeaderStatus(status) {
+        const container = this.$('deviceConnectionStatus');
+        const icon = container?.querySelector('.material-icons');
+        const text = this.$('deviceConnectionText');
+        const hint = this.$('deviceConnectionHint');
+
+        if (!container || !icon || !text || !hint) return;
+
+        container.classList.remove('connected', 'connecting', 'disconnected', 'error');
+
+        const isManualAction = this.pendingDeviceAction === 'manual-connect' || this.pendingDeviceAction === 'manual-disconnect';
+        const stateCopy = {
+            connected: {
+                stateClass: 'connected',
+                icon: 'bluetooth_connected',
+                text: 'Connected',
+                hint: status.deviceName ? `Connected to ${status.deviceName}.` : 'Device ready.'
+            },
+            scanning: {
+                stateClass: 'connecting',
+                icon: 'bluetooth_searching',
+                text: 'Scanning',
+                hint: isManualAction ? 'Looking for a launch monitor...' : 'Auto-connect is looking for a launch monitor in the background.'
+            },
+            connecting: {
+                stateClass: 'connecting',
+                icon: 'sync',
+                text: 'Connecting',
+                hint: isManualAction ? 'Opening a device connection...' : 'Auto-connect is opening the device connection in the background.'
+            },
+            error: {
+                stateClass: 'error',
+                icon: 'error',
+                text: 'Connection error',
+                hint: status.lastError || 'The last connection attempt failed.'
+            },
+            disconnected: {
+                stateClass: 'disconnected',
+                icon: 'bluetooth_disabled',
+                text: 'Disconnected',
+                hint: 'Auto-connect runs in the background.'
+            }
+        };
+        const copy = stateCopy[status.connectionStatus] || stateCopy.disconnected;
+
+        container.classList.add(copy.stateClass);
+        icon.textContent = copy.icon;
+        text.textContent = copy.text;
+        hint.textContent = copy.hint;
+    }
+
+    setAlignmentBusy(isBusy) {
+        this.alignmentInFlight = isBusy;
+
+        ['saveAlignmentBtn', 'cancelAlignmentBtn', 'leftHandedBtn', 'rightHandedBtn', 'retryAlignmentBtn'].forEach(id => {
+            const element = this.$(id);
+            if (element) {
+                element.disabled = isBusy;
+            }
+        });
+    }
+
+    setAlignmentError(message) {
+        const errorElement = this.$('alignmentError');
+        const textElement = errorElement?.querySelector('.error-text');
+
+        if (!errorElement || !textElement) return;
+
+        if (message) {
+            textElement.textContent = message;
+            this.setHidden(errorElement, false);
+        } else {
+            textElement.textContent = '';
+            this.setHidden(errorElement, true);
+        }
+    }
+
+    retryAlignment() {
+        if (this.alignmentInFlight) return;
+        this.setAlignmentError('');
+        this.setAlignmentBusy(true);
+        this.alignmentManager.start();
     }
 
     updateGSProStatus(status) {
-        // Update the global status bar GSPro indicator
-        const statusGSPro = document.getElementById('statusGSPro');
-        if (statusGSPro) {
-            if (status.connectionStatus === 'connected') {
-                statusGSPro.classList.add('connected');
-                statusGSPro.classList.remove('disconnected');
-            } else {
-                statusGSPro.classList.remove('connected');
-                statusGSPro.classList.add('disconnected');
-            }
-        }
-
-        const statusElement = document.getElementById('gsproStatus');
-        const errorElement = document.getElementById('gsproError');
-        const connectBtn = document.getElementById('gsproConnectBtn');
-        const disconnectBtn = document.getElementById('gsproDisconnectBtn');
-        const ipField = document.getElementById('gsproIP');
-        const portField = document.getElementById('gsproPort');
-
-        if (statusElement) {
-            statusElement.className = 'status-value';
-            statusElement.classList.add(status.connectionStatus);
-        }
-
-        switch (status.connectionStatus) {
-            case 'connected':
-                if (statusElement) statusElement.textContent = 'Connected';
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (ipField) ipField.disabled = true;
-                if (portField) portField.disabled = true;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'connecting':
-                if (statusElement) statusElement.textContent = 'Connecting...';
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = true;
-                if (portField) portField.disabled = true;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'disconnected':
-                if (statusElement) statusElement.textContent = 'Disconnected';
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = false;
-                if (portField) portField.disabled = false;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'error':
-                if (statusElement) statusElement.textContent = 'Error';
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = false;
-                if (portField) portField.disabled = false;
-                if (status.lastError && errorElement) {
-                    errorElement.textContent = status.lastError;
-                    errorElement.style.display = 'block';
-                }
-                break;
-        }
+        this.updateGlobalConnectionIndicator('statusGSPro', status.connectionStatus);
+        this.updateConnectionPanel({
+            status,
+            statusElementId: 'gsproStatus',
+            errorElementId: 'gsproError',
+            connectBtnId: 'gsproConnectBtn',
+            disconnectBtnId: 'gsproDisconnectBtn',
+            ipFieldId: 'gsproIP',
+            portFieldId: 'gsproPort'
+        });
     }
 
     async saveGSProConfig() {
-        const ip = document.getElementById('gsproIP')?.value.trim();
-        const port = parseInt(document.getElementById('gsproPort')?.value);
-        const autoConnect = document.getElementById('gsproAutoConnect')?.checked;
+        const config = this.getConnectionConfig('gspro', false);
+        if (!config) return;
+
+        const { ip, port } = config;
+        const autoConnect = this.$('gsproAutoConnect')?.checked;
 
         await this.gsproService.saveConfig(ip, port, autoConnect);
     }
 
     updateInfiniteTeesStatus(status) {
-        // Update the global status bar IT indicator
-        const statusIT = document.getElementById('statusInfiniteTees');
-        if (statusIT) {
-            if (status.connectionStatus === 'connected') {
-                statusIT.classList.add('connected');
-                statusIT.classList.remove('disconnected');
-            } else {
-                statusIT.classList.remove('connected');
-                statusIT.classList.add('disconnected');
-            }
-        }
-
-        const statusElement = document.getElementById('infiniteTeesStatus');
-        const errorElement = document.getElementById('infiniteTeesError');
-        const connectBtn = document.getElementById('infiniteTeesConnectBtn');
-        const disconnectBtn = document.getElementById('infiniteTeesDisconnectBtn');
-        const ipField = document.getElementById('infiniteTeesIP');
-        const portField = document.getElementById('infiniteTeesPort');
-
-        if (statusElement) {
-            statusElement.className = 'status-value';
-            statusElement.classList.add(status.connectionStatus);
-        }
-
-        switch (status.connectionStatus) {
-            case 'connected':
-                if (statusElement) statusElement.textContent = 'Connected';
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = false;
-                if (ipField) ipField.disabled = true;
-                if (portField) portField.disabled = true;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'connecting':
-                if (statusElement) statusElement.textContent = 'Connecting...';
-                if (connectBtn) connectBtn.disabled = true;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = true;
-                if (portField) portField.disabled = true;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'disconnected':
-                if (statusElement) statusElement.textContent = 'Disconnected';
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = false;
-                if (portField) portField.disabled = false;
-                if (errorElement) errorElement.style.display = 'none';
-                break;
-            case 'error':
-                if (statusElement) statusElement.textContent = 'Error';
-                if (connectBtn) connectBtn.disabled = false;
-                if (disconnectBtn) disconnectBtn.disabled = true;
-                if (ipField) ipField.disabled = false;
-                if (portField) portField.disabled = false;
-                if (status.lastError && errorElement) {
-                    errorElement.textContent = status.lastError;
-                    errorElement.style.display = 'block';
-                }
-                break;
-        }
+        this.updateGlobalConnectionIndicator('statusInfiniteTees', status.connectionStatus);
+        this.updateConnectionPanel({
+            status,
+            statusElementId: 'infiniteTeesStatus',
+            errorElementId: 'infiniteTeesError',
+            connectBtnId: 'infiniteTeesConnectBtn',
+            disconnectBtnId: 'infiniteTeesDisconnectBtn',
+            ipFieldId: 'infiniteTeesIP',
+            portFieldId: 'infiniteTeesPort'
+        });
     }
 
     async saveInfiniteTeesConfig() {
-        const ip = document.getElementById('infiniteTeesIP')?.value.trim();
-        const port = parseInt(document.getElementById('infiniteTeesPort')?.value);
-        const autoConnect = document.getElementById('infiniteTeesAutoConnect')?.checked;
+        const config = this.getConnectionConfig('infiniteTees', false);
+        if (!config) return;
+
+        const { ip, port } = config;
+        const autoConnect = this.$('infiniteTeesAutoConnect')?.checked;
 
         await this.infiniteTeesService.saveConfig(ip, port, autoConnect);
     }
 
+    getConnectionConfig(prefix, notifyOnError) {
+        const ipField = this.$(`${prefix}IP`);
+        const portField = this.$(`${prefix}Port`);
+
+        if (!ipField || !portField) return null;
+
+        const ip = ipField.value.trim();
+        const port = Number.parseInt(portField.value, 10);
+        let valid = true;
+
+        if (!ip) {
+            this.setFieldError(ipField.id);
+            valid = false;
+        } else {
+            this.clearFieldError(ipField.id);
+        }
+
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+            this.setFieldError(portField.id);
+            valid = false;
+        } else {
+            this.clearFieldError(portField.id);
+        }
+
+        if (!valid) {
+            if (notifyOnError) {
+                this.toast.error('Enter a valid host and port before connecting.');
+            }
+            return null;
+        }
+
+        return { ip, port };
+    }
+
+    setFieldError(fieldId) {
+        const field = this.$(fieldId);
+        if (field) {
+            field.classList.add('error');
+        }
+    }
+
+    clearFieldError(fieldId) {
+        const field = this.$(fieldId);
+        if (field) {
+            field.classList.remove('error');
+        }
+    }
+
     updateAlignmentDisplay(angle, isAligned) {
-        const angleElement = document.getElementById('alignmentAngle');
-        const directionElement = document.getElementById('alignmentDirection');
-        const statusElement = document.getElementById('alignedStatus');
-        const pointerElement = document.getElementById('aimPointer');
+        const angleElement = this.$('alignmentAngle');
+        const directionElement = this.$('alignmentDirection');
+        const statusElement = this.$('alignedStatus');
+        const pointerElement = this.$('aimPointer');
 
         if (!angleElement) return; // Not on alignment screen
 
@@ -678,8 +856,8 @@ export class SquareGolfApp {
     }
 
     updateHandednessDisplay(handedness) {
-        const leftBtn = document.getElementById('leftHandedBtn');
-        const rightBtn = document.getElementById('rightHandedBtn');
+        const leftBtn = this.$('leftHandedBtn');
+        const rightBtn = this.$('rightHandedBtn');
 
         if (leftBtn && rightBtn) {
             if (handedness === 'left') {
@@ -713,19 +891,24 @@ export class SquareGolfApp {
         const spinModeRadio = document.querySelector(`input[name="spinMode"][value="${spinMode}"]`);
         if (spinModeRadio) spinModeRadio.checked = true;
 
-        const gsproIP = document.getElementById('gsproIP');
-        const gsproPort = document.getElementById('gsproPort');
-        const gsproAutoConnect = document.getElementById('gsproAutoConnect');
+        const gsproIP = this.$('gsproIP');
+        const gsproPort = this.$('gsproPort');
+        const gsproAutoConnect = this.$('gsproAutoConnect');
         if (gsproIP) gsproIP.value = settings.gsproIP || '127.0.0.1';
         if (gsproPort) gsproPort.value = settings.gsproPort || 921;
         if (gsproAutoConnect) gsproAutoConnect.checked = settings.gsproAutoConnect || false;
 
-        const itIP = document.getElementById('infiniteTeesIP');
-        const itPort = document.getElementById('infiniteTeesPort');
-        const itAutoConnect = document.getElementById('infiniteTeesAutoConnect');
+        const itIP = this.$('infiniteTeesIP');
+        const itPort = this.$('infiniteTeesPort');
+        const itAutoConnect = this.$('infiniteTeesAutoConnect');
         if (itIP) itIP.value = settings.infiniteTeesIP || '127.0.0.1';
         if (itPort) itPort.value = settings.infiniteTeesPort || 999;
         if (itAutoConnect) itAutoConnect.checked = settings.infiniteTeesAutoConnect || false;
+
+        const cameraURL = this.$('cameraURL');
+        const cameraEnabled = this.$('cameraEnabled');
+        if (cameraURL) cameraURL.value = settings.cameraURL || '';
+        if (cameraEnabled) cameraEnabled.checked = settings.cameraEnabled || false;
     }
 
     async saveSettings() {

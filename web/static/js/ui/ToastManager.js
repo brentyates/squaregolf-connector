@@ -1,19 +1,25 @@
 // ui/ToastManager.js
 export class ToastManager {
+    #maxVisibleToasts = 4;
+    #toastLifetimeMs = 5000;
+
     constructor() {
         this.container = document.getElementById('toastContainer');
     }
 
     show(message, type = 'info') {
+        if (!this.container) return;
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
 
-        this.container.appendChild(toast);
+        if (this.container.childElementCount >= this.#maxVisibleToasts) {
+            this.container.firstElementChild?.remove();
+        }
 
-        setTimeout(() => {
-            toast.remove();
-        }, 5000);
+        this.container.append(toast);
+        window.setTimeout(() => toast.remove(), this.#toastLifetimeMs);
     }
 
     success(message) {

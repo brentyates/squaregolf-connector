@@ -1,43 +1,44 @@
 // core/EventBus.js
 export class EventBus {
-    constructor() {
-        this.events = {};
-    }
+    #events = new Map();
 
     on(event, callback) {
-        if (!this.events[event]) {
-            this.events[event] = [];
-        }
-        this.events[event].push(callback);
+        const listeners = this.#events.get(event) ?? new Set();
+        listeners.add(callback);
+        this.#events.set(event, listeners);
 
-        // Return unsubscribe function
         return () => this.off(event, callback);
     }
 
     off(event, callback) {
-        if (!this.events[event]) return;
+        const listeners = this.#events.get(event);
+        if (!listeners) return;
 
-        this.events[event] = this.events[event].filter(cb => cb !== callback);
+        listeners.delete(callback);
+        if (listeners.size === 0) {
+            this.#events.delete(event);
+        }
     }
 
     emit(event, data) {
-        if (!this.events[event]) return;
+        const listeners = this.#events.get(event);
+        if (!listeners) return;
 
-        this.events[event].forEach(callback => {
+        for (const callback of [...listeners]) {
             try {
                 callback(data);
             } catch (error) {
                 console.error(`Error in event handler for ${event}:`, error);
             }
-        });
+        }
     }
 
     once(event, callback) {
-        const wrappedCallback = (data) => {
+        const unsubscribe = this.on(event, (data) => {
+            unsubscribe();
             callback(data);
-            this.off(event, wrappedCallback);
-        };
+        });
 
-        this.on(event, wrappedCallback);
+        return unsubscribe;
     }
 }

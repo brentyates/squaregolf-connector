@@ -1,4 +1,8 @@
+// services/InfiniteTeesService.js
 export class InfiniteTeesService {
+    #errorEvent = 'infinitetees:error';
+    #statusEvent = 'infinitetees:status';
+
     constructor(apiClient, eventBus) {
         this.api = apiClient;
         this.eventBus = eventBus;
@@ -7,58 +11,55 @@ export class InfiniteTeesService {
 
     async connect(ip, port) {
         if (!ip || !port) {
-            this.eventBus.emit('infinitetees:error', 'Please enter valid IP and port');
+            this.eventBus.emit(this.#errorEvent, 'Please enter valid IP and port');
             return { success: false };
         }
 
-        try {
-            const response = await this.api.post('/api/infinitetees/connect', { ip, port });
-
-            if (response.ok) {
-                this.eventBus.emit('infinitetees:connecting');
-                return { success: true };
-            } else {
-                throw new Error(`Failed to connect: ${response.statusText}`);
-            }
-        } catch (error) {
-            this.eventBus.emit('infinitetees:error', error.message);
-            return { success: false, error: error.message };
-        }
+        return this.#submitAction({
+            url: '/api/infinitetees/connect',
+            body: { ip, port },
+            successEvent: 'infinitetees:connecting',
+            defaultErrorMessage: 'Failed to connect'
+        });
     }
 
     async disconnect() {
-        try {
-            const response = await this.api.post('/api/infinitetees/disconnect');
-
-            if (response.ok) {
-                this.eventBus.emit('infinitetees:disconnecting');
-                return { success: true };
-            }
-        } catch (error) {
-            this.eventBus.emit('infinitetees:error', error.message);
-            return { success: false, error: error.message };
-        }
+        return this.#submitAction({
+            url: '/api/infinitetees/disconnect',
+            successEvent: 'infinitetees:disconnecting',
+            defaultErrorMessage: 'Failed to disconnect'
+        });
     }
 
     async saveConfig(ip, port, autoConnect) {
-        try {
-            const response = await this.api.post('/api/infinitetees/config', {
-                ip, port, autoConnect
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to save config: ${response.statusText}`);
-            }
-
-            return { success: true };
-        } catch (error) {
-            this.eventBus.emit('infinitetees:error', error.message);
-            return { success: false, error: error.message };
-        }
+        return this.#submitAction({
+            url: '/api/infinitetees/config',
+            body: { ip, port, autoConnect },
+            defaultErrorMessage: 'Failed to save config'
+        });
     }
 
     updateStatus(status) {
         this.status = status;
-        this.eventBus.emit('infinitetees:status', status);
+        this.eventBus.emit(this.#statusEvent, status);
+    }
+
+    async #submitAction({ url, body, successEvent, defaultErrorMessage }) {
+        try {
+            const response = await this.api.post(url, body);
+
+            if (!response.ok) {
+                throw new Error(`${defaultErrorMessage}: ${response.statusText}`);
+            }
+
+            if (successEvent) {
+                this.eventBus.emit(successEvent);
+            }
+
+            return { success: true };
+        } catch (error) {
+            this.eventBus.emit(this.#errorEvent, error.message);
+            return { success: false, error: error.message };
+        }
     }
 }

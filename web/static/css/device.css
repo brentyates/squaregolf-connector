@@ -6,10 +6,12 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--spacing-lg) var(--spacing-xl);
-    background: var(--bg-card);
+    background: var(--bg-card-strong);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     margin-bottom: var(--spacing-xl);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    backdrop-filter: blur(18px);
 }
 
 .device-connection-status {
@@ -20,6 +22,7 @@
 
 .device-connection-status .material-icons {
     font-size: var(--icon-xl);
+    opacity: 0.9;
 }
 
 .device-connection-status.connected .material-icons {
@@ -45,8 +48,15 @@
 }
 
 .device-status-text {
-    font-weight: var(--weight-semibold);
+    font-family: var(--font-family-display);
+    font-weight: var(--weight-bold);
     color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.helper-text.compact {
+    margin: 0;
+    font-size: var(--font-xs);
 }
 
 .device-info-inline {
@@ -58,7 +68,8 @@
 }
 
 .device-info-inline .device-name {
-    font-weight: var(--weight-medium);
+    font-family: var(--font-family-mono);
+    font-weight: var(--weight-bold);
 }
 
 .device-info-inline .battery {
@@ -77,21 +88,33 @@
     align-items: center;
 }
 
+.device-details-card {
+    margin-bottom: var(--spacing-xl);
+}
+
+.device-header .device-connection-status {
+    min-width: 0;
+}
+
+.device-header .device-connection-status > div {
+    min-width: 0;
+}
+
 .btn-icon {
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.46);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     padding: var(--spacing-sm);
     cursor: pointer;
     color: var(--text-muted);
     border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .btn-icon:hover {
-    background: var(--gray-100);
+    background: rgba(255, 255, 255, 0.82);
     color: var(--color-primary);
 }
 
@@ -101,101 +124,112 @@
 
 /* Ball Position Overlay - GSPro style floating */
 .ball-overlay {
-    position: fixed !important;
-    bottom: 100px !important;
-    left: calc(var(--sidebar-width) + var(--spacing-xl)) !important;
-    width: 160px !important;
-    height: 190px !important;
-    background: rgba(20, 30, 48, 0.9) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: var(--radius-lg) !important;
-    z-index: 50 !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-    overflow: hidden !important;
-    padding: 10px !important;
-    margin: 0 !important;
+    position: fixed;
+    bottom: calc(var(--metrics-bar-height) + var(--device-chrome-gap));
+    left: calc(var(--sidebar-width) + var(--spacing-xl));
+    width: 160px;
+    height: 190px;
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.08), transparent 34%),
+        rgba(11, 18, 32, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: var(--radius-lg);
+    z-index: 50;
+    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.32);
+    overflow: hidden;
+    padding: 10px;
+    margin: 0;
+    backdrop-filter: blur(18px);
 }
 
 .ball-overlay .ball-position-svg,
 .ball-overlay svg.ball-position-svg {
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    transition: none !important;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    transition: none;
 }
 
 .ball-overlay .ball-position-svg:hover,
 .ball-overlay svg.ball-position-svg:hover {
-    transform: none !important;
-    box-shadow: none !important;
+    transform: none;
+    box-shadow: none;
 }
 
 .ball-overlay.no-ball {
-    border-color: rgba(239, 68, 68, 0.5) !important;
+    border-color: rgba(249, 115, 22, 0.42);
 }
 
 /* Shot Metrics Bar - GSPro style fixed bottom */
 .metrics-bar {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: var(--sidebar-width) !important;
-    right: 0 !important;
-    background: rgba(20, 30, 48, 0.95) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    z-index: 100 !important;
-    backdrop-filter: blur(10px);
+    position: fixed;
+    bottom: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.04), transparent 60%),
+        rgba(11, 18, 32, 0.94);
+    border-top: 1px solid rgba(148, 163, 184, 0.16);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    backdrop-filter: blur(18px);
 }
 
 .metrics-bar .metrics-row {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: var(--spacing-xs) var(--spacing-lg) !important;
-    gap: var(--spacing-sm) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-lg);
+    gap: var(--spacing-sm);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
 }
 
 .metrics-bar .metrics-row:last-child {
-    border-bottom: none !important;
+    border-bottom: none;
 }
 
 .metrics-bar .row-label {
-    font-size: var(--font-xs) !important;
-    font-weight: var(--weight-bold) !important;
-    color: rgba(255, 255, 255, 0.4) !important;
-    width: 40px !important;
-    min-width: 40px !important;
-    text-transform: uppercase !important;
-    letter-spacing: var(--letter-spacing-wide) !important;
+    font-size: var(--font-xs);
+    font-weight: var(--weight-bold);
+    color: rgba(219, 229, 241, 0.4);
+    width: 40px;
+    min-width: 40px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
 }
 
 .metrics-bar .metric-item {
-    flex: 1 !important;
-    text-align: center !important;
-    padding: var(--spacing-xs) var(--spacing-sm) !important;
-    min-width: 0 !important;
+    flex: 1;
+    text-align: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    min-width: 0;
+}
+
+.metrics-bar .metrics-row:last-child .metric-item:empty {
+    visibility: hidden;
 }
 
 .metrics-bar .metric-label {
-    font-size: 10px !important;
-    color: rgba(255, 255, 255, 0.5) !important;
-    text-transform: uppercase !important;
-    letter-spacing: var(--letter-spacing-normal) !important;
-    display: block !important;
-    margin-bottom: 2px !important;
+    font-size: 10px;
+    color: rgba(219, 229, 241, 0.46);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    display: block;
+    margin-bottom: 2px;
 }
 
 .metrics-bar .metric-value {
-    font-size: var(--font-base) !important;
-    font-weight: var(--weight-semibold) !important;
-    color: white !important;
-    font-variant-numeric: tabular-nums !important;
+    font-family: var(--font-family-mono);
+    font-size: 1.05rem;
+    font-weight: var(--weight-bold);
+    color: #f8fbff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
 }
 
 .metric-value.highlight {
@@ -213,12 +247,14 @@
     z-index: 999;
     opacity: 0;
     visibility: hidden;
-    transition: all var(--transition-normal);
+    pointer-events: none;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
 }
 
 .alignment-overlay.open {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
 }
 
 .alignment-panel {
@@ -228,14 +264,18 @@
     bottom: 0;
     width: 400px;
     max-width: 100vw;
-    background: var(--bg-sidebar);
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.05), transparent 24%),
+        var(--bg-panel);
+    box-shadow: -24px 0 48px rgba(2, 6, 23, 0.34);
     z-index: 1000;
     transform: translateX(100%);
     transition: transform var(--transition-normal);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    border-left: 1px solid rgba(148, 163, 184, 0.14);
+    backdrop-filter: blur(22px);
 }
 
 .alignment-panel.open {
@@ -247,14 +287,16 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--spacing-xl);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .alignment-panel .panel-header h3 {
     color: white;
     margin: 0;
+    font-family: var(--font-family-display);
     font-size: var(--font-xl);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.03em;
 }
 
 .alignment-panel .btn-close {
@@ -264,7 +306,7 @@
     cursor: pointer;
     padding: var(--spacing-sm);
     border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .alignment-panel .btn-close:hover {
@@ -278,18 +320,12 @@
 }
 
 .alignment-panel .alignment-actions {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
     padding: var(--spacing-xl);
     margin-top: auto;
 }
 
-/* Main content area adjustment for metrics bar */
-.main-content.has-metrics-bar {
-    padding-bottom: 100px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: var(--breakpoint-md)) {
     .device-header {
         flex-direction: column;
         gap: var(--spacing-lg);
@@ -311,34 +347,34 @@
 
     .ball-overlay {
         left: var(--spacing-lg);
-        bottom: 110px;
+        bottom: calc(var(--metrics-bar-height-mobile) + var(--device-chrome-gap));
         width: 120px;
         height: 140px;
-        padding: 8px !important;
+        padding: 8px;
     }
 
     .metrics-bar {
         left: 0;
     }
 
-    .metrics-row {
+    .metrics-bar .metrics-row {
         padding: var(--spacing-xs) var(--spacing-sm);
     }
 
-    .row-label {
+    .metrics-bar .row-label {
         width: 30px;
         font-size: 9px;
     }
 
-    .metric-item {
+    .metrics-bar .metric-item {
         padding: var(--spacing-xs);
     }
 
-    .metric-label {
+    .metrics-bar .metric-label {
         font-size: 8px;
     }
 
-    .metric-value {
+    .metrics-bar .metric-value {
         font-size: var(--font-sm);
     }
 

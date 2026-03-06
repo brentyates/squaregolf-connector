@@ -6,9 +6,42 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-family-sans);
     font-size: var(--font-sm);
     line-height: var(--line-height-relaxed);
     color: var(--text-primary);
-    background: var(--bg-primary);
+    background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.06), transparent 24%),
+        linear-gradient(180deg, #f6f9fc 0%, var(--bg-primary) 100%);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--color-primary);
+}
+
+a:hover {
+    color: var(--color-primary-dark);
+}
+
+.inline-link {
+    color: var(--color-primary);
+    font-weight: var(--weight-medium);
+}
+
+:focus-visible {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }

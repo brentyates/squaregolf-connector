@@ -1,17 +1,18 @@
 /* Buttons */
 .btn {
     padding: var(--spacing-md) var(--spacing-xl);
-    border: none;
+    border: 1px solid transparent;
     border-radius: var(--radius-lg);
     font-size: var(--font-sm);
     font-weight: var(--weight-semibold);
     cursor: pointer;
-    transition: all var(--transition-normal);
+    transition: background var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal), opacity var(--transition-normal);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-sm);
-    font-family: inherit;
+    font-family: var(--font-family-sans);
+    letter-spacing: 0.01em;
     position: relative;
     overflow: hidden;
 }
@@ -37,55 +38,71 @@
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none !important;
+    transform: none;
+}
+
+.btn:disabled:hover {
+    transform: none;
+}
+
+.btn:focus-visible {
+    box-shadow: var(--focus-ring-primary);
 }
 
 .btn-primary {
-    background: linear-gradient(var(--gradient-angle), var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    color: white;
+    background: linear-gradient(var(--gradient-angle), rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0.1) 100%);
+    border-color: rgba(14, 165, 233, 0.28);
+    color: var(--color-primary-darker);
+    backdrop-filter: blur(12px);
+    text-shadow: none;
+    font-weight: var(--weight-bold);
     box-shadow: var(--shadow-button-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(var(--gradient-angle), var(--color-primary-dark) 0%, var(--color-primary-darker) 100%);
+    background: linear-gradient(var(--gradient-angle), rgba(14, 165, 233, 0.22) 0%, rgba(14, 165, 233, 0.14) 100%);
     box-shadow: var(--shadow-button-primary-hover);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .btn-secondary {
-    background: var(--border-color);
+    background: rgba(255, 255, 255, 0.58);
+    border-color: rgba(148, 163, 184, 0.22);
     color: var(--text-secondary);
     box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background: var(--gray-400);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--shadow-sm);
     transform: translateY(-1px);
 }
 
 .btn-success {
-    background: linear-gradient(var(--gradient-angle), var(--color-success) 0%, var(--color-success-dark) 100%);
-    color: white;
+    background: linear-gradient(var(--gradient-angle), rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0.1) 100%);
+    border-color: rgba(34, 197, 94, 0.24);
+    color: var(--color-success-darker);
     box-shadow: var(--shadow-button-success);
 }
 
 .btn-success:hover:not(:disabled) {
-    background: linear-gradient(var(--gradient-angle), var(--color-success-dark) 0%, var(--color-success-darker) 100%);
+    background: linear-gradient(var(--gradient-angle), rgba(34, 197, 94, 0.22) 0%, rgba(34, 197, 94, 0.14) 100%);
     box-shadow: var(--shadow-button-success-hover);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .btn-danger {
-    background: linear-gradient(var(--gradient-angle), var(--color-danger) 0%, var(--color-danger-dark) 100%);
-    color: white;
+    background: linear-gradient(var(--gradient-angle), rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0.1) 100%);
+    border-color: rgba(249, 115, 22, 0.24);
+    color: var(--color-danger-darker);
     box-shadow: var(--shadow-button-danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-    background: linear-gradient(var(--gradient-angle), var(--color-danger-dark) 0%, var(--color-danger-darker) 100%);
+    background: linear-gradient(var(--gradient-angle), rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0.14) 100%);
     box-shadow: var(--shadow-button-danger-hover);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .btn-sm {

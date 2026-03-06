@@ -74,66 +74,106 @@
             <div class="screen active" id="deviceScreen">
                 <!-- Connection Header -->
                 <div class="device-header">
-                    <div class="device-info-inline" id="deviceInfoInline" style="display: none;">
+                    <div class="device-connection-status disconnected" id="deviceConnectionStatus">
+                        <span class="material-icons" aria-hidden="true">bluetooth_disabled</span>
+                        <div>
+                            <div class="device-status-text" id="deviceConnectionText">Disconnected</div>
+                            <div class="helper-text compact" id="deviceConnectionHint">Auto-connect runs in the background.</div>
+                        </div>
+                    </div>
+                    <div class="device-info-inline hidden" id="deviceInfoInline">
                         <span class="device-name" id="connectedDeviceName"></span>
                         <span class="battery" id="batteryInline">
-                            <span id="batteryLevel">-</span>
+                            <span class="battery-indicator">
+                                <span class="battery-icon" id="batteryIcon">-</span>
+                                <span id="batteryLevel">-</span>
+                            </span>
                         </span>
                     </div>
                     <div class="connection-actions">
                         <button class="btn btn-primary" id="connectBtn">Connect</button>
                         <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
-                        <button class="btn-icon" id="calibrateBtn" title="Calibrate Alignment" style="display: none;">
+                        <button class="btn-icon hidden" id="calibrateBtn" title="Calibrate Alignment">
                             <span class="material-icons">tune</span>
                         </button>
                     </div>
                 </div>
-                <div class="error-message" id="deviceError" style="display: none;"></div>
-            </div>
+                <div class="error-message hidden" id="deviceError"></div>
 
-            <!-- Ball Position Overlay (floating) -->
-            <div class="ball-overlay" id="ballOverlay">
-                <svg class="ball-position-svg" viewBox="0 0 140 170" id="ballPositionSvg">
-                    <defs>
-                        <pattern id="gridSmall" width="28" height="28" patternUnits="userSpaceOnUse">
-                            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
-                        </pattern>
-                    </defs>
-                    <rect width="140" height="170" fill="url(#gridSmall)" />
-                    <line x1="70" y1="0" x2="70" y2="170" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
-                    <line x1="0" y1="85" x2="140" y2="85" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
-                    <rect x="43" y="58" width="54" height="54" fill="none" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,3"/>
-                    <circle id="ballDot" cx="70" cy="85" r="6" fill="#ef4444" stroke="#fff" stroke-width="2" style="display: none;"/>
-                </svg>
-            </div>
-
-            <!-- Shot Metrics Bar (fixed bottom) -->
-            <div class="metrics-bar" id="metricsBar">
-                <div class="metrics-row">
-                    <span class="row-label">BALL</span>
-                    <div class="metric-item"><span class="metric-label">Speed</span><span class="metric-value" id="metricBallSpeed">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Launch</span><span class="metric-value" id="metricLaunchAngle">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Dir</span><span class="metric-value" id="metricDirection">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Total</span><span class="metric-value" id="metricTotalSpin">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Axis</span><span class="metric-value" id="metricSpinAxis">-</span></div>
+                <div class="card device-details-card">
+                    <div class="card-header">
+                        <h3>Device Details</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="info-grid">
+                            <div class="info-item hidden" id="clubItem">
+                                <span class="info-label">Club</span>
+                                <span class="info-value" id="clubValue">-</span>
+                            </div>
+                            <div class="info-item hidden" id="handednessItem">
+                                <span class="info-label">Handedness</span>
+                                <span class="info-value" id="handednessValue">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Firmware</span>
+                                <span class="info-value" id="firmwareVersion">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Launcher</span>
+                                <span class="info-value" id="launcherVersion">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">MMI</span>
+                                <span class="info-value" id="mmiVersion">-</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="metrics-row">
-                    <span class="row-label">CLUB</span>
-                    <div class="metric-item"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Face</span><span class="metric-value" id="metricFaceAngle">-</span></div>
-                    <div class="metric-item"><span class="metric-label">Loft</span><span class="metric-value" id="metricDynamicLoft">-</span></div>
-                    <div class="metric-item"></div>
-                    <div class="metric-item"></div>
-                    <div class="metric-item"></div>
+                
+                <!-- Ball Position Overlay (floating) -->
+                <div class="ball-overlay" id="ballOverlay">
+                    <svg class="ball-position-svg" viewBox="0 0 140 170" id="ballPositionSvg">
+                        <defs>
+                            <pattern id="gridSmall" width="28" height="28" patternUnits="userSpaceOnUse">
+                                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
+                            </pattern>
+                        </defs>
+                        <rect width="140" height="170" fill="url(#gridSmall)" />
+                        <line x1="70" y1="0" x2="70" y2="170" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                        <line x1="0" y1="85" x2="140" y2="85" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                        <rect x="43" y="58" width="54" height="54" fill="none" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,3"/>
+                        <circle id="ballDot" class="hidden" cx="70" cy="85" r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/>
+                    </svg>
+                </div>
+
+                <!-- Shot Metrics Bar (fixed bottom) -->
+                <div class="metrics-bar" id="metricsBar">
+                    <div class="metrics-row">
+                        <span class="row-label">BALL</span>
+                        <div class="metric-item"><span class="metric-label">Speed</span><span class="metric-value" id="metricBallSpeed">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Launch</span><span class="metric-value" id="metricLaunchAngle">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Dir</span><span class="metric-value" id="metricDirection">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Total</span><span class="metric-value" id="metricTotalSpin">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Axis</span><span class="metric-value" id="metricSpinAxis">-</span></div>
+                    </div>
+                    <div class="metrics-row">
+                        <span class="row-label">CLUB</span>
+                        <div class="metric-item"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Face</span><span class="metric-value" id="metricFaceAngle">-</span></div>
+                        <div class="metric-item"><span class="metric-label">Loft</span><span class="metric-value" id="metricDynamicLoft">-</span></div>
+                        <div class="metric-item"></div>
+                        <div class="metric-item"></div>
+                        <div class="metric-item"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- Alignment Panel (slide-in, hidden by default) -->
-            <div class="alignment-overlay" id="alignmentOverlay" style="display: none;"></div>
-            <div class="alignment-panel" id="alignmentPanel" style="display: none;">
+            <div class="alignment-overlay hidden" id="alignmentOverlay"></div>
+            <div class="alignment-panel hidden" id="alignmentPanel">
                 <div class="panel-header">
                     <h3>Device Alignment</h3>
                     <button class="btn-close" id="closeAlignmentBtn">
@@ -141,7 +181,7 @@
                     </button>
                 </div>
                 <div class="panel-content alignment-display">
-                    <div class="error-message" id="alignmentError" style="display: none;">
+                    <div class="error-message hidden" id="alignmentError">
                         <p class="error-text"></p>
                         <button class="btn btn-primary btn-sm" id="retryAlignmentBtn">Retry</button>
                     </div>
@@ -184,7 +224,8 @@
             <div class="screen" id="gsproScreen">
                 <div class="card">
                     <div class="card-content">
-                        <div class="error-message" id="gsproError" style="display: none;"></div>
+                        <div class="error-message hidden" id="gsproError"></div>
+                        <div class="status-value disconnected" id="gsproStatus">Disconnected</div>
 
                         <div class="button-group">
                             <button class="btn btn-primary" id="gsproConnectBtn">Connect to GSPro</button>
@@ -218,7 +259,8 @@
             <div class="screen" id="infiniteTeesScreen">
                 <div class="card">
                     <div class="card-content">
-                        <div class="error-message" id="infiniteTeesError" style="display: none;"></div>
+                        <div class="error-message hidden" id="infiniteTeesError"></div>
+                        <div class="status-value disconnected" id="infiniteTeesStatus">Disconnected</div>
 
                         <div class="button-group">
                             <button class="btn btn-primary" id="infiniteTeesConnectBtn">Connect to Infinite Tees</button>
@@ -320,23 +362,38 @@
 
                 <div class="card">
                     <div class="card-header">
+                        <h3>Camera Settings</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="cameraEnabled">
+                                Enable external camera integration
+                            </label>
+                            <p class="helper-text">When enabled, the connector will arm and update the external camera during ball-ready and shot events.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="cameraURL">Camera Base URL:</label>
+                            <input type="url" id="cameraURL" class="input-field" placeholder="http://camera-box.local:8080">
+                            <p class="helper-text">Example: `http://camera-box.local:8080`.</p>
+                        </div>
+                        <button class="btn btn-primary" id="cameraSaveBtn">Save Camera Settings</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
                         <h3>About</h3>
                     </div>
                     <div class="card-content">
                         <p class="helper-text">
                             <strong>SquareGolf Connector</strong> is an unofficial connector for SquareGolf launch monitors.
-                            <br><a href="https://github.com/brentyates/squaregolf-connector" target="_blank" style="color: #3b82f6;">View Documentation on GitHub</a>
+                            <br><a href="https://github.com/brentyates/squaregolf-connector" target="_blank" class="inline-link">View Documentation on GitHub</a>
                         </p>
                     </div>
                 </div>
             </div>
         </main>
-    </div>
-
-    <!-- Loading overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <div class="loading-text">Connecting...</div>
     </div>
 
     <!-- Toast notifications -->

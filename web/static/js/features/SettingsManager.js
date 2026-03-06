@@ -9,12 +9,14 @@ export class SettingsManager {
     async load() {
         try {
             const response = await this.api.get('/api/settings');
-            if (response.ok) {
-                this.settings = await response.json();
-                this.eventBus.emit('settings:loaded', this.settings);
+            if (!response.ok) {
+                throw new Error(`Failed to load settings: ${response.statusText}`);
             }
+
+            this.settings = await response.json();
+            this.eventBus.emit('settings:loaded', this.settings);
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            this.eventBus.emit('settings:error', error.message);
         }
     }
 
@@ -22,13 +24,13 @@ export class SettingsManager {
         try {
             const response = await this.api.post('/api/settings', newSettings);
 
-            if (response.ok) {
-                this.settings = { ...this.settings, ...newSettings };
-                this.eventBus.emit('settings:saved', this.settings);
-                return { success: true };
-            } else {
+            if (!response.ok) {
                 throw new Error(`Failed to save settings: ${response.statusText}`);
             }
+
+            this.settings = { ...this.settings, ...newSettings };
+            this.eventBus.emit('settings:saved', this.settings);
+            return { success: true };
         } catch (error) {
             this.eventBus.emit('settings:error', error.message);
             return { success: false, error: error.message };

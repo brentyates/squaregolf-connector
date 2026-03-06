@@ -6,11 +6,22 @@ export class CameraManager {
         this.config = null;
     }
 
-    async save() {
-        const url = document.getElementById('cameraURL').value.trim();
-        const enabled = document.getElementById('cameraEnabled').checked;
+    $(id) {
+        return document.getElementById(id);
+    }
 
-        if (!url) {
+    async save() {
+        const urlField = this.$('cameraURL');
+        const enabledField = this.$('cameraEnabled');
+
+        if (!urlField || !enabledField) {
+            return { success: false, error: 'Camera controls are not rendered in this UI.' };
+        }
+
+        const url = urlField.value.trim();
+        const enabled = enabledField.checked;
+
+        if (enabled && !url) {
             this.eventBus.emit('camera:error', 'Please enter a valid camera URL');
             return { success: false };
         }
@@ -18,12 +29,12 @@ export class CameraManager {
         try {
             const response = await this.api.post('/api/camera/config', { url, enabled });
 
-            if (response.ok) {
-                this.eventBus.emit('camera:saved');
-                return { success: true };
-            } else {
+            if (!response.ok) {
                 throw new Error(`Failed to save config: ${response.statusText}`);
             }
+
+            this.eventBus.emit('camera:saved');
+            return { success: true };
         } catch (error) {
             this.eventBus.emit('camera:error', error.message);
             return { success: false, error: error.message };
@@ -33,12 +44,11 @@ export class CameraManager {
     updateConfig(config) {
         this.config = config;
 
-        // Update UI elements
-        const urlField = document.getElementById('cameraURL');
-        const enabledCheckbox = document.getElementById('cameraEnabled');
+        const urlField = this.$('cameraURL');
+        const enabledCheckbox = this.$('cameraEnabled');
 
-        if (urlField && config.url) {
-            urlField.value = config.url;
+        if (urlField) {
+            urlField.value = config.url || '';
         }
 
         if (enabledCheckbox) {

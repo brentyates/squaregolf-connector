@@ -4,74 +4,46 @@ export class AlignmentManager {
         this.api = apiClient;
         this.eventBus = eventBus;
         this.currentHandedness = 'right';
-        this.explicitlyStopped = false;
     }
 
     async start() {
-        try {
-            const response = await this.api.post('/api/alignment/start');
-
-            if (!response.ok) {
-                throw new Error('Failed to start alignment');
-            }
-
-            console.log('Alignment started');
-            this.eventBus.emit('alignment:started');
-        } catch (error) {
-            console.error('Error starting alignment:', error);
-            this.eventBus.emit('alignment:error', 'Failed to start alignment');
-        }
+        return this.#runCommand({
+            url: '/api/alignment/start',
+            successEvent: 'alignment:started',
+            errorEvent: 'alignment:error',
+            stopOnError: true,
+            errorMessage: 'Failed to start alignment'
+        });
     }
 
     async stop() {
-        try {
-            const response = await this.api.post('/api/alignment/stop');
-
-            if (!response.ok) {
-                throw new Error('Failed to stop alignment');
-            }
-
-            console.log('Alignment stopped');
-            this.eventBus.emit('alignment:stopped');
-        } catch (error) {
-            console.error('Error stopping alignment:', error);
-        }
+        return this.#runCommand({
+            url: '/api/alignment/stop',
+            successEvent: 'alignment:stopped',
+            errorEvent: 'alignment:error',
+            emitError: false,
+            errorMessage: 'Failed to stop alignment'
+        });
     }
 
     async save() {
-        try {
-            this.explicitlyStopped = true;
-
-            const response = await this.api.post('/api/alignment/stop');
-
-            if (!response.ok) {
-                throw new Error('Failed to save alignment');
-            }
-
-            console.log('Alignment saved');
-            this.eventBus.emit('alignment:saved');
-        } catch (error) {
-            console.error('Error saving alignment:', error);
-            this.eventBus.emit('alignment:error', 'Failed to save calibration');
-        }
+        return this.#runCommand({
+            url: '/api/alignment/stop',
+            successEvent: 'alignment:saved',
+            errorEvent: 'alignment:error',
+            stopOnError: true,
+            errorMessage: 'Failed to save calibration'
+        });
     }
 
     async cancel() {
-        try {
-            this.explicitlyStopped = true;
-
-            const response = await this.api.post('/api/alignment/cancel');
-
-            if (!response.ok) {
-                throw new Error('Failed to cancel alignment');
-            }
-
-            console.log('Alignment cancelled');
-            this.eventBus.emit('alignment:cancelled');
-        } catch (error) {
-            console.error('Error cancelling alignment:', error);
-            this.eventBus.emit('alignment:error', 'Failed to cancel alignment');
-        }
+        return this.#runCommand({
+            url: '/api/alignment/cancel',
+            successEvent: 'alignment:cancelled',
+            errorEvent: 'alignment:error',
+            stopOnError: true,
+            errorMessage: 'Failed to cancel alignment'
+        });
     }
 
     async setHandedness(handedness) {
@@ -84,16 +56,43 @@ export class AlignmentManager {
 
             this.currentHandedness = handedness;
             this.eventBus.emit('alignment:handedness-changed', handedness);
-
             return { success: true };
         } catch (error) {
-            console.error('Error setting handedness:', error);
             this.eventBus.emit('alignment:error', 'Failed to set handedness');
-            return { success: false };
+            this.eventBus.emit('alignment:stopped');
+            return { success: false, error: error.message };
         }
     }
 
     updateDisplay(angle, isAligned) {
         this.eventBus.emit('alignment:update', { angle, isAligned });
+    }
+
+    async #runCommand({
+        url,
+        successEvent,
+        errorEvent,
+        errorMessage,
+        stopOnError = false,
+        emitError = true
+    }) {
+        try {
+            const response = await this.api.post(url);
+
+            if (!response.ok) {
+                throw new Error(errorMessage);
+            }
+
+            this.eventBus.emit(successEvent);
+            return { success: true };
+        } catch (error) {
+            if (emitError) {
+                this.eventBus.emit(errorEvent, errorMessage);
+            }
+            if (stopOnError) {
+                this.eventBus.emit('alignment:stopped');
+            }
+            return { success: false, error: error.message };
+        }
     }
 }

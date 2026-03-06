@@ -7,11 +7,14 @@
     margin-bottom: 0;
 }
 
-.form-group label {
+.form-group > label:not(.checkbox-label):not(.radio-label) {
     display: block;
-    font-weight: var(--weight-medium);
+    font-weight: var(--weight-bold);
     color: var(--text-secondary);
     margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
 }
 
 .helper-text {
@@ -34,19 +37,20 @@
 .input-field {
     width: 100%;
     padding: var(--spacing-md) var(--spacing-lg);
-    border: var(--border-width-normal) solid var(--border-color);
+    border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: var(--radius-lg);
     font-size: var(--font-sm);
-    transition: all var(--transition-normal);
-    background: white;
-    font-family: inherit;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal), background-color var(--transition-normal), color var(--transition-normal);
+    background: rgba(255, 255, 255, 0.8);
+    font-family: var(--font-family-sans);
+    backdrop-filter: blur(12px);
 }
 
 .input-field:hover {
-    border-color: var(--gray-400);
+    border-color: rgba(14, 165, 233, 0.2);
 }
 
-.input-field:focus {
+.input-field:focus-visible {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: var(--focus-ring-primary);
@@ -54,7 +58,7 @@
 }
 
 .input-field:disabled {
-    background: var(--gray-50);
+    background: rgba(235, 240, 245, 0.9);
     color: var(--gray-500);
     cursor: not-allowed;
 }
@@ -63,7 +67,7 @@
     border-color: var(--color-danger);
 }
 
-.input-field.error:focus {
+.input-field.error:focus-visible {
     box-shadow: var(--focus-ring-danger);
 }
 
@@ -110,11 +114,12 @@
 /* Checkboxes and radios */
 .checkbox-label,
 .radio-label {
-    display: flex !important;
+    display: flex;
     align-items: center;
-    font-weight: normal !important;
-    margin-bottom: var(--spacing-sm) !important;
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--spacing-sm);
     cursor: pointer;
+    color: var(--text-secondary);
 }
 
 .checkbox-label input,
