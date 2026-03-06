@@ -883,7 +883,17 @@ export class SquareGolfApp {
     }
 
     applyFeatures() {
-        // Feature flags applied here if needed
+        const cameraCard = this.$('cameraSettingsCard');
+        const cameraSaveBtn = this.$('cameraSaveBtn');
+        const cameraURL = this.$('cameraURL');
+        const cameraEnabled = this.$('cameraEnabled');
+        const cameraSupported = Boolean(this.features.externalCamera);
+
+        this.setHidden(cameraCard, !cameraSupported);
+
+        if (cameraSaveBtn) cameraSaveBtn.disabled = !cameraSupported;
+        if (cameraURL) cameraURL.disabled = !cameraSupported;
+        if (cameraEnabled) cameraEnabled.disabled = !cameraSupported;
     }
 
     applySettings(settings) {
@@ -904,15 +914,13 @@ export class SquareGolfApp {
         if (itIP) itIP.value = settings.infiniteTeesIP || '127.0.0.1';
         if (itPort) itPort.value = settings.infiniteTeesPort || 999;
         if (itAutoConnect) itAutoConnect.checked = settings.infiniteTeesAutoConnect || false;
-
-        const cameraURL = this.$('cameraURL');
-        const cameraEnabled = this.$('cameraEnabled');
-        if (cameraURL) cameraURL.value = settings.cameraURL || '';
-        if (cameraEnabled) cameraEnabled.checked = settings.cameraEnabled || false;
     }
 
     async saveSettings() {
         const spinMode = document.querySelector('input[name="spinMode"]:checked')?.value;
-        await this.settingsManager.save({ spinMode });
+        await this.settingsManager.save({
+            ...this.settingsManager.getAll(),
+            spinMode
+        });
     }
 }

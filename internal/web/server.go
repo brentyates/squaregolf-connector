@@ -733,29 +733,93 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(appSettings)
 	} else {
-		var appSettings AppSettings
-		if err := json.NewDecoder(r.Body).Decode(&appSettings); err != nil {
+		var rawSettings map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&rawSettings); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		cfg := config.GetInstance()
-		cfg.SetDeviceName(appSettings.DeviceName)
-		cfg.SetSpinMode(appSettings.SpinMode)
-		cfg.SetGSProIP(appSettings.GSProIP)
-		cfg.SetGSProPort(appSettings.GSProPort)
-		cfg.SetGSProAutoConnect(appSettings.GSProAutoConnect)
-		cfg.SetInfiniteTeesIP(appSettings.InfiniteTeesIP)
-		cfg.SetInfiniteTeesPort(appSettings.InfiniteTeesPort)
-		cfg.SetInfiniteTeesAutoConnect(appSettings.InfiniteTeesAutoConnect)
 
-		var spinMode core.SpinMode
-		if appSettings.SpinMode == "standard" {
-			spinMode = core.Standard
-		} else {
-			spinMode = core.Advanced
+		if rawValue, ok := rawSettings["deviceName"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid deviceName", http.StatusBadRequest)
+				return
+			}
+			cfg.SetDeviceName(value)
 		}
-		s.stateManager.SetSpinMode(&spinMode)
+
+		if rawValue, ok := rawSettings["spinMode"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid spinMode", http.StatusBadRequest)
+				return
+			}
+			cfg.SetSpinMode(value)
+
+			var spinMode core.SpinMode
+			if value == "standard" {
+				spinMode = core.Standard
+			} else {
+				spinMode = core.Advanced
+			}
+			s.stateManager.SetSpinMode(&spinMode)
+		}
+
+		if rawValue, ok := rawSettings["gsproIP"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid gsproIP", http.StatusBadRequest)
+				return
+			}
+			cfg.SetGSProIP(value)
+		}
+
+		if rawValue, ok := rawSettings["gsproPort"]; ok {
+			var value int
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid gsproPort", http.StatusBadRequest)
+				return
+			}
+			cfg.SetGSProPort(value)
+		}
+
+		if rawValue, ok := rawSettings["gsproAutoConnect"]; ok {
+			var value bool
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid gsproAutoConnect", http.StatusBadRequest)
+				return
+			}
+			cfg.SetGSProAutoConnect(value)
+		}
+
+		if rawValue, ok := rawSettings["infiniteTeesIP"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid infiniteTeesIP", http.StatusBadRequest)
+				return
+			}
+			cfg.SetInfiniteTeesIP(value)
+		}
+
+		if rawValue, ok := rawSettings["infiniteTeesPort"]; ok {
+			var value int
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid infiniteTeesPort", http.StatusBadRequest)
+				return
+			}
+			cfg.SetInfiniteTeesPort(value)
+		}
+
+		if rawValue, ok := rawSettings["infiniteTeesAutoConnect"]; ok {
+			var value bool
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid infiniteTeesAutoConnect", http.StatusBadRequest)
+				return
+			}
+			cfg.SetInfiniteTeesAutoConnect(value)
+		}
 
 		w.WriteHeader(http.StatusOK)
 	}
