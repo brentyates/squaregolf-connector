@@ -1,11 +1,14 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -19,17 +22,20 @@ import (
 )
 
 type Server struct {
-	stateManager             *core.StateManager
-	bluetoothManager         *core.BluetoothManager
-	launchMonitor            *core.LaunchMonitor
-	gsproIntegration         *gspro.Integration
-	infiniteTeesIntegration  *infinitetees.Integration
-	cameraManager            *camera.Manager
-	enableExternalCamera     bool
-	upgrader                 websocket.Upgrader
-	clients                  map[*websocket.Conn]chan []byte
-	clientsMu                sync.Mutex
-	broadcast                chan []byte
+	stateManager            *core.StateManager
+	bluetoothManager        *core.BluetoothManager
+	launchMonitor           *core.LaunchMonitor
+	gsproIntegration        *gspro.Integration
+	infiniteTeesIntegration *infinitetees.Integration
+	cameraManager           *camera.Manager
+	enableExternalCamera    bool
+	upgrader                websocket.Upgrader
+	clients                 map[*websocket.Conn]chan []byte
+	clientsMu               sync.Mutex
+	broadcast               chan []byte
+	httpServer              *http.Server
+	httpServerMu            sync.Mutex
+	webRoot                 string
 }
 
 type WSMessage struct {
@@ -112,12 +118,44 @@ func NewServer(stateManager *core.StateManager, bluetoothManager *core.Bluetooth
 		},
 		clients:   make(map[*websocket.Conn]chan []byte),
 		broadcast: make(chan []byte, 100),
+		webRoot:   resolveWebRoot(),
 	}
 
 	server.setupCallbacks()
 	go server.handleMessages()
 
 	return server
+}
+
+func resolveWebRoot() string {
+	candidates := []string{}
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "..", "Resources", "web"),
+			filepath.Join(exeDir, "web"),
+		)
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(wd, "web"))
+	}
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	if ok {
+		repoRoot := filepath.Join(filepath.Dir(currentFile), "..", "..")
+		candidates = append(candidates, filepath.Join(repoRoot, "web"))
+	}
+
+	for _, candidate := range candidates {
+		indexPath := filepath.Join(candidate, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			return candidate
+		}
+	}
+
+	return "web"
 }
 
 func (s *Server) setupCallbacks() {
@@ -216,7 +254,7 @@ func (s *Server) handleMessages() {
 			activeChannels = append(activeChannels, clientChan)
 		}
 		s.clientsMu.Unlock()
-		
+
 		for _, clientChan := range activeChannels {
 			func(ch chan []byte) {
 				defer func() {
@@ -365,7 +403,7 @@ func (s *Server) Start(port int) error {
 	router := mux.NewRouter()
 
 	// Serve static files with no-cache headers for development
-	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/")))
+	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(s.webRoot, "static"))))
 	router.PathPrefix("/static/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
@@ -415,13 +453,38 @@ func (s *Server) Start(port int) error {
 	// Serve index.html for all non-API routes (SPA support)
 	router.PathPrefix("/").HandlerFunc(s.handleIndex)
 
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: router,
+	}
+
+	s.httpServerMu.Lock()
+	s.httpServer = httpServer
+	s.httpServerMu.Unlock()
+
 	log.Printf("Web server starting on port %d", port)
 	log.Printf("Access via: http://localhost:%d", port)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+	err := httpServer.ListenAndServe()
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	return err
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	s.httpServerMu.Lock()
+	httpServer := s.httpServer
+	s.httpServerMu.Unlock()
+
+	if httpServer == nil {
+		return nil
+	}
+
+	return httpServer.Shutdown(ctx)
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	indexPath := filepath.Join("web", "index.html")
+	indexPath := filepath.Join(s.webRoot, "index.html")
 	http.ServeFile(w, r, indexPath)
 }
 

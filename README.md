@@ -2,15 +2,41 @@
 
 An unofficial launch monitor connector for SquareGolf devices with GSPro integration.
 
-## Overview
+## Download And Run (macOS)
 
-SquareGolf Connector is a Go-based application that connects to SquareGolf Bluetooth launch monitors and provides:
+1. Open the [latest release](https://github.com/byates/squaregolf-connector/releases/latest).
+2. Download the macOS zip file: `SquareGolf-Connector-<version>-macOS.zip`.
+3. Unzip it.
+4. Drag `SquareGolf Connector.app` into `Applications` if you want.
+5. Open `SquareGolf Connector.app`.
+
+When the app is running, it opens its own desktop window. Closing the window shuts the app down.
+
+## First Launch On macOS
+
+Because this app is not signed with a paid Apple Developer ID, macOS may warn that it is from an unidentified developer.
+
+If that happens:
+
+1. Right-click the app and choose `Open`.
+2. Click `Open` again in the confirmation dialog.
+
+If macOS still blocks it:
+
+1. Open `System Settings`.
+2. Go to `Privacy & Security`.
+3. Find the message about `SquareGolf Connector`.
+4. Click `Open Anyway`.
+
+## What It Does
+
+SquareGolf Connector connects to SquareGolf Bluetooth launch monitors and provides:
 
 - **Bluetooth connectivity** to SquareGolf devices
 - **GSPro integration** with automatic reconnection
-- **Web-based UI** for easy monitoring and control
+- **Desktop window UI** powered by the existing web frontend
 - **External camera integration** (experimental)
-- **Multiple operation modes** including headless CLI
+- **Persistent saved settings**
 
 ## Features
 
@@ -25,11 +51,21 @@ SquareGolf Connector is a Go-based application that connects to SquareGolf Bluet
 
 ## Requirements
 
-- Go 1.23 or later
-- Bluetooth adapter (for real hardware)
-- **macOS or Windows** (Linux support pending - see Known Limitations below)
+- **macOS** for the ready-to-download app release
+- Bluetooth adapter
+- A SquareGolf launch monitor for normal use
 
-## Installation
+Windows is still a supported development target in the codebase, but the automated downloadable release currently targets macOS.
+
+## Quick Start
+
+1. Launch `SquareGolf Connector.app`.
+2. Turn on your SquareGolf device.
+3. Open GSPro if you use it.
+4. In the app, connect to your device.
+5. If needed, connect GSPro from the app settings.
+
+## Build From Source
 
 ```bash
 # Clone the repository
@@ -39,53 +75,58 @@ cd squaregolf-connector
 # Install dependencies
 go mod download
 
-# Build the application
-go build -o squaregolf-connector main.go
+# Build the executable
+mkdir -p build
+go build -o build/squaregolf-connector main.go
 ```
+
+For the macOS app bundle build, see [MACOS_APP.md](MACOS_APP.md).
 
 ## Usage
 
-### Web Interface Mode (Default)
+### Desktop UI Mode (Default)
 
 ```bash
-# Start with web UI
-./squaregolf-connector
+# Start with desktop UI
+./build/squaregolf-connector
 
 # Specify custom port
-./squaregolf-connector --web-port=8080
+./build/squaregolf-connector --web-port=8080
 ```
 
-The web interface will be available at `http://localhost:8080`
+By default the app opens in a native desktop window. Closing that window shuts down the connector process.
+
+The UI is still served internally from a local HTTP server on `http://localhost:8080`.
 
 ### Headless CLI Mode
 
 ```bash
 # Run in headless mode with auto-connect
-./squaregolf-connector --headless --device="SquareGolf-XXXX"
+./build/squaregolf-connector --headless --device="SquareGolf-XXXX"
 ```
 
 ### GSPro Integration
 
 ```bash
 # Enable GSPro integration
-./squaregolf-connector --enable-gspro --gspro-ip=127.0.0.1 --gspro-port=921
+./build/squaregolf-connector --enable-gspro --gspro-ip=127.0.0.1 --gspro-port=921
 ```
 
 ### Mock Modes
 
 ```bash
 # Basic stub mode (no real hardware required)
-./squaregolf-connector --mock=stub
+./build/squaregolf-connector --mock=stub
 
 # Simulated device mode (realistic behavior)
-./squaregolf-connector --mock=simulate
+./build/squaregolf-connector --mock=simulate
 ```
 
 ### External Camera Integration (Experimental)
 
 ```bash
 # Enable external camera support
-./squaregolf-connector --enable-external-camera
+./build/squaregolf-connector --enable-external-camera
 ```
 
 ## Command-Line Options
@@ -94,8 +135,8 @@ The web interface will be available at `http://localhost:8080`
 |------|---------|-------------|
 | `--mock` | "" | Mock mode: 'stub' or 'simulate' |
 | `--device` | "" | Bluetooth device name to auto-connect |
-| `--headless` | false | Run in CLI mode without web UI |
-| `--web-port` | 8080 | Port for web server |
+| `--headless` | false | Run in CLI mode without the desktop UI |
+| `--web-port` | 8080 | Port for the embedded local web server |
 | `--gspro-ip` | 127.0.0.1 | GSPro server IP address |
 | `--gspro-port` | 921 | GSPro server port |
 | `--enable-gspro` | false | Enable GSPro integration |
@@ -139,9 +180,14 @@ go test ./...
 2. **Data Processing**: Parses ball and club metrics from device notifications
 3. **State Management**: Maintains application state with reactive callbacks
 4. **GSPro Integration**: Forwards shot data to GSPro in real-time
-5. **Web Interface**: Provides a user-friendly dashboard for monitoring and control
+5. **Desktop Window**: Hosts the existing HTML/CSS/JS dashboard inside a native app window
 
 ## Troubleshooting
+
+### macOS says the app cannot be opened
+
+- Right-click the app and choose `Open`
+- If needed, allow it in `System Settings` -> `Privacy & Security`
 
 ### Cannot connect to Bluetooth device
 
@@ -155,10 +201,10 @@ go test ./...
 - Check firewall settings
 - Enable auto-reconnect in settings
 
-### Web UI not accessible
+### Desktop window does not open
 
-- Confirm the port is not already in use
-- Check that no firewall is blocking the port
+- Confirm the local port is not already in use
+- On macOS, prefer launching the generated `.app` bundle instead of the raw binary
 - Try a different port with `--web-port`
 
 ## Known Limitations

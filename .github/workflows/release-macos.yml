@@ -1,0 +1,66 @@
+name: Release macOS App
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag or release version to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          if [[ -z "$TAG" ]]; then
+            echo "Release tag is required" >&2
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+
+      - name: Build macOS release archive
+        id: package
+        shell: bash
+        run: |
+          ARCHIVE_PATH="$(./scripts/package-macos-release.sh "${{ steps.release.outputs.tag }}")"
+          echo "archive=$ARCHIVE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          ARCHIVE_PATH: ${{ steps.package.outputs.archive }}
+        shell: bash
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --generate-notes \
+              --title "$RELEASE_TAG"
+          fi
+
+          gh release upload "$RELEASE_TAG" "$ARCHIVE_PATH" --clobber

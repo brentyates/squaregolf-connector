@@ -4,3 +4,7 @@ vendor
 .app-analysis/
 .playwright-mcp/
 *.resources
+build/
+dist/
+*.app/
+squaregolf-connector

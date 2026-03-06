@@ -6,6 +6,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
+	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	tinygo.org/x/bluetooth v0.13.0
 )

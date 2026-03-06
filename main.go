@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
-	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/brentyates/squaregolf-connector/internal/core/camera"
 	"github.com/brentyates/squaregolf-connector/internal/core/gspro"
 	"github.com/brentyates/squaregolf-connector/internal/logging"
+	"github.com/brentyates/squaregolf-connector/internal/ui"
 	"github.com/brentyates/squaregolf-connector/internal/web"
 )
 
@@ -83,29 +84,6 @@ func initializeBackend(config AppConfig) (*core.StateManager, *core.BluetoothMan
 	launchMonitor.SetupNotifications(bluetoothManager)
 
 	return stateManager, bluetoothManager, launchMonitor
-}
-
-// openBrowser opens the specified URL in the default browser
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to open browser: %w", err)
-	}
-
-	log.Printf("Opening browser at %s", url)
-	return nil
 }
 
 // setupHeadlessCallbacks configures callbacks for headless mode
@@ -288,21 +266,44 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	// Give the server a moment to start up
 	time.Sleep(500 * time.Millisecond)
 
-	// Auto-open the web browser
-	url := fmt.Sprintf("http://localhost:%d", config.WebPort)
-	if err := openBrowser(url); err != nil {
-		log.Printf("Warning: Could not automatically open browser: %v", err)
-		log.Printf("Please manually open your browser and navigate to: %s", url)
+	window := ui.NewDesktopWindow(fmt.Sprintf("http://localhost:%d", config.WebPort))
+
+	var stopOnce sync.Once
+	stopServer := func() {
+		stopOnce.Do(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := server.Stop(ctx); err != nil {
+				log.Printf("Warning: Could not stop web server cleanly: %v", err)
+			}
+
+			bluetoothManager.DisconnectBluetooth()
+		})
 	}
 
-	// Wait for shutdown signal or server error
+	exitErr := make(chan error, 1)
+	go func() {
+		select {
+		case <-sigChan:
+			log.Println("Shutting down web server...")
+			stopServer()
+			window.Terminate()
+		case err := <-serverErr:
+			exitErr <- fmt.Errorf("web server failed to start: %w", err)
+			stopServer()
+			window.Terminate()
+		}
+	}()
+
+	window.Run()
+	log.Println("Desktop window closed, shutting down...")
+	stopServer()
+
 	select {
-	case <-sigChan:
-		log.Println("Shutting down web server...")
-		bluetoothManager.DisconnectBluetooth()
-		return
-	case err := <-serverErr:
-		log.Fatalf("Web server failed to start: %v", err)
+	case err := <-exitErr:
+		log.Fatal(err)
+	default:
 	}
 }
 
