@@ -47,7 +47,6 @@ SquareGolf Connector connects to SquareGolf Bluetooth launch monitors and provid
 - Configurable club selection and handedness
 - Persistent settings storage
 - Auto-connect functionality
-- Mock and simulation modes for development
 
 ## Requirements
 
@@ -65,123 +64,6 @@ Windows is still a supported development target in the codebase, but the automat
 4. In the app, connect to your device.
 5. If needed, connect GSPro from the app settings.
 
-## Build From Source
-
-```bash
-# Clone the repository
-git clone https://github.com/brentyates/squaregolf-connector.git
-cd squaregolf-connector
-
-# Install dependencies
-go mod download
-
-# Build the executable
-mkdir -p build
-go build -o build/squaregolf-connector main.go
-```
-
-For the macOS app bundle build, see [MACOS_APP.md](MACOS_APP.md).
-
-## Usage
-
-### Desktop UI Mode (Default)
-
-```bash
-# Start with desktop UI
-./build/squaregolf-connector
-
-# Specify custom port
-./build/squaregolf-connector --web-port=8080
-```
-
-By default the app opens in a native desktop window. Closing that window shuts down the connector process.
-
-The UI is still served internally from a local HTTP server on `http://localhost:8080`.
-
-### Headless CLI Mode
-
-```bash
-# Run in headless mode with auto-connect
-./build/squaregolf-connector --headless --device="SquareGolf-XXXX"
-```
-
-### GSPro Integration
-
-```bash
-# Enable GSPro integration
-./build/squaregolf-connector --enable-gspro --gspro-ip=127.0.0.1 --gspro-port=921
-```
-
-### Mock Modes
-
-```bash
-# Basic stub mode (no real hardware required)
-./build/squaregolf-connector --mock=stub
-
-# Simulated device mode (realistic behavior)
-./build/squaregolf-connector --mock=simulate
-```
-
-### External Camera Integration (Experimental)
-
-```bash
-# Enable external camera support
-./build/squaregolf-connector --enable-external-camera
-```
-
-## Command-Line Options
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--mock` | "" | Mock mode: 'stub' or 'simulate' |
-| `--device` | "" | Bluetooth device name to auto-connect |
-| `--headless` | false | Run in CLI mode without the desktop UI |
-| `--web-port` | 8080 | Port for the embedded local web server |
-| `--gspro-ip` | 127.0.0.1 | GSPro server IP address |
-| `--gspro-port` | 921 | GSPro server port |
-| `--enable-gspro` | false | Enable GSPro integration |
-| `--enable-external-camera` | false | Enable external camera (experimental) |
-
-## Configuration
-
-Settings are automatically saved and loaded from `~/.squaregolf-connector/config.json` on all platforms.
-
-## Development
-
-### Running Tests
-
-```bash
-go test ./...
-```
-
-### Project Structure
-
-```
-.
-├── main.go                      # Application entry point
-├── internal/
-│   ├── core/                    # Core business logic
-│   │   ├── bluetooth_manager.go # Bluetooth connection management
-│   │   ├── launch_monitor.go   # Launch monitor data handling
-│   │   ├── state_manager.go    # Application state management
-│   │   ├── gspro/               # GSPro integration
-│   │   └── camera/              # Camera integration
-│   ├── config/                  # Configuration management
-│   ├── logging/                 # Logging utilities
-│   ├── web/                     # Web server and API
-│   └── version/                 # Version information
-├── frontend/                    # Web UI assets
-└── web/                         # Static web files
-```
-
-## How It Works
-
-1. **Bluetooth Connection**: Connects to SquareGolf devices via Bluetooth Low Energy (BLE)
-2. **Data Processing**: Parses ball and club metrics from device notifications
-3. **State Management**: Maintains application state with reactive callbacks
-4. **GSPro Integration**: Forwards shot data to GSPro in real-time
-5. **Desktop Window**: Hosts the existing HTML/CSS/JS dashboard inside a native app window
-
 ## Troubleshooting
 
 ### macOS says the app cannot be opened
@@ -192,34 +74,20 @@ go test ./...
 ### Cannot connect to Bluetooth device
 
 - Ensure your Bluetooth adapter is enabled
-- Check that the device name is correct (starts with "SquareGolf")
-- Try running with elevated privileges if on Linux
+- Make sure your SquareGolf device is turned on
+- Move the device closer to your Mac
 
 ### GSPro not receiving data
 
-- Verify GSPro is running and listening on the specified port
-- Check firewall settings
+- Make sure GSPro is open
+- Check the connection settings in the app
 - Enable auto-reconnect in settings
 
-### Desktop window does not open
+### App window opens but looks blank or broken
 
-- Confirm the local port is not already in use
-- On macOS, prefer launching the generated `.app` bundle instead of the raw binary
-- Try a different port with `--web-port`
-
-## Known Limitations
-
-### Linux Support
-
-Currently, the connector **does not compile on Linux** due to limitations in the TinyGo Bluetooth library. The SquareGolf device requires BLE characteristic writes with acknowledgment (`Write` method), but the TinyGo library on Linux only exposes `WriteWithoutResponse` via BlueZ.
-
-**Status**: An untested implementation exists in [TinyGo Bluetooth PR #205](https://github.com/tinygo-org/bluetooth/pull/205) that adds the required `Write()` method for Linux. However, it needs testing on actual Linux hardware before it can be merged.
-
-**Workarounds**:
-- Use macOS or Windows for development and deployment
-- Use mock modes (`--mock=stub` or `--mock=simulate`) on Linux for testing without hardware
-
-**Future**: Once PR #205 is tested and merged (or an alternative solution is implemented), Linux support will be available. Testing on Linux hardware with a SquareGolf device would help move this forward.
+- Quit the app and open it again
+- Download the latest release from GitHub
+- If the problem continues, open an issue on GitHub
 
 ## License
 
