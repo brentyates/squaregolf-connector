@@ -57,10 +57,20 @@ jobs:
           ARCHIVE_PATH: ${{ steps.package.outputs.archive }}
         shell: bash
         run: |
+          RELEASE_FLAGS=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            RELEASE_FLAGS+=(--prerelease)
+          fi
+
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
+              "${RELEASE_FLAGS[@]}" \
               --generate-notes \
               --title "$RELEASE_TAG"
+          fi
+
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            gh release edit "$RELEASE_TAG" --prerelease
           fi
 
           gh release upload "$RELEASE_TAG" "$ARCHIVE_PATH" --clobber
