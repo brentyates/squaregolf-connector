@@ -47,7 +47,7 @@ jobs:
         id: package
         shell: bash
         run: |
-          ARCHIVE_PATH="$(./scripts/package-macos-release.sh "${{ steps.release.outputs.tag }}")"
+          ARCHIVE_PATH="$(./scripts/package-macos-release.sh "${{ steps.release.outputs.tag }}" | tail -n 1)"
           echo "archive=$ARCHIVE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub release
