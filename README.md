@@ -4,7 +4,7 @@ An unofficial launch monitor connector for SquareGolf devices with GSPro integra
 
 ## Download And Run (macOS)
 
-1. Open the [latest release](https://github.com/byates/squaregolf-connector/releases/latest).
+1. Open the [latest release](https://github.com/brentyates/squaregolf-connector/releases/latest).
 2. Download the macOS zip file: `SquareGolf-Connector-<version>-macOS.zip`.
 3. Unzip it.
 4. Drag `SquareGolf Connector.app` into `Applications` if you want.
