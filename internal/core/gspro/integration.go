@@ -71,22 +71,8 @@ func (g *Integration) SetError(err error) {
 }
 
 func (g *Integration) OnConnected() {
-	// Send initial ready message to announce ourselves to GSPconnect
-	initMessage := ShotData{
-		DeviceID:   "CustomLaunchMonitor",
-		Units:      "Yards",
-		APIversion: "1",
-		ShotNumber: 0,
-		ShotDataOptions: ShotOptions{
-			ContainsBallData:          false,
-			ContainsClubData:          false,
-			LaunchMonitorIsReady:      true,
-			LaunchMonitorBallDetected: false,
-		},
-	}
-	if err := g.sendData(initMessage); err != nil {
-		log.Printf("Error sending init message to GSPro: %v", err)
-	}
+	g.shotNumber = 0
+	g.lastShotNumber = 0
 }
 
 func (g *Integration) OnDisconnected() {
@@ -123,7 +109,6 @@ func (g *Integration) handleGSProReadyMessage() {
 	err := g.launchMonitor.ActivateBallDetection()
 	if err != nil {
 		log.Printf("Failed to activate ball detection: %v", err)
-		return
 	}
 }
 
