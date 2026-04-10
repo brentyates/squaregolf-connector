@@ -95,6 +95,9 @@ export class ShotMonitor {
         this.updateMetricValue('metricClubPath', clubData?.path, '°', true, clubData?.isPathValid, 'metricItemClubPath');
         this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', true, clubData?.isFaceAngleValid, 'metricItemFaceAngle');
         this.updateMetricValue('metricDynamicLoft', clubData?.dynamicLoft, '°', false, clubData?.isDynamicLoftValid, 'metricItemDynamicLoft');
+        this.updateMetricValue('metricClubSpeed', clubData?.clubSpeed, '', false, clubData?.isClubSpeedValid, 'metricItemClubSpeed');
+        this.updateMetricValue('metricSmashFactor', clubData?.smashFactor, '', false, clubData?.isSmashFactorValid, 'metricItemSmashFactor');
+        this.updateMetricValue('metricImpactH', clubData?.impactHorizontal, '°', true, clubData?.isImpactHorizontalValid, 'metricItemImpactH');
     }
 
     updateMetricValue(elementId, value, unit, showSign = false, isValid = true, containerId = null) {

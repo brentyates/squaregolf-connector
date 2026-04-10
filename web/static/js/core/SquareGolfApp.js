@@ -492,6 +492,8 @@ export class SquareGolfApp {
     }
 
     updateVersionDisplay(status) {
+        const modelNames = { home: 'Home', omni: 'Omni', unknown: null };
+        this.setTextContent('deviceModel', modelNames[status.deviceType] ?? null);
         this.setTextContent('firmwareVersion', status.firmwareVersion !== null ? status.firmwareVersion : null);
         this.setTextContent('launcherVersion', status.launcherVersion !== null ? status.launcherVersion : null);
         this.setTextContent('mmiVersion', status.mmiVersion !== null ? status.mmiVersion : null);
