@@ -1,33 +1,49 @@
 /* Device Unified Page Styles - GSPro-inspired */
 
-/* Device Header - Connection Row */
+/* Device Header - Sticky Connection + Details Bar */
 .device-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: var(--spacing-lg) var(--spacing-xl);
-    background: var(--bg-card-strong);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: var(--spacing-xl);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    backdrop-filter: blur(18px);
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: rgba(239, 230, 215, 0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    margin: calc(-1 * var(--spacing-xl)) calc(-1 * var(--spacing-xl)) var(--spacing-xl);
 }
 
 .device-connection-status {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.device-connection-status .connection-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(148, 163, 184, 0.1);
+    flex-shrink: 0;
 }
 
 .device-connection-status .material-icons {
-    font-size: var(--icon-xl);
-    opacity: 0.9;
+    font-size: 1.25rem;
     font-variation-settings:
         "FILL" 0,
         "wght" 500,
         "GRAD" 0,
-        "opsz" 28;
+        "opsz" 20;
+}
+
+.device-connection-status.connected .connection-icon {
+    background: rgba(95, 141, 78, 0.15);
 }
 
 .device-connection-status.connected .material-icons {
@@ -36,11 +52,15 @@
         "FILL" 1,
         "wght" 600,
         "GRAD" 0,
-        "opsz" 28;
+        "opsz" 20;
 }
 
 .device-connection-status.disconnected .material-icons {
     color: var(--text-muted);
+}
+
+.device-connection-status.connecting .connection-icon {
+    background: rgba(183, 121, 31, 0.15);
 }
 
 .device-connection-status.connecting .material-icons {
@@ -50,7 +70,11 @@
         "FILL" 1,
         "wght" 600,
         "GRAD" 0,
-        "opsz" 28;
+        "opsz" 20;
+}
+
+.device-connection-status.error .connection-icon {
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .device-connection-status.error .material-icons {
@@ -59,7 +83,7 @@
         "FILL" 1,
         "wght" 600,
         "GRAD" 0,
-        "opsz" 28;
+        "opsz" 20;
 }
 
 @keyframes pulse {
@@ -68,146 +92,318 @@
 }
 
 .device-status-text {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
     font-family: var(--font-family-display);
     font-weight: var(--weight-bold);
+    font-size: 1rem;
     color: var(--text-primary);
     letter-spacing: -0.02em;
 }
 
+.device-connection-status.connected .device-status-text::after {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
 .helper-text.compact {
     margin: 0;
-    font-size: var(--font-xs);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
 }
 
-.device-info-inline {
+.device-header-separator {
+    width: 1px;
+    height: 2rem;
+    background: rgba(148, 163, 184, 0.2);
+    flex-shrink: 0;
+}
+
+.detail-blocks-inline {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xl);
-    color: var(--text-secondary);
-    font-size: var(--font-sm);
+    gap: var(--spacing-sm);
+    flex: 1;
+    min-width: 0;
 }
 
-.device-info-inline .device-name {
-    font-family: var(--font-family-mono);
+.detail-chip {
+    padding: 0.2rem 0.75rem;
+    background: rgba(253, 241, 236, 0.6);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.detail-chip-label {
+    display: block;
+    font-size: 8px;
     font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-400);
 }
 
-.device-info-inline .battery {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
+.detail-chip-value {
+    display: block;
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
 }
 
-.device-info-inline .battery .material-icons {
-    font-size: var(--icon-sm);
+.detail-chip-status.status-done {
+    background: rgba(95, 141, 78, 0.1);
+    border-color: rgba(95, 141, 78, 0.2);
+}
+
+.detail-chip-status.status-done .detail-chip-label {
+    color: var(--color-success);
+}
+
+.detail-chip-status.status-done .detail-chip-value {
+    color: var(--color-success);
+    text-transform: uppercase;
 }
 
 .connection-actions {
     display: flex;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
     align-items: center;
+    flex-shrink: 0;
 }
 
-.device-details-card {
-    margin-bottom: var(--spacing-xl);
+.connection-actions .battery {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: var(--weight-bold);
 }
 
-.telemetry-card {
-    margin-bottom: calc(var(--spacing-xl) + 8rem);
+.connection-actions .battery .material-icons {
+    font-size: 1rem;
 }
 
-.telemetry-grid {
+.connection-actions .btn {
+    font-size: 10px;
+    font-weight: var(--weight-black);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-md);
+}
+
+.connection-actions .btn-secondary {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+}
+
+/* Section Label Rows (Stitch-inspired) */
+.section-label-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: 0 var(--spacing-xs);
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-label-text {
+    font-size: 10px;
+    font-weight: var(--weight-black);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gray-400);
+    white-space: nowrap;
+}
+
+.section-label-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+
+/* Shot Diagnostics Section */
+.diagnostics-section {
+    margin-bottom: calc(var(--spacing-xl) + 4rem);
+}
+
+.diagnostics-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--spacing-lg);
 }
 
-.telemetry-panel {
-    border: 1px solid rgba(148, 163, 184, 0.14);
+.diag-panel {
     border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(15,23,42,0.06));
+    background: var(--bg-card);
     padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
 }
 
-.telemetry-panel-header {
+.diag-header {
     display: flex;
     justify-content: space-between;
-    gap: var(--spacing-md);
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: var(--spacing-md);
 }
 
-.telemetry-panel-header h4 {
-    margin: 0;
+.diag-category {
+    display: block;
+    font-size: 9px;
+    font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gray-400);
 }
 
-.telemetry-badge {
+.diag-title {
+    margin: 0;
+    font-size: var(--font-md);
+    font-weight: var(--weight-bold);
+}
+
+.diag-badge {
     display: inline-flex;
     align-items: center;
+    gap: 0.3rem;
     border-radius: 999px;
-    padding: 0.35rem 0.7rem;
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    color: var(--text-secondary);
-    font-size: var(--font-xs);
-    text-align: right;
-}
-
-.telemetry-grid-mini {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--spacing-sm);
-}
-
-.telemetry-field {
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    background: rgba(15, 23, 42, 0.38);
-    border: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.telemetry-label {
-    display: block;
-    margin-bottom: 0.2rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(123, 104, 88, 0.08);
     color: var(--text-muted);
-    font-size: var(--font-xs);
+    font-size: 10px;
+    font-weight: var(--weight-bold);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
 }
 
-.telemetry-value {
+.diag-badge.valid {
+    background: rgba(95, 141, 78, 0.1);
+    color: var(--color-success);
+}
+
+.diag-badge.invalid {
+    background: rgba(199, 104, 52, 0.1);
+    color: #c76834;
+}
+
+.diag-svg-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md) 0;
+    min-height: 180px;
+}
+
+.diag-svg-container svg {
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+}
+
+.diag-values {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.diag-value-item {
+    flex: 1;
+    text-align: center;
+}
+
+.diag-value-label {
+    display: block;
+    font-size: 9px;
+    font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-400);
+    margin-bottom: 2px;
+}
+
+.diag-value-number {
     font-family: var(--font-family-mono);
-    font-size: var(--font-sm);
+    font-size: var(--font-md);
+    font-weight: var(--weight-bold);
     color: var(--text-primary);
 }
 
-.telemetry-value.telemetry-valid {
-    color: #d6f8cf;
+.diag-value-number.valid {
+    color: var(--color-success);
 }
 
-.telemetry-value.telemetry-invalid {
-    color: #ffd0b5;
+.diag-value-number.invalid {
+    color: #c76834;
 }
 
-.telemetry-value.telemetry-waiting {
-    color: var(--text-muted);
+.diagnostics-grid.has-impact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.telemetry-raw {
+.diag-efficiency {
     margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
 }
 
-.telemetry-raw-value {
+.efficiency-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.efficiency-item {
+    text-align: center;
+}
+
+.efficiency-label {
     display: block;
-    margin-top: 0.3rem;
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-    background: rgba(2, 6, 23, 0.7);
-    color: #dbeafe;
+    font-size: 9px;
+    font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-400);
+    margin-bottom: 2px;
+}
+
+.efficiency-value {
     font-family: var(--font-family-mono);
-    font-size: var(--font-xs);
-    word-break: break-all;
-    white-space: pre-wrap;
+    font-size: var(--font-md);
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
+}
+
+.efficiency-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    color: var(--gray-400);
+}
+
+.efficiency-arrow .material-icons {
+    font-size: 14px;
+}
+
+.efficiency-smash {
+    font-family: var(--font-family-mono);
+    font-size: 11px;
+    font-weight: var(--weight-bold);
+    color: var(--text-muted);
 }
 
 .device-header .device-connection-status {
@@ -245,62 +441,35 @@
         "opsz" 22;
 }
 
-/* Ball Position Overlay - GSPro style floating */
-.ball-overlay {
-    position: fixed;
-    bottom: calc(var(--metrics-bar-height) + var(--device-chrome-gap));
-    left: calc(var(--sidebar-width) + var(--spacing-xl));
-    width: 160px;
-    height: 190px;
-    background:
-        linear-gradient(180deg, rgba(183, 121, 31, 0.12), transparent 34%),
-        linear-gradient(180deg, rgba(95, 141, 78, 0.06), transparent 60%),
-        rgba(23, 18, 15, 0.94);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: var(--radius-lg);
-    z-index: 50;
-    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.32);
-    overflow: hidden;
-    padding: 10px;
-    margin: 0;
-    backdrop-filter: blur(18px);
+/* Ball Position - Sidebar bottom */
+.sidebar-ball-position {
+    margin-top: auto;
+    padding: var(--spacing-md);
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-.ball-overlay .ball-position-svg,
-.ball-overlay svg.ball-position-svg {
+.sidebar-ball-position .ball-position-svg {
     width: 100%;
-    height: 100%;
-    max-width: none;
-    background: transparent;
-    padding: 0;
-    box-shadow: none;
-    border-radius: 0;
-    transition: none;
+    height: auto;
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.2);
 }
 
-.ball-overlay .ball-position-svg:hover,
-.ball-overlay svg.ball-position-svg:hover {
-    transform: none;
-    box-shadow: none;
+.sidebar-ball-position.no-ball {
+    border-top-color: rgba(249, 115, 22, 0.42);
 }
 
-.ball-overlay.no-ball {
-    border-color: rgba(249, 115, 22, 0.42);
-}
-
-/* Shot Metrics Bar - GSPro style fixed bottom */
+/* Shot Metrics Bar - fixed bottom, single row */
 .metrics-bar {
     position: fixed;
     bottom: 0;
     left: var(--sidebar-width);
     right: 0;
-    background:
-        linear-gradient(180deg, rgba(183, 121, 31, 0.08), transparent 58%),
-        linear-gradient(180deg, rgba(95, 141, 78, 0.04), transparent 100%),
-        rgba(23, 18, 15, 0.95);
-    border-top: 1px solid rgba(195, 177, 150, 0.16);
+    height: 5rem;
+    background: rgba(23, 18, 15, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
-    flex-direction: column;
+    align-items: center;
     z-index: 100;
     backdrop-filter: blur(18px);
 }
@@ -309,70 +478,61 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: var(--spacing-xs) var(--spacing-lg);
-    gap: var(--spacing-sm);
-    border-bottom: 1px solid rgba(195, 177, 150, 0.08);
+    width: 100%;
+    padding: 0 var(--spacing-xl);
+    gap: var(--spacing-md);
 }
 
-.metrics-bar .metrics-row:last-child {
-    border-bottom: none;
+.metrics-separator {
+    width: 1px;
+    height: 2.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    margin: 0 var(--spacing-sm);
 }
 
 .metrics-bar .row-label {
-    font-size: var(--font-xs);
-    font-weight: var(--weight-bold);
-    color: rgba(241, 228, 211, 0.42);
-    width: 40px;
-    min-width: 40px;
+    font-size: 10px;
+    font-weight: var(--weight-black);
+    color: #b7791f;
     text-transform: uppercase;
     letter-spacing: 0.16em;
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    flex-shrink: 0;
 }
 
 .metrics-bar .metric-item {
     flex: 1;
     text-align: center;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: var(--spacing-xs) 0;
     min-width: 0;
-    border-radius: var(--radius-sm);
-    transition: background-color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.metrics-bar .metrics-row:last-child .metric-item:empty {
-    visibility: hidden;
 }
 
 .metrics-bar .metric-label {
-    font-size: 10px;
-    color: rgba(241, 228, 211, 0.48);
+    font-size: 8px;
+    color: #8a817c;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     display: block;
     margin-bottom: 2px;
 }
 
 .metrics-bar .metric-value {
     font-family: var(--font-family-mono);
-    font-size: 1.05rem;
+    font-size: var(--font-sm);
     font-weight: var(--weight-bold);
-    color: #fff7ee;
+    color: #efe6d7;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
 }
 
-.metrics-bar .metric-item.metric-valid {
-    background: rgba(34, 197, 94, 0.08);
-}
-
-.metrics-bar .metric-item.metric-invalid {
-    background: rgba(249, 115, 22, 0.12);
-}
-
 .metrics-bar .metric-item.metric-invalid .metric-value {
-    color: #ffd6bf;
+    color: #c76834;
 }
 
 @media (max-width: 1100px) {
-    .telemetry-grid {
+    .diagnostics-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -474,29 +634,26 @@
 @media (max-width: var(--breakpoint-md)) {
     .device-header {
         flex-direction: column;
-        gap: var(--spacing-lg);
+        gap: var(--spacing-md);
         align-items: stretch;
+        padding: var(--spacing-md) var(--spacing-md);
+    }
+
+    .device-header-separator {
+        display: none;
+    }
+
+    .detail-blocks-inline {
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .device-connection-status {
         justify-content: center;
     }
 
-    .device-info-inline {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-
     .connection-actions {
         justify-content: center;
-    }
-
-    .ball-overlay {
-        left: var(--spacing-lg);
-        bottom: calc(var(--metrics-bar-height-mobile) + var(--device-chrome-gap));
-        width: 120px;
-        height: 140px;
-        padding: 8px;
     }
 
     .metrics-bar {
@@ -504,24 +661,16 @@
     }
 
     .metrics-bar .metrics-row {
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-
-    .metrics-bar .row-label {
-        width: 30px;
-        font-size: 9px;
-    }
-
-    .metrics-bar .metric-item {
-        padding: var(--spacing-xs);
+        padding: 0 var(--spacing-sm);
+        gap: var(--spacing-xs);
     }
 
     .metrics-bar .metric-label {
-        font-size: 8px;
+        font-size: 7px;
     }
 
     .metrics-bar .metric-value {
-        font-size: var(--font-sm);
+        font-size: var(--font-xs);
     }
 
     .alignment-panel {

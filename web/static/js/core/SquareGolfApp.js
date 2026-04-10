@@ -41,6 +41,7 @@ export class SquareGolfApp {
         this.alignmentPanelClosing = false;
         this.alignmentInFlight = false;
         this.pendingDeviceAction = null;
+        this.deviceConnected = false;
         this.alignmentCloseDelayMs = 300;
 
         this.init();
@@ -62,6 +63,7 @@ export class SquareGolfApp {
         this.loadFeatures().then(() => {
             this.setupEventListeners();
             this.setupEventBusListeners();
+            this.setHidden(this.$('statusBar'), true);
             this.ws.connect();
             this.settingsManager.load();
         });
@@ -143,8 +145,11 @@ export class SquareGolfApp {
                 this.closeAlignmentPanel();
             }
         });
-        this.eventBus.on('screen:changed', () => {
-            // No auto-start logic needed - alignment is now triggered by button
+        this.eventBus.on('screen:changed', (screenName) => {
+            const statusBar = this.$('statusBar');
+            if (statusBar) {
+                this.setHidden(statusBar, screenName === 'device');
+            }
         });
 
         // Settings events
@@ -176,13 +181,14 @@ export class SquareGolfApp {
         this.bind('retryAlignmentBtn', 'click', () => this.retryAlignment());
 
         // Device controls
-        this.bind('connectBtn', 'click', () => {
-            this.pendingDeviceAction = 'manual-connect';
-            this.deviceService.connect('');
-        });
-        this.bind('disconnectBtn', 'click', () => {
-            this.pendingDeviceAction = 'manual-disconnect';
-            this.deviceService.disconnect();
+        this.bind('connectDisconnectBtn', 'click', () => {
+            if (this.deviceConnected) {
+                this.pendingDeviceAction = 'manual-disconnect';
+                this.deviceService.disconnect();
+            } else {
+                this.pendingDeviceAction = 'manual-connect';
+                this.deviceService.connect('');
+            }
         });
 
         // GSPro controls
@@ -357,17 +363,24 @@ export class SquareGolfApp {
     }
 
     updateDeviceControls({ canConnect, canDisconnect, showCalibrate, showDeviceInfo, errorMessage = '' }) {
-        const connectBtn = this.$('connectBtn');
-        const disconnectBtn = this.$('disconnectBtn');
+        const btn = this.$('connectDisconnectBtn');
         const calibrateBtn = this.$('calibrateBtn');
-        const deviceInfoInline = this.$('deviceInfoInline');
+        const deviceDetailsInline = this.$('deviceDetailsInline');
+        const deviceHeaderSeparator = this.$('deviceHeaderSeparator');
+        const batteryInline = this.$('batteryInline');
         const errorElement = this.$('deviceError');
 
-        if (connectBtn) connectBtn.disabled = !canConnect;
-        if (disconnectBtn) disconnectBtn.disabled = !canDisconnect;
+        this.deviceConnected = canDisconnect;
+
+        if (btn) {
+            btn.textContent = canDisconnect ? 'Disconnect' : 'Connect';
+            btn.disabled = !canConnect && !canDisconnect;
+        }
 
         this.setHidden(calibrateBtn, !showCalibrate);
-        this.setHidden(deviceInfoInline, !showDeviceInfo);
+        this.setHidden(deviceDetailsInline, !showDeviceInfo);
+        this.setHidden(deviceHeaderSeparator, !showDeviceInfo);
+        this.setHidden(batteryInline, !showDeviceInfo);
 
         if (errorElement) {
             if (errorMessage) {
@@ -463,31 +476,21 @@ export class SquareGolfApp {
         if (!batteryElement || !batteryIconElement) return;
 
         if (typeof level !== 'number') {
-            batteryIconElement.textContent = '—';
-            batteryIconElement.className = 'battery-icon';
+            batteryIconElement.textContent = 'battery_unknown';
             batteryElement.textContent = '—';
             return;
         }
 
-        let icon = '';
-        let className = '';
-
         if (level >= 80) {
-            icon = '🔋';
-            className = 'battery-high';
+            batteryIconElement.textContent = 'battery_full';
         } else if (level >= 50) {
-            icon = '🔋';
-            className = 'battery-medium';
+            batteryIconElement.textContent = 'battery_3_bar';
         } else if (level >= 20) {
-            icon = '⚠️';
-            className = 'battery-medium';
+            batteryIconElement.textContent = 'battery_2_bar';
         } else {
-            icon = '🪫';
-            className = 'battery-low';
+            batteryIconElement.textContent = 'battery_1_bar';
         }
 
-        batteryIconElement.textContent = icon;
-        batteryIconElement.className = `battery-icon ${className}`;
         batteryElement.textContent = `${level}%`;
     }
 
@@ -552,7 +555,6 @@ export class SquareGolfApp {
                 break;
         }
 
-        this.setTextContent('connectedDeviceName', status.deviceName || 'SquareGolf');
         this.updateBatteryDisplay(status.batteryLevel);
         this.updateVersionDisplay(status);
         this.updateOptionalDeviceInfo({
@@ -638,31 +640,31 @@ export class SquareGolfApp {
                 stateClass: 'connected',
                 icon: 'bluetooth_connected',
                 text: 'Connected',
-                hint: status.deviceName ? `Connected to ${status.deviceName}.` : 'Device ready.'
+                hint: status.deviceName ? `Ready • ${status.deviceName}` : 'Device ready'
             },
             scanning: {
                 stateClass: 'connecting',
                 icon: 'bluetooth_searching',
                 text: 'Scanning',
-                hint: isManualAction ? 'Looking for a launch monitor...' : 'Auto-connect is looking for a launch monitor in the background.'
+                hint: isManualAction ? 'Searching...' : 'Auto-scanning'
             },
             connecting: {
                 stateClass: 'connecting',
                 icon: 'sync',
                 text: 'Connecting',
-                hint: isManualAction ? 'Opening a device connection...' : 'Auto-connect is opening the device connection in the background.'
+                hint: isManualAction ? 'Opening connection...' : 'Auto-connecting'
             },
             error: {
                 stateClass: 'error',
                 icon: 'error',
-                text: 'Connection error',
-                hint: status.lastError || 'The last connection attempt failed.'
+                text: 'Error',
+                hint: status.lastError || 'Connection failed'
             },
             disconnected: {
                 stateClass: 'disconnected',
                 icon: 'bluetooth_disabled',
                 text: 'Disconnected',
-                hint: 'Auto-connect runs in the background.'
+                hint: 'Auto-connect active'
             }
         };
         const copy = stateCopy[status.connectionStatus] || stateCopy.disconnected;

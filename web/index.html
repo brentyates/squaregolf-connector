@@ -35,6 +35,21 @@
                     Settings
                 </button>
             </div>
+
+            <div class="sidebar-ball-position" id="ballOverlay">
+                <svg class="ball-position-svg" viewBox="0 0 140 170" id="ballPositionSvg">
+                    <defs>
+                        <pattern id="gridSmall" width="28" height="28" patternUnits="userSpaceOnUse">
+                            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
+                        </pattern>
+                    </defs>
+                    <rect width="140" height="170" fill="url(#gridSmall)" />
+                    <line x1="70" y1="0" x2="70" y2="170" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                    <line x1="0" y1="85" x2="140" y2="85" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
+                    <rect x="43" y="58" width="54" height="54" fill="none" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,3"/>
+                    <circle id="ballDot" class="hidden" cx="70" cy="85" r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/>
+                </svg>
+            </div>
         </nav>
 
         <!-- Main Content -->
@@ -71,27 +86,54 @@
 
             <!-- Device Screen (Unified) -->
             <div class="screen active" id="deviceScreen">
-                <!-- Connection Header -->
+                <!-- Connection + Device Details (unified header) -->
                 <div class="device-header">
                     <div class="device-connection-status disconnected" id="deviceConnectionStatus">
-                        <span class="material-icons" aria-hidden="true">bluetooth_disabled</span>
+                        <div class="connection-icon">
+                            <span class="material-icons" aria-hidden="true">bluetooth_disabled</span>
+                        </div>
                         <div>
                             <div class="device-status-text" id="deviceConnectionText">Disconnected</div>
                             <div class="helper-text compact" id="deviceConnectionHint">Auto-connect runs in the background.</div>
                         </div>
                     </div>
-                    <div class="device-info-inline hidden" id="deviceInfoInline">
-                        <span class="device-name" id="connectedDeviceName"></span>
-                        <span class="battery" id="batteryInline">
-                            <span class="battery-indicator">
-                                <span class="battery-icon" id="batteryIcon">-</span>
-                                <span id="batteryLevel">-</span>
-                            </span>
-                        </span>
+                    <div class="device-header-separator hidden" id="deviceHeaderSeparator"></div>
+                    <div class="detail-blocks-inline hidden" id="deviceDetailsInline">
+                        <div class="detail-chip hidden" id="clubItem">
+                            <span class="detail-chip-label">Club</span>
+                            <span class="detail-chip-value" id="clubValue">-</span>
+                        </div>
+                        <div class="detail-chip hidden" id="handednessItem">
+                            <span class="detail-chip-label">Hand</span>
+                            <span class="detail-chip-value" id="handednessValue">-</span>
+                        </div>
+                        <div class="detail-chip">
+                            <span class="detail-chip-label">Model</span>
+                            <span class="detail-chip-value" id="deviceModel">-</span>
+                        </div>
+                        <div class="detail-chip">
+                            <span class="detail-chip-label">Firmware</span>
+                            <span class="detail-chip-value" id="firmwareVersion">-</span>
+                        </div>
+                        <div class="detail-chip">
+                            <span class="detail-chip-label">Launcher</span>
+                            <span class="detail-chip-value" id="launcherVersion">-</span>
+                        </div>
+                        <div class="detail-chip">
+                            <span class="detail-chip-label">MMI</span>
+                            <span class="detail-chip-value" id="mmiVersion">-</span>
+                        </div>
+                        <div class="detail-chip detail-chip-status" id="lmStatusBlock">
+                            <span class="detail-chip-label">LM Status</span>
+                            <span class="detail-chip-value" id="launchMonitorStatus">-</span>
+                        </div>
                     </div>
                     <div class="connection-actions">
-                        <button class="btn btn-primary" id="connectBtn">Connect</button>
-                        <button class="btn btn-secondary" id="disconnectBtn" disabled>Disconnect</button>
+                        <span class="battery hidden" id="batteryInline">
+                            <span class="material-icons" id="batteryIcon">battery_full</span>
+                            <span id="batteryLevel">-</span>
+                        </span>
+                        <button class="btn btn-secondary" id="connectDisconnectBtn">Connect</button>
                         <button class="btn-icon hidden" id="calibrateBtn" title="Calibrate Alignment">
                             <span class="material-icons">tune</span>
                         </button>
@@ -99,154 +141,198 @@
                 </div>
                 <div class="error-message hidden" id="deviceError"></div>
 
-                <div class="card device-details-card">
-                    <div class="card-header">
-                        <h3>Device Details</h3>
+                <section class="diagnostics-section">
+                    <div class="section-label-row">
+                        <span class="section-label-text">Shot Diagnostics</span>
+                        <span class="section-label-line"></span>
                     </div>
-                    <div class="card-content">
-                        <div class="info-grid">
-                            <div class="info-item hidden" id="clubItem">
-                                <span class="info-label">Club</span>
-                                <span class="info-value" id="clubValue">-</span>
+                    <div class="diagnostics-grid">
+                        <!-- Club Path & Face Angle (top-down) -->
+                        <div class="diag-panel">
+                            <div class="diag-header">
+                                <div>
+                                    <span class="diag-category">Overhead</span>
+                                    <h4 class="diag-title">Club Path & Face</h4>
+                                </div>
+                                <span class="diag-badge" id="clubDiagBadge">Waiting</span>
                             </div>
-                            <div class="info-item hidden" id="handednessItem">
-                                <span class="info-label">Handedness</span>
-                                <span class="info-value" id="handednessValue">-</span>
+                            <div class="diag-svg-container">
+                                <svg viewBox="0 0 200 200" id="clubPathSvg">
+                                    <!-- Target line (straight ahead) -->
+                                    <line x1="100" y1="190" x2="100" y2="10" stroke="var(--gray-300)" stroke-width="1" stroke-dasharray="4 4"/>
+                                    <!-- Club path line -->
+                                    <line id="clubPathLine" x1="100" y1="170" x2="100" y2="30" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+                                    <!-- Club face indicator (short line perpendicular to path at impact) -->
+                                    <line id="clubFaceLine" x1="80" y1="100" x2="120" y2="100" stroke="var(--text-muted)" stroke-width="4" stroke-linecap="round"/>
+                                    <!-- Impact point -->
+                                    <circle cx="100" cy="100" r="3.5" fill="var(--color-primary)"/>
+                                    <!-- Direction labels -->
+                                    <text x="10" y="100" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)">L</text>
+                                    <text x="188" y="100" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)">R</text>
+                                    <text x="95" y="8" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)">↑</text>
+                                </svg>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Model</span>
-                                <span class="info-value" id="deviceModel">-</span>
+                            <div class="diag-values">
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Path</span>
+                                    <span class="diag-value-number" id="diagClubPath">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Face</span>
+                                    <span class="diag-value-number" id="diagFaceAngle">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Face to Path</span>
+                                    <span class="diag-value-number" id="diagFaceToPath">-</span>
+                                </div>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Firmware</span>
-                                <span class="info-value" id="firmwareVersion">-</span>
+                            <div class="diag-efficiency omni-only" style="display:none" id="diagEfficiency">
+                                <div class="efficiency-row">
+                                    <div class="efficiency-item">
+                                        <span class="efficiency-label">Club</span>
+                                        <span class="efficiency-value" id="diagClubSpeed">-</span>
+                                    </div>
+                                    <div class="efficiency-arrow">
+                                        <span class="material-icons">arrow_forward</span>
+                                        <span class="efficiency-smash" id="diagSmashFactor">-</span>
+                                    </div>
+                                    <div class="efficiency-item">
+                                        <span class="efficiency-label">Ball</span>
+                                        <span class="efficiency-value" id="diagBallSpeed">-</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Launcher</span>
-                                <span class="info-value" id="launcherVersion">-</span>
+                        </div>
+
+                        <!-- Launch & Attack Angle (side view) -->
+                        <div class="diag-panel">
+                            <div class="diag-header">
+                                <div>
+                                    <span class="diag-category">Side Profile</span>
+                                    <h4 class="diag-title">Launch & Attack</h4>
+                                </div>
+                                <span class="diag-badge" id="launchDiagBadge">Waiting</span>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">MMI</span>
-                                <span class="info-value" id="mmiVersion">-</span>
+                            <div class="diag-svg-container">
+                                <svg viewBox="0 0 300 160" id="launchAngleSvg">
+                                    <!-- Ground plane -->
+                                    <line x1="0" y1="130" x2="300" y2="130" stroke="var(--gray-300)" stroke-width="1"/>
+                                    <!-- Ball at impact -->
+                                    <circle cx="40" cy="130" r="4" fill="var(--text-primary)"/>
+                                    <!-- Attack angle vector (into ball from right) -->
+                                    <line id="attackAngleLine" x1="0" y1="130" x2="40" y2="130" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+                                    <!-- Launch angle vector (ball leaving) -->
+                                    <line id="launchAngleLine" x1="40" y1="130" x2="160" y2="130" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round"/>
+                                    <!-- Trajectory arc -->
+                                    <path id="trajectoryArc" d="" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+                                    <!-- Angle arc indicators -->
+                                    <path id="launchArc" d="" fill="none" stroke="var(--text-muted)" stroke-width="1.5"/>
+                                    <path id="attackArc" d="" fill="none" stroke="var(--text-muted)" stroke-width="1"/>
+                                </svg>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">LM Status</span>
-                                <span class="info-value" id="launchMonitorStatus">-</span>
+                            <div class="diag-values">
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Launch</span>
+                                    <span class="diag-value-number" id="diagLaunchAngle">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Attack</span>
+                                    <span class="diag-value-number" id="diagAttackAngle">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Dyn. Loft</span>
+                                    <span class="diag-value-number" id="diagDynamicLoft">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Spin Axis (clock face) -->
+                        <div class="diag-panel">
+                            <div class="diag-header">
+                                <div>
+                                    <span class="diag-category">Rotation</span>
+                                    <h4 class="diag-title">Spin Axis</h4>
+                                </div>
+                                <span class="diag-badge" id="spinDiagBadge">Waiting</span>
+                            </div>
+                            <div class="diag-svg-container">
+                                <svg viewBox="0 0 200 200" id="spinAxisSvg">
+                                    <!-- Outer circle -->
+                                    <circle cx="100" cy="100" r="80" fill="none" stroke="var(--gray-300)" stroke-width="1"/>
+                                    <!-- Inner circle -->
+                                    <circle cx="100" cy="100" r="60" fill="none" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="2 2"/>
+                                    <!-- Crosshairs -->
+                                    <line x1="100" y1="15" x2="100" y2="185" stroke="var(--gray-300)" stroke-width="0.5"/>
+                                    <line x1="15" y1="100" x2="185" y2="100" stroke="var(--gray-300)" stroke-width="0.5"/>
+                                    <!-- Clock markers -->
+                                    <text x="96" y="14" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">0°</text>
+                                    <text x="185" y="104" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">R</text>
+                                    <text x="5" y="104" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">L</text>
+                                    <!-- Spin axis tilt line -->
+                                    <line id="spinAxisLine" x1="100" y1="20" x2="100" y2="180" stroke="var(--text-muted)" stroke-width="3" stroke-linecap="round"/>
+                                    <!-- Center dot -->
+                                    <circle cx="100" cy="100" r="4" fill="var(--color-primary)"/>
+                                </svg>
+                            </div>
+                            <div class="diag-values">
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Axis</span>
+                                    <span class="diag-value-number" id="diagSpinAxis">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Total</span>
+                                    <span class="diag-value-number" id="diagTotalSpin">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Back / Side</span>
+                                    <span class="diag-value-number" id="diagBackSideSpin">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Face Impact Location (Omni only) -->
+                        <div class="diag-panel omni-only" style="display:none" id="diagImpactPanel">
+                            <div class="diag-header">
+                                <div>
+                                    <span class="diag-category">Strike</span>
+                                    <h4 class="diag-title">Face Impact</h4>
+                                </div>
+                                <span class="diag-badge" id="impactDiagBadge">Waiting</span>
+                            </div>
+                            <div class="diag-svg-container">
+                                <svg viewBox="0 0 200 160" id="faceImpactSvg">
+                                    <!-- Club face outline (landscape - wider than tall) -->
+                                    <rect x="20" y="20" width="160" height="120" rx="16" ry="16" fill="none" stroke="var(--gray-300)" stroke-width="1.5"/>
+                                    <!-- Center crosshair -->
+                                    <line x1="100" y1="30" x2="100" y2="130" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="3 3"/>
+                                    <line x1="30" y1="80" x2="170" y2="80" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="3 3"/>
+                                    <!-- Sweet spot zone -->
+                                    <ellipse cx="100" cy="75" rx="30" ry="25" fill="none" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.6"/>
+                                    <!-- Impact dot -->
+                                    <circle id="impactDot" cx="100" cy="80" r="7" fill="var(--text-muted)" opacity="0.8"/>
+                                    <!-- Impact ring -->
+                                    <circle id="impactRing" cx="100" cy="80" r="12" fill="none" stroke="var(--text-muted)" stroke-width="1.5" opacity="0.4"/>
+                                    <!-- Labels: Heel left, Toe right (RH default), flipped by JS for LH -->
+                                    <text x="14" y="84" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)" text-anchor="middle">HEEL</text>
+                                    <text x="186" y="84" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)" text-anchor="middle">TOE</text>
+                                    <text x="100" y="14" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)" text-anchor="middle">HIGH</text>
+                                    <text x="100" y="154" font-size="8" fill="var(--gray-400)" font-family="var(--font-family-mono)" text-anchor="middle">LOW</text>
+                                </svg>
+                            </div>
+                            <div class="diag-values">
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Horizontal</span>
+                                    <span class="diag-value-number" id="diagImpactH">-</span>
+                                </div>
+                                <div class="diag-value-item">
+                                    <span class="diag-value-label">Vertical</span>
+                                    <span class="diag-value-number" id="diagImpactV">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <div class="card telemetry-card">
-                    <div class="card-header">
-                        <h3>Launch Monitor Telemetry</h3>
-                    </div>
-                    <div class="card-content telemetry-grid">
-                        <section class="telemetry-panel">
-                            <div class="telemetry-panel-header">
-                                <h4>Ball Packet</h4>
-                                <span class="telemetry-badge" id="ballTelemetrySummary">Waiting for shot</span>
-                            </div>
-                            <div class="telemetry-grid-mini" id="ballTelemetryFields">
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Speed</span>
-                                    <span class="telemetry-value" id="telemetryBallSpeed">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Launch</span>
-                                    <span class="telemetry-value" id="telemetryLaunchAngle">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Direction</span>
-                                    <span class="telemetry-value" id="telemetryDirection">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Total Spin</span>
-                                    <span class="telemetry-value" id="telemetryTotalSpin">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Spin Axis</span>
-                                    <span class="telemetry-value" id="telemetrySpinAxis">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Backspin</span>
-                                    <span class="telemetry-value" id="telemetryBackSpin">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Sidespin</span>
-                                    <span class="telemetry-value" id="telemetrySideSpin">-</span>
-                                </div>
-                            </div>
-                            <div class="telemetry-raw">
-                                <span class="telemetry-label">Raw Packet</span>
-                                <code class="telemetry-raw-value" id="telemetryBallRaw">-</code>
-                            </div>
-                        </section>
-
-                        <section class="telemetry-panel">
-                            <div class="telemetry-panel-header">
-                                <h4>Club Packet</h4>
-                                <span class="telemetry-badge" id="clubTelemetrySummary">Waiting for club data</span>
-                            </div>
-                            <div class="telemetry-grid-mini" id="clubTelemetryFields">
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Attack</span>
-                                    <span class="telemetry-value" id="telemetryAttackAngle">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Path</span>
-                                    <span class="telemetry-value" id="telemetryClubPath">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Face</span>
-                                    <span class="telemetry-value" id="telemetryFaceAngle">-</span>
-                                </div>
-                                <div class="telemetry-field">
-                                    <span class="telemetry-label">Dynamic Loft</span>
-                                    <span class="telemetry-value" id="telemetryDynamicLoft">-</span>
-                                </div>
-                                <div class="telemetry-field omni-only" style="display:none">
-                                    <span class="telemetry-label">Impact H</span>
-                                    <span class="telemetry-value" id="telemetryImpactH">-</span>
-                                </div>
-                                <div class="telemetry-field omni-only" style="display:none">
-                                    <span class="telemetry-label">Impact V</span>
-                                    <span class="telemetry-value" id="telemetryImpactV">-</span>
-                                </div>
-                                <div class="telemetry-field omni-only" style="display:none">
-                                    <span class="telemetry-label">Club Speed</span>
-                                    <span class="telemetry-value" id="telemetryClubSpeed">-</span>
-                                </div>
-                                <div class="telemetry-field omni-only" style="display:none">
-                                    <span class="telemetry-label">Smash Factor</span>
-                                    <span class="telemetry-value" id="telemetrySmashFactor">-</span>
-                                </div>
-                            </div>
-                            <div class="telemetry-raw">
-                                <span class="telemetry-label">Raw Packet</span>
-                                <code class="telemetry-raw-value" id="telemetryClubRaw">-</code>
-                            </div>
-                        </section>
-                    </div>
-                </div>
-                
-                <!-- Ball Position Overlay (floating) -->
-                <div class="ball-overlay" id="ballOverlay">
-                    <svg class="ball-position-svg" viewBox="0 0 140 170" id="ballPositionSvg">
-                        <defs>
-                            <pattern id="gridSmall" width="28" height="28" patternUnits="userSpaceOnUse">
-                                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#2a3f5f" stroke-width="0.5"/>
-                            </pattern>
-                        </defs>
-                        <rect width="140" height="170" fill="url(#gridSmall)" />
-                        <line x1="70" y1="0" x2="70" y2="170" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
-                        <line x1="0" y1="85" x2="140" y2="85" stroke="#64748b" stroke-width="0.5" stroke-dasharray="3,3"/>
-                        <rect x="43" y="58" width="54" height="54" fill="none" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,3"/>
-                        <circle id="ballDot" class="hidden" cx="70" cy="85" r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/>
-                    </svg>
-                </div>
-
-                <!-- Shot Metrics Bar (fixed bottom) -->
+                <!-- Shot Metrics Bar (fixed bottom, single row) -->
                 <div class="metrics-bar" id="metricsBar">
                     <div class="metrics-row">
                         <span class="row-label">BALL</span>
@@ -257,8 +343,7 @@
                         <div class="metric-item" id="metricItemBackSpin"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
                         <div class="metric-item" id="metricItemSideSpin"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
                         <div class="metric-item" id="metricItemSpinAxis"><span class="metric-label">Axis</span><span class="metric-value" id="metricSpinAxis">-</span></div>
-                    </div>
-                    <div class="metrics-row">
+                        <div class="metrics-separator"></div>
                         <span class="row-label">CLUB</span>
                         <div class="metric-item" id="metricItemAttackAngle"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
                         <div class="metric-item" id="metricItemClubPath"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>

@@ -34,6 +34,7 @@ type AppConfig struct {
 	InfiniteTeesIP       string
 	InfiniteTeesPort     int
 	EnableExternalCamera bool
+	SimulateOmni         bool
 }
 
 // Initialize the backend services (Bluetooth, state manager, etc.)
@@ -60,6 +61,7 @@ func initializeBackend(config AppConfig) (*core.StateManager, *core.BluetoothMan
 		simulatorConfig := core.SimulatorConfig{
 			BatteryDrainRate: 1,
 			ResponseDelay:    100 * time.Millisecond,
+			SimulateOmni:     config.SimulateOmni,
 		}
 		bleClient = core.NewSimulatorBluetoothClient(simulatorConfig)
 	} else {
@@ -333,6 +335,7 @@ func main() {
 	itIP := flag.String("it-ip", "127.0.0.1", "IP address of Infinite Tees server")
 	itPort := flag.Int("it-port", 999, "Port of Infinite Tees server")
 	enableExternalCamera := flag.Bool("enable-external-camera", false, "Enable external camera integration (experimental)")
+	simulateOmni := flag.Bool("omni", false, "Simulate an Omni device instead of Home (requires --mock simulate)")
 	flag.Parse()
 
 	// Load saved settings for defaults
@@ -371,6 +374,7 @@ func main() {
 		InfiniteTeesIP:       infiniteTeesIP,
 		InfiniteTeesPort:     infiniteTeesPort,
 		EnableExternalCamera: *enableExternalCamera,
+		SimulateOmni:         *simulateOmni,
 	}
 
 	// Initialize common backend components
