@@ -74,35 +74,40 @@ export class ShotMonitor {
 
     updateStatus(status) {
         this.updateBallPosition(status.ballPosition, status.ballDetected, status.ballReady);
+        this.updateTelemetry(status);
     }
 
     updateCurrentShot(ballData, clubData) {
         // Update ball metrics in the metrics bar
         // Backend field names: speed (m/s), launchAngle, horizontalAngle, totalSpin, spinAxis, backSpin, sideSpin
         const ballSpeedMPH = typeof ballData?.speed === 'number' ? ballData.speed * 2.237 : null;
-        this.updateMetricValue('metricBallSpeed', ballSpeedMPH, 'mph');
-        this.updateMetricValue('metricLaunchAngle', ballData?.launchAngle, '°');
-        this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', true);
-        this.updateMetricValue('metricBackSpin', ballData?.backSpin, 'rpm');
-        this.updateMetricValue('metricSideSpin', ballData?.sideSpin, 'rpm', true);
-        this.updateMetricValue('metricTotalSpin', ballData?.totalSpin, 'rpm');
-        this.updateMetricValue('metricSpinAxis', ballData?.spinAxis, '°');
+        this.updateMetricValue('metricBallSpeed', ballSpeedMPH, 'mph', false, ballData?.isBallSpeedValid, 'metricItemBallSpeed');
+        this.updateMetricValue('metricLaunchAngle', ballData?.launchAngle, '°', false, true, 'metricItemLaunchAngle');
+        this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', true, true, 'metricItemDirection');
+        this.updateMetricValue('metricBackSpin', ballData?.backSpin, 'rpm', false, ballData?.isBackSpinValid, 'metricItemBackSpin');
+        this.updateMetricValue('metricSideSpin', ballData?.sideSpin, 'rpm', true, ballData?.isSideSpinValid, 'metricItemSideSpin');
+        this.updateMetricValue('metricTotalSpin', ballData?.totalSpin, 'rpm', false, ballData?.isTotalSpinValid, 'metricItemTotalSpin');
+        this.updateMetricValue('metricSpinAxis', ballData?.spinAxis, '°', false, ballData?.isSpinAxisValid, 'metricItemSpinAxis');
 
         // Update club metrics in the metrics bar
         // Backend field names: path, angle, attackAngle, dynamicLoft
-        this.updateMetricValue('metricAttackAngle', clubData?.attackAngle, '°', true);
-        this.updateMetricValue('metricClubPath', clubData?.path, '°', true);
-        this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', true);
-        this.updateMetricValue('metricDynamicLoft', clubData?.dynamicLoft, '°');
+        this.updateMetricValue('metricAttackAngle', clubData?.attackAngle, '°', true, clubData?.isAttackAngleValid, 'metricItemAttackAngle');
+        this.updateMetricValue('metricClubPath', clubData?.path, '°', true, clubData?.isPathValid, 'metricItemClubPath');
+        this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', true, clubData?.isFaceAngleValid, 'metricItemFaceAngle');
+        this.updateMetricValue('metricDynamicLoft', clubData?.dynamicLoft, '°', false, clubData?.isDynamicLoftValid, 'metricItemDynamicLoft');
     }
 
-    updateMetricValue(elementId, value, unit, showSign = false) {
+    updateMetricValue(elementId, value, unit, showSign = false, isValid = true, containerId = null) {
         const element = document.getElementById(elementId);
+        const container = containerId ? document.getElementById(containerId) : null;
         if (!element) return;
 
         if (value === null || value === undefined) {
             element.textContent = '-';
             element.removeAttribute('title');
+            if (container) {
+                container.classList.remove('metric-valid', 'metric-invalid');
+            }
             return;
         }
 
@@ -115,10 +120,86 @@ export class ShotMonitor {
         }
 
         element.textContent = displayValue;
+        if (container) {
+            container.classList.toggle('metric-valid', isValid !== false);
+            container.classList.toggle('metric-invalid', isValid === false);
+        }
         if (unit) {
-            element.title = `${displayValue} ${unit}`;
+            const quality = isValid === false ? 'LM did not validate this metric' : 'LM validated this metric';
+            element.title = `${displayValue} ${unit} • ${quality}`;
         } else {
             element.removeAttribute('title');
         }
+    }
+
+    updateTelemetry(status) {
+        this.updateStatusLabel('launchMonitorStatus', this.formatStatus(status.launchMonitorStatus));
+        this.updateTelemetrySection({
+            summaryId: 'ballTelemetrySummary',
+            rawId: 'telemetryBallRaw',
+            metrics: [
+                { id: 'telemetryBallSpeed', value: status.lastBallMetrics?.speed, unit: 'm/s', valid: status.lastBallMetrics?.isBallSpeedValid, label: 'Ball speed' },
+                { id: 'telemetryLaunchAngle', value: status.lastBallMetrics?.launchAngle, unit: 'deg', valid: true, label: 'Launch angle' },
+                { id: 'telemetryDirection', value: status.lastBallMetrics?.horizontalAngle, unit: 'deg', valid: true, label: 'Horizontal angle' },
+                { id: 'telemetryTotalSpin', value: status.lastBallMetrics?.totalSpin, unit: 'rpm', valid: status.lastBallMetrics?.isTotalSpinValid, label: 'Total spin' },
+                { id: 'telemetrySpinAxis', value: status.lastBallMetrics?.spinAxis, unit: 'deg', valid: status.lastBallMetrics?.isSpinAxisValid, label: 'Spin axis' },
+                { id: 'telemetryBackSpin', value: status.lastBallMetrics?.backSpin, unit: 'rpm', valid: status.lastBallMetrics?.isBackSpinValid, label: 'Backspin' },
+                { id: 'telemetrySideSpin', value: status.lastBallMetrics?.sideSpin, unit: 'rpm', valid: status.lastBallMetrics?.isSideSpinValid, label: 'Sidespin' },
+            ],
+            rawData: status.lastBallMetrics?.rawData,
+            waitingText: 'Waiting for shot'
+        });
+        this.updateTelemetrySection({
+            summaryId: 'clubTelemetrySummary',
+            rawId: 'telemetryClubRaw',
+            metrics: [
+                { id: 'telemetryAttackAngle', value: status.lastClubMetrics?.attackAngle, unit: 'deg', valid: status.lastClubMetrics?.isAttackAngleValid, label: 'Attack angle' },
+                { id: 'telemetryClubPath', value: status.lastClubMetrics?.path, unit: 'deg', valid: status.lastClubMetrics?.isPathValid, label: 'Club path' },
+                { id: 'telemetryFaceAngle', value: status.lastClubMetrics?.angle, unit: 'deg', valid: status.lastClubMetrics?.isFaceAngleValid, label: 'Face angle' },
+                { id: 'telemetryDynamicLoft', value: status.lastClubMetrics?.dynamicLoft, unit: 'deg', valid: status.lastClubMetrics?.isDynamicLoftValid, label: 'Dynamic loft' },
+            ],
+            rawData: status.lastClubMetrics?.rawData,
+            waitingText: 'Waiting for club data'
+        });
+    }
+
+    updateTelemetrySection({ summaryId, rawId, metrics, rawData, waitingText }) {
+        const hasPacket = Array.isArray(rawData) && rawData.length > 0;
+        let invalidCount = 0;
+
+        metrics.forEach(({ id, value, unit, valid, label }) => {
+            const element = document.getElementById(id);
+            if (!element) return;
+
+            if (value === null || value === undefined) {
+                element.textContent = '-';
+                element.className = 'telemetry-value telemetry-waiting';
+                element.title = `${label}: not present`;
+                return;
+            }
+
+            const formatted = typeof value === 'number' ? `${value.toFixed(1)}${unit ? ` ${unit}` : ''}` : `${value}`;
+            element.textContent = formatted;
+            const isExplicitlyInvalid = valid === false;
+            element.className = `telemetry-value ${isExplicitlyInvalid ? 'telemetry-invalid' : 'telemetry-valid'}`;
+            element.title = isExplicitlyInvalid
+                ? `${label}: present, but the launch monitor did not validate it. This may be estimated or unreliable.`
+                : `${label}: validated by the launch monitor.`;
+            if (isExplicitlyInvalid) invalidCount += 1;
+        });
+
+        this.updateStatusLabel(summaryId, hasPacket ? (invalidCount > 0 ? `${invalidCount} metric${invalidCount === 1 ? '' : 's'} not validated by LM` : 'All visible metrics validated by LM') : waitingText);
+        this.updateStatusLabel(rawId, hasPacket ? rawData.join(' ') : '-');
+    }
+
+    updateStatusLabel(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.textContent = value ?? '-';
+    }
+
+    formatStatus(status) {
+        if (!status) return '-';
+        return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
     }
 }

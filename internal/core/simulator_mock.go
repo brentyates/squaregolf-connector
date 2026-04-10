@@ -546,6 +546,8 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			return // Ball detection was deactivated while waiting
 		}
 
+		s.sendStatusNotification(LaunchMonitorStatusDetect)
+
 		// Ball is detected
 		s.lock.Lock()
 		s.ballState = BallStateDetected
@@ -568,6 +570,8 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			return // Ball detection was deactivated while waiting
 		}
 
+		s.sendStatusNotification(LaunchMonitorStatusReady)
+
 		// Ball is ready
 		s.lock.Lock()
 		s.ballState = BallStateReady
@@ -588,6 +592,8 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 		if s.deviceState != DeviceStateBallDetection || s.ballState != BallStateReady {
 			return // Ball detection was deactivated or ball state changed while waiting
 		}
+
+		s.sendStatusNotification(LaunchMonitorStatusShot)
 
 		// Ball is hit - send ball metrics
 		handler = s.notifyHandlers[NotificationCharUUID]
@@ -620,6 +626,7 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 		s.deviceState = DeviceStateIdle
 		s.ballState = BallStateNone
 		s.lock.Unlock()
+		s.sendStatusNotification(LaunchMonitorStatusDone)
 
 		// Wait for the metrics to be processed before continuing
 		select {
@@ -629,6 +636,33 @@ func (s *SimulatorBluetoothClient) simulateBallDetection(ctx context.Context) {
 			// Continue with simulation
 		}
 	}
+}
+
+func (s *SimulatorBluetoothClient) sendStatusNotification(status LaunchMonitorStatus) {
+	handler := s.notifyHandlers[NotificationCharUUID]
+	if handler == nil {
+		return
+	}
+
+	var statusByte byte
+	switch status {
+	case LaunchMonitorStatusIdle:
+		statusByte = 0x01
+	case LaunchMonitorStatusInit:
+		statusByte = 0x02
+	case LaunchMonitorStatusDetect:
+		statusByte = 0x03
+	case LaunchMonitorStatusReady:
+		statusByte = 0x04
+	case LaunchMonitorStatusShot:
+		statusByte = 0x05
+	case LaunchMonitorStatusDone:
+		statusByte = 0x06
+	default:
+		statusByte = 0x00
+	}
+
+	handler([]byte{0x11, 0x03, statusByte})
 }
 
 // generateSensorData creates realistic sensor data packets based on ball state
@@ -683,32 +717,31 @@ func (s *SimulatorBluetoothClient) sendBallMetrics(handler func([]byte)) {
 	}
 	s.lock.RUnlock()
 
-	// Generate realistic ball metrics with the correct header format (0x11, 0x02, 0x37)
-	// Generate realistic ball metrics with slight randomization
+	// Generate realistic ball metrics with one invalid field to exercise UI visibility.
 	// Ball speed between 250-350 mph
 	ballSpeed := uint16(2500 + s.rand.Intn(1000))
 	// Launch angle between 8-14 degrees
 	launchAngle := uint16(80 + s.rand.Intn(60))
 	// Side angle between -5 to 5 degrees
-	sideAngle := uint16(s.rand.Intn(100) - 50)
+	sideAngle := int16(s.rand.Intn(100) - 50)
 	// Total spin between 100-200 rpm
 	totalSpin := uint16(100 + s.rand.Intn(100))
+	// Spin axis between -6 and 6 degrees
+	spinAxis := int16(s.rand.Intn(1200) - 600)
 	// Back spin between 80-120 rpm
 	backSpin := uint16(80 + s.rand.Intn(40))
-	// Side spin between 30-70 rpm
-	sideSpin := uint16(30 + s.rand.Intn(40))
-	// Rifle spin between 0-10 rpm
-	rifleSpin := uint16(s.rand.Intn(10))
+	// Side spin intentionally invalid for telemetry visibility.
+	sideSpin := int16(-32768)
 
 	ballData := []byte{
-		0x11, 0x02, 0x37, // Header for ball data that matches what the launch monitor expects
+		0x11, 0x02, 0x37, // Current-firmware metadata byte remains opaque to the connector
 		byte(ballSpeed & 0xFF), byte((ballSpeed >> 8) & 0xFF),
 		byte(launchAngle & 0xFF), byte((launchAngle >> 8) & 0xFF),
 		byte(sideAngle & 0xFF), byte((sideAngle >> 8) & 0xFF),
 		byte(totalSpin & 0xFF), byte((totalSpin >> 8) & 0xFF),
+		byte(spinAxis & 0xFF), byte((spinAxis >> 8) & 0xFF),
 		byte(backSpin & 0xFF), byte((backSpin >> 8) & 0xFF),
 		byte(sideSpin & 0xFF), byte((sideSpin >> 8) & 0xFF),
-		byte(rifleSpin & 0xFF), byte((rifleSpin >> 8) & 0xFF),
 	}
 
 	// Send the ball metrics
@@ -726,19 +759,19 @@ func (s *SimulatorBluetoothClient) sendClubMetrics(handler func([]byte)) {
 
 	log.Println("Simulator: Sending club metrics")
 
-	// Generate realistic club metrics values
+	// Generate realistic club metrics values with a partial/variant header and one invalid field.
 	// Path angle between -5 and 5 degrees
 	pathAngle := int16(s.rand.Intn(1000) - 500)
 	// Face angle between -5 and 5 degrees
 	faceAngle := int16(s.rand.Intn(1000) - 500)
-	// Attack angle between -5 and 5 degrees
-	attackAngle := int16(s.rand.Intn(1000) - 500)
+	// Attack angle intentionally invalid for telemetry visibility.
+	attackAngle := int16(-32768)
 	// Dynamic loft angle between 5 and 20 degrees
 	loftAngle := int16(500 + s.rand.Intn(1500))
 
-	// Format the club metrics data with the correct header (0x11, 0x07, 0x0f)
+	// Use a non-0f metadata byte to prove the parser accepts variant club packets.
 	clubData := []byte{
-		0x11, 0x07, 0x0f, // Header for club data that matches what the launch monitor returns
+		0x11, 0x07, 0x0d,
 		byte(pathAngle & 0xFF), byte((pathAngle >> 8) & 0xFF),
 		byte(faceAngle & 0xFF), byte((faceAngle >> 8) & 0xFF),
 		byte(attackAngle & 0xFF), byte((attackAngle >> 8) & 0xFF),

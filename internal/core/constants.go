@@ -125,11 +125,24 @@ const (
 	ShotTypePutt ShotType = "putt"
 )
 
+// LaunchMonitorStatus represents the current device status reported by 11 03 packets.
+type LaunchMonitorStatus string
+
+const (
+	LaunchMonitorStatusNone   LaunchMonitorStatus = "none"
+	LaunchMonitorStatusIdle   LaunchMonitorStatus = "idle"
+	LaunchMonitorStatusInit   LaunchMonitorStatus = "init"
+	LaunchMonitorStatusDetect LaunchMonitorStatus = "detect"
+	LaunchMonitorStatusReady  LaunchMonitorStatus = "ready"
+	LaunchMonitorStatusShot   LaunchMonitorStatus = "shot"
+	LaunchMonitorStatusDone   LaunchMonitorStatus = "done"
+)
+
 // BLE Characteristic UUIDs
 const (
-	CommandCharUUID      = "86602101-6b7e-439a-bdd1-489a3213e9bb"
-	NotificationCharUUID = "86602102-6b7e-439a-bdd1-489a3213e9bb"
-	BatteryLevelCharUUID = "00002a19-0000-1000-8000-00805f9b34fb"
+	CommandCharUUID         = "86602101-6b7e-439a-bdd1-489a3213e9bb"
+	NotificationCharUUID    = "86602102-6b7e-439a-bdd1-489a3213e9bb"
+	BatteryLevelCharUUID    = "00002a19-0000-1000-8000-00805f9b34fb"
 	FirmwareVersionCharUUID = "86602003-6b7e-439a-bdd1-489a3213e9bb"
 )
 

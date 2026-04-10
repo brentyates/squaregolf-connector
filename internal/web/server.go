@@ -44,23 +44,24 @@ type WSMessage struct {
 }
 
 type DeviceStatus struct {
-	ConnectionStatus string               `json:"connectionStatus"`
-	DeviceName       *string              `json:"deviceName"`
-	BatteryLevel     *int                 `json:"batteryLevel"`
-	FirmwareVersion  *string              `json:"firmwareVersion"`
-	LauncherVersion  *string              `json:"launcherVersion"`
-	MMIVersion       *string              `json:"mmiVersion"`
-	BallDetected     bool                 `json:"ballDetected"`
-	BallReady        bool                 `json:"ballReady"`
-	BallPosition     *core.BallPosition   `json:"ballPosition"`
-	Club             *core.ClubType       `json:"club"`
-	Handedness       *core.HandednessType `json:"handedness"`
-	LastError        string               `json:"lastError"`
-	LastBallMetrics  *core.BallMetrics    `json:"lastBallMetrics"`
-	LastClubMetrics  *core.ClubMetrics    `json:"lastClubMetrics"`
-	IsAligning       bool                 `json:"isAligning"`
-	AlignmentAngle   float64              `json:"alignmentAngle"`
-	IsAligned        bool                 `json:"isAligned"`
+	ConnectionStatus    string                   `json:"connectionStatus"`
+	DeviceName          *string                  `json:"deviceName"`
+	BatteryLevel        *int                     `json:"batteryLevel"`
+	FirmwareVersion     *string                  `json:"firmwareVersion"`
+	LauncherVersion     *string                  `json:"launcherVersion"`
+	MMIVersion          *string                  `json:"mmiVersion"`
+	LaunchMonitorStatus core.LaunchMonitorStatus `json:"launchMonitorStatus"`
+	BallDetected        bool                     `json:"ballDetected"`
+	BallReady           bool                     `json:"ballReady"`
+	BallPosition        *core.BallPosition       `json:"ballPosition"`
+	Club                *core.ClubType           `json:"club"`
+	Handedness          *core.HandednessType     `json:"handedness"`
+	LastError           string                   `json:"lastError"`
+	LastBallMetrics     *core.BallMetrics        `json:"lastBallMetrics"`
+	LastClubMetrics     *core.ClubMetrics        `json:"lastClubMetrics"`
+	IsAligning          bool                     `json:"isAligning"`
+	AlignmentAngle      float64                  `json:"alignmentAngle"`
+	IsAligned           bool                     `json:"isAligned"`
 }
 
 type GSProStatus struct {
@@ -169,6 +170,10 @@ func (s *Server) setupCallbacks() {
 	})
 
 	s.stateManager.RegisterBatteryLevelCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterLaunchMonitorStatusCallback(func(oldValue, newValue core.LaunchMonitorStatus) {
 		s.broadcastDeviceStatus()
 	})
 
@@ -322,23 +327,24 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 	}
 
 	return DeviceStatus{
-		ConnectionStatus: connectionStatus,
-		DeviceName:       s.stateManager.GetDeviceDisplayName(),
-		BatteryLevel:     s.stateManager.GetBatteryLevel(),
-		FirmwareVersion:  s.stateManager.GetFirmwareVersion(),
-		LauncherVersion:  s.stateManager.GetLauncherVersion(),
-		MMIVersion:       s.stateManager.GetMMIVersion(),
-		BallDetected:     s.stateManager.GetBallDetected(),
-		BallReady:        s.stateManager.GetBallReady(),
-		BallPosition:     s.stateManager.GetBallPosition(),
-		Club:             s.stateManager.GetClub(),
-		Handedness:       s.stateManager.GetHandedness(),
-		LastError:        lastErrorStr,
-		LastBallMetrics:  s.stateManager.GetLastBallMetrics(),
-		LastClubMetrics:  s.stateManager.GetLastClubMetrics(),
-		IsAligning:       s.stateManager.GetIsAligning(),
-		AlignmentAngle:   s.stateManager.GetAlignmentAngle(),
-		IsAligned:        s.stateManager.GetIsAligned(),
+		ConnectionStatus:    connectionStatus,
+		DeviceName:          s.stateManager.GetDeviceDisplayName(),
+		BatteryLevel:        s.stateManager.GetBatteryLevel(),
+		FirmwareVersion:     s.stateManager.GetFirmwareVersion(),
+		LauncherVersion:     s.stateManager.GetLauncherVersion(),
+		MMIVersion:          s.stateManager.GetMMIVersion(),
+		LaunchMonitorStatus: s.stateManager.GetLaunchMonitorStatus(),
+		BallDetected:        s.stateManager.GetBallDetected(),
+		BallReady:           s.stateManager.GetBallReady(),
+		BallPosition:        s.stateManager.GetBallPosition(),
+		Club:                s.stateManager.GetClub(),
+		Handedness:          s.stateManager.GetHandedness(),
+		LastError:           lastErrorStr,
+		LastBallMetrics:     s.stateManager.GetLastBallMetrics(),
+		LastClubMetrics:     s.stateManager.GetLastClubMetrics(),
+		IsAligning:          s.stateManager.GetIsAligning(),
+		AlignmentAngle:      s.stateManager.GetAlignmentAngle(),
+		IsAligned:           s.stateManager.GetIsAligned(),
 	}
 }
 

@@ -495,6 +495,7 @@ export class SquareGolfApp {
         this.setTextContent('firmwareVersion', status.firmwareVersion !== null ? status.firmwareVersion : null);
         this.setTextContent('launcherVersion', status.launcherVersion !== null ? status.launcherVersion : null);
         this.setTextContent('mmiVersion', status.mmiVersion !== null ? status.mmiVersion : null);
+        this.setTextContent('launchMonitorStatus', status.launchMonitorStatus ? `${status.launchMonitorStatus}` : null);
     }
 
     updateDeviceStatus(status) {

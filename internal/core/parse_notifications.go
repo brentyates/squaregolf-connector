@@ -18,24 +18,33 @@ type SensorData struct {
 
 // BallMetrics represents ball metrics from a shot
 type BallMetrics struct {
-	RawData         []string  `json:"rawData,omitempty"`
-	BallSpeedMPS    float64   `json:"speed"`
-	VerticalAngle   float64   `json:"launchAngle"`
-	HorizontalAngle float64   `json:"horizontalAngle"`
-	TotalspinRPM    int16     `json:"totalSpin"`
-	SpinAxis        float64   `json:"spinAxis"`
-	BackspinRPM     int16     `json:"backSpin"`
-	SidespinRPM     int16     `json:"sideSpin"`
-	ShotType        ShotType  `json:"shotType"`
+	RawData          []string `json:"rawData,omitempty"`
+	BallSpeedMPS     float64  `json:"speed"`
+	VerticalAngle    float64  `json:"launchAngle"`
+	HorizontalAngle  float64  `json:"horizontalAngle"`
+	TotalspinRPM     int16    `json:"totalSpin"`
+	SpinAxis         float64  `json:"spinAxis"`
+	BackspinRPM      int16    `json:"backSpin"`
+	SidespinRPM      int16    `json:"sideSpin"`
+	IsBallSpeedValid bool     `json:"isBallSpeedValid"`
+	IsTotalSpinValid bool     `json:"isTotalSpinValid"`
+	IsSpinAxisValid  bool     `json:"isSpinAxisValid"`
+	IsBackspinValid  bool     `json:"isBackSpinValid"`
+	IsSidespinValid  bool     `json:"isSideSpinValid"`
+	ShotType         ShotType `json:"shotType"`
 }
 
 // ClubMetrics represents club metrics from a shot
 type ClubMetrics struct {
-	RawData          []string  `json:"rawData,omitempty"`
-	PathAngle        float64   `json:"path"`
-	FaceAngle        float64   `json:"angle"`
-	AttackAngle      float64   `json:"attackAngle"`
-	DynamicLoftAngle float64   `json:"dynamicLoft"`
+	RawData            []string `json:"rawData,omitempty"`
+	PathAngle          float64  `json:"path"`
+	FaceAngle          float64  `json:"angle"`
+	AttackAngle        float64  `json:"attackAngle"`
+	DynamicLoftAngle   float64  `json:"dynamicLoft"`
+	IsPathAngleValid   bool     `json:"isPathValid"`
+	IsFaceAngleValid   bool     `json:"isFaceAngleValid"`
+	IsAttackAngleValid bool     `json:"isAttackAngleValid"`
+	IsDynamicLoftValid bool     `json:"isDynamicLoftValid"`
 }
 
 // AlignmentData represents device alignment/aim information
@@ -83,58 +92,62 @@ func ParseShotBallMetrics(bytesList []string) (*BallMetrics, error) {
 	}
 
 	metrics := &BallMetrics{
-		RawData: bytesList,
-	}
-
-	// Determine shot type from header
-	if len(bytesList) >= 3 {
-		if bytesList[2] == "37" {
-			metrics.ShotType = ShotTypeFull
-		} else if bytesList[2] == "13" {
-			metrics.ShotType = ShotTypePutt
-		}
+		RawData:          bytesList,
+		IsBallSpeedValid: true,
+		IsTotalSpinValid: true,
+		IsSpinAxisValid:  true,
+		IsBackspinValid:  true,
+		IsSidespinValid:  true,
 	}
 
 	// Parse ball speed
-	ballSpeedBytes, err := hex.DecodeString(bytesList[3] + bytesList[4])
-	if err == nil && len(ballSpeedBytes) == 2 {
-		metrics.BallSpeedMPS = float64(int16(binary.LittleEndian.Uint16(ballSpeedBytes))) / 100.0
+	if ballSpeed, valid, ok := parseScaledInt16Metric(bytesList[3], bytesList[4], 100.0); ok {
+		metrics.BallSpeedMPS = ballSpeed
+		metrics.IsBallSpeedValid = valid
+	} else {
+		metrics.IsBallSpeedValid = false
 	}
 
 	// Parse vertical angle
-	verticalAngleBytes, err := hex.DecodeString(bytesList[5] + bytesList[6])
-	if err == nil && len(verticalAngleBytes) == 2 {
-		metrics.VerticalAngle = float64(int16(binary.LittleEndian.Uint16(verticalAngleBytes))) / 100.0
+	if verticalAngle, _, ok := parseScaledInt16Metric(bytesList[5], bytesList[6], 100.0); ok {
+		metrics.VerticalAngle = verticalAngle
 	}
 
 	// Parse horizontal angle
-	horizontalAngleBytes, err := hex.DecodeString(bytesList[7] + bytesList[8])
-	if err == nil && len(horizontalAngleBytes) == 2 {
-		metrics.HorizontalAngle = float64(int16(binary.LittleEndian.Uint16(horizontalAngleBytes))) / 100.0
+	if horizontalAngle, _, ok := parseScaledInt16Metric(bytesList[7], bytesList[8], 100.0); ok {
+		metrics.HorizontalAngle = horizontalAngle
 	}
 
 	// Parse total spin
-	totalSpinBytes, err := hex.DecodeString(bytesList[9] + bytesList[10])
-	if err == nil && len(totalSpinBytes) == 2 {
-		metrics.TotalspinRPM = int16(binary.LittleEndian.Uint16(totalSpinBytes))
+	if totalSpin, valid, ok := parseInt16Metric(bytesList[9], bytesList[10]); ok {
+		metrics.TotalspinRPM = totalSpin
+		metrics.IsTotalSpinValid = valid
+	} else {
+		metrics.IsTotalSpinValid = false
 	}
 
 	// Parse spin axis
-	spinAxisBytes, err := hex.DecodeString(bytesList[11] + bytesList[12])
-	if err == nil && len(spinAxisBytes) == 2 {
-		metrics.SpinAxis = float64(int16(binary.LittleEndian.Uint16(spinAxisBytes))) / 100.0
+	if spinAxis, valid, ok := parseScaledInt16Metric(bytesList[11], bytesList[12], 100.0); ok {
+		metrics.SpinAxis = spinAxis
+		metrics.IsSpinAxisValid = valid
+	} else {
+		metrics.IsSpinAxisValid = false
 	}
 
 	// Parse backspin
-	backspinBytes, err := hex.DecodeString(bytesList[13] + bytesList[14])
-	if err == nil && len(backspinBytes) == 2 {
-		metrics.BackspinRPM = int16(binary.LittleEndian.Uint16(backspinBytes))
+	if backspin, valid, ok := parseInt16Metric(bytesList[13], bytesList[14]); ok {
+		metrics.BackspinRPM = backspin
+		metrics.IsBackspinValid = valid
+	} else {
+		metrics.IsBackspinValid = false
 	}
 
 	// Parse sidespin
-	sidespinBytes, err := hex.DecodeString(bytesList[15] + bytesList[16])
-	if err == nil && len(sidespinBytes) == 2 {
-		metrics.SidespinRPM = int16(binary.LittleEndian.Uint16(sidespinBytes))
+	if sidespin, valid, ok := parseInt16Metric(bytesList[15], bytesList[16]); ok {
+		metrics.SidespinRPM = sidespin
+		metrics.IsSidespinValid = valid
+	} else {
+		metrics.IsSidespinValid = false
 	}
 
 	return metrics, nil
@@ -147,34 +160,69 @@ func ParseShotClubMetrics(bytesList []string) (*ClubMetrics, error) {
 	}
 
 	metrics := &ClubMetrics{
-		RawData: bytesList,
+		RawData:            bytesList,
+		IsPathAngleValid:   true,
+		IsFaceAngleValid:   true,
+		IsAttackAngleValid: true,
+		IsDynamicLoftValid: true,
 	}
 
 	// Parse path angle
-	pathAngleBytes, err := hex.DecodeString(bytesList[3] + bytesList[4])
-	if err == nil && len(pathAngleBytes) == 2 {
-		metrics.PathAngle = float64(int16(binary.LittleEndian.Uint16(pathAngleBytes))) / 100.0
+	if pathAngle, valid, ok := parseScaledInt16Metric(bytesList[3], bytesList[4], 100.0); ok {
+		metrics.PathAngle = pathAngle
+		metrics.IsPathAngleValid = valid
+	} else {
+		metrics.IsPathAngleValid = false
 	}
 
 	// Parse face angle
-	faceAngleBytes, err := hex.DecodeString(bytesList[5] + bytesList[6])
-	if err == nil && len(faceAngleBytes) == 2 {
-		metrics.FaceAngle = float64(int16(binary.LittleEndian.Uint16(faceAngleBytes))) / 100.0
+	if faceAngle, valid, ok := parseScaledInt16Metric(bytesList[5], bytesList[6], 100.0); ok {
+		metrics.FaceAngle = faceAngle
+		metrics.IsFaceAngleValid = valid
+	} else {
+		metrics.IsFaceAngleValid = false
 	}
 
 	// Parse attack angle
-	attackAngleBytes, err := hex.DecodeString(bytesList[7] + bytesList[8])
-	if err == nil && len(attackAngleBytes) == 2 {
-		metrics.AttackAngle = float64(int16(binary.LittleEndian.Uint16(attackAngleBytes))) / 100.0
+	if attackAngle, valid, ok := parseScaledInt16Metric(bytesList[7], bytesList[8], 100.0); ok {
+		metrics.AttackAngle = attackAngle
+		metrics.IsAttackAngleValid = valid
+	} else {
+		metrics.IsAttackAngleValid = false
 	}
 
 	// Parse dynamic loft angle
-	loftAngleBytes, err := hex.DecodeString(bytesList[9] + bytesList[10])
-	if err == nil && len(loftAngleBytes) == 2 {
-		metrics.DynamicLoftAngle = float64(int16(binary.LittleEndian.Uint16(loftAngleBytes))) / 100.0
+	if loftAngle, valid, ok := parseScaledInt16Metric(bytesList[9], bytesList[10], 100.0); ok {
+		metrics.DynamicLoftAngle = loftAngle
+		metrics.IsDynamicLoftValid = valid
+	} else {
+		metrics.IsDynamicLoftValid = false
 	}
 
 	return metrics, nil
+}
+
+func parseInt16Metric(lowByte, highByte string) (int16, bool, bool) {
+	metricBytes, err := hex.DecodeString(lowByte + highByte)
+	if err != nil || len(metricBytes) != 2 {
+		return 0, false, false
+	}
+
+	value := int16(binary.LittleEndian.Uint16(metricBytes))
+	if value == -32768 {
+		return 0, false, true
+	}
+
+	return value, true, true
+}
+
+func parseScaledInt16Metric(lowByte, highByte string, scale float64) (float64, bool, bool) {
+	value, valid, ok := parseInt16Metric(lowByte, highByte)
+	if !ok {
+		return 0, false, false
+	}
+
+	return float64(value) / scale, valid, true
 }
 
 // ParseAlignmentData parses alignment/aim data from device accelerometer

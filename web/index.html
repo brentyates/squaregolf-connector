@@ -125,7 +125,88 @@
                                 <span class="info-label">MMI</span>
                                 <span class="info-value" id="mmiVersion">-</span>
                             </div>
+                            <div class="info-item">
+                                <span class="info-label">LM Status</span>
+                                <span class="info-value" id="launchMonitorStatus">-</span>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="card telemetry-card">
+                    <div class="card-header">
+                        <h3>Launch Monitor Telemetry</h3>
+                    </div>
+                    <div class="card-content telemetry-grid">
+                        <section class="telemetry-panel">
+                            <div class="telemetry-panel-header">
+                                <h4>Ball Packet</h4>
+                                <span class="telemetry-badge" id="ballTelemetrySummary">Waiting for shot</span>
+                            </div>
+                            <div class="telemetry-grid-mini" id="ballTelemetryFields">
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Speed</span>
+                                    <span class="telemetry-value" id="telemetryBallSpeed">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Launch</span>
+                                    <span class="telemetry-value" id="telemetryLaunchAngle">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Direction</span>
+                                    <span class="telemetry-value" id="telemetryDirection">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Total Spin</span>
+                                    <span class="telemetry-value" id="telemetryTotalSpin">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Spin Axis</span>
+                                    <span class="telemetry-value" id="telemetrySpinAxis">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Backspin</span>
+                                    <span class="telemetry-value" id="telemetryBackSpin">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Sidespin</span>
+                                    <span class="telemetry-value" id="telemetrySideSpin">-</span>
+                                </div>
+                            </div>
+                            <div class="telemetry-raw">
+                                <span class="telemetry-label">Raw Packet</span>
+                                <code class="telemetry-raw-value" id="telemetryBallRaw">-</code>
+                            </div>
+                        </section>
+
+                        <section class="telemetry-panel">
+                            <div class="telemetry-panel-header">
+                                <h4>Club Packet</h4>
+                                <span class="telemetry-badge" id="clubTelemetrySummary">Waiting for club data</span>
+                            </div>
+                            <div class="telemetry-grid-mini" id="clubTelemetryFields">
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Attack</span>
+                                    <span class="telemetry-value" id="telemetryAttackAngle">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Path</span>
+                                    <span class="telemetry-value" id="telemetryClubPath">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Face</span>
+                                    <span class="telemetry-value" id="telemetryFaceAngle">-</span>
+                                </div>
+                                <div class="telemetry-field">
+                                    <span class="telemetry-label">Dynamic Loft</span>
+                                    <span class="telemetry-value" id="telemetryDynamicLoft">-</span>
+                                </div>
+                            </div>
+                            <div class="telemetry-raw">
+                                <span class="telemetry-label">Raw Packet</span>
+                                <code class="telemetry-raw-value" id="telemetryClubRaw">-</code>
+                            </div>
+                        </section>
                     </div>
                 </div>
                 
@@ -149,20 +230,20 @@
                 <div class="metrics-bar" id="metricsBar">
                     <div class="metrics-row">
                         <span class="row-label">BALL</span>
-                        <div class="metric-item"><span class="metric-label">Speed</span><span class="metric-value" id="metricBallSpeed">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Launch</span><span class="metric-value" id="metricLaunchAngle">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Dir</span><span class="metric-value" id="metricDirection">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Total</span><span class="metric-value" id="metricTotalSpin">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Axis</span><span class="metric-value" id="metricSpinAxis">-</span></div>
+                        <div class="metric-item" id="metricItemBallSpeed"><span class="metric-label">Speed</span><span class="metric-value" id="metricBallSpeed">-</span></div>
+                        <div class="metric-item" id="metricItemLaunchAngle"><span class="metric-label">Launch</span><span class="metric-value" id="metricLaunchAngle">-</span></div>
+                        <div class="metric-item" id="metricItemDirection"><span class="metric-label">Dir</span><span class="metric-value" id="metricDirection">-</span></div>
+                        <div class="metric-item" id="metricItemTotalSpin"><span class="metric-label">Total</span><span class="metric-value" id="metricTotalSpin">-</span></div>
+                        <div class="metric-item" id="metricItemBackSpin"><span class="metric-label">Back</span><span class="metric-value" id="metricBackSpin">-</span></div>
+                        <div class="metric-item" id="metricItemSideSpin"><span class="metric-label">Side</span><span class="metric-value" id="metricSideSpin">-</span></div>
+                        <div class="metric-item" id="metricItemSpinAxis"><span class="metric-label">Axis</span><span class="metric-value" id="metricSpinAxis">-</span></div>
                     </div>
                     <div class="metrics-row">
                         <span class="row-label">CLUB</span>
-                        <div class="metric-item"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Face</span><span class="metric-value" id="metricFaceAngle">-</span></div>
-                        <div class="metric-item"><span class="metric-label">Loft</span><span class="metric-value" id="metricDynamicLoft">-</span></div>
+                        <div class="metric-item" id="metricItemAttackAngle"><span class="metric-label">Attack</span><span class="metric-value" id="metricAttackAngle">-</span></div>
+                        <div class="metric-item" id="metricItemClubPath"><span class="metric-label">Path</span><span class="metric-value" id="metricClubPath">-</span></div>
+                        <div class="metric-item" id="metricItemFaceAngle"><span class="metric-label">Face</span><span class="metric-value" id="metricFaceAngle">-</span></div>
+                        <div class="metric-item" id="metricItemDynamicLoft"><span class="metric-label">Loft</span><span class="metric-value" id="metricDynamicLoft">-</span></div>
                         <div class="metric-item"></div>
                         <div class="metric-item"></div>
                         <div class="metric-item"></div>

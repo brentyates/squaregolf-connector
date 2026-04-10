@@ -91,7 +91,7 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 				return
 			}
 			if bytesList[0] == "11" && bytesList[1] == "03" {
-				// Heartbeat from the device
+				lm.HandleStatusNotification(bytesList)
 				return
 			}
 			// OS Version response (format 11 10)
@@ -99,15 +99,9 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 				lm.HandleOSVersionNotification(bytesList)
 				return
 			}
-			// Shot Club Metrics (format 11 07 0f)
-			if bytesList[0] == "11" && bytesList[1] == "07" && bytesList[2] == "0f" {
+			// Shot Club Metrics (format 11 07)
+			if bytesList[0] == "11" && bytesList[1] == "07" && len(bytesList) >= 11 {
 				lm.HandleShotClubMetrics(bytesList)
-				return
-			}
-			// Check for specific "no club data available" response
-			if bytesList[0] == "11" && bytesList[1] == "07" && bytesList[2] == "00" {
-				// Clear club metrics in state manager to indicate no data is available
-				lm.stateManager.SetLastClubMetrics(nil)
 				return
 			}
 		}
@@ -146,7 +140,7 @@ func (lm *LaunchMonitor) HandleAlignmentNotification(bytesList []string) {
 	lm.stateManager.SetIsAligned(alignmentData.IsAligned)
 }
 
-// HandleShotBallMetrics handles shot ball metrics notifications (format 11 02 37)
+// HandleShotBallMetrics handles shot ball metrics notifications (format 11 02).
 func (lm *LaunchMonitor) HandleShotBallMetrics(bytesList []string) {
 	shotMetrics, err := ParseShotBallMetrics(bytesList)
 	if err != nil {
@@ -188,7 +182,7 @@ func (lm *LaunchMonitor) HandleShotBallMetrics(bytesList []string) {
 	}
 }
 
-// HandleShotClubMetrics handles shot club metrics notifications (format 11 07 0f)
+// HandleShotClubMetrics handles shot club metrics notifications (format 11 07).
 func (lm *LaunchMonitor) HandleShotClubMetrics(bytesList []string) {
 	clubMetrics, err := ParseShotClubMetrics(bytesList)
 	if err != nil {
@@ -198,6 +192,35 @@ func (lm *LaunchMonitor) HandleShotClubMetrics(bytesList []string) {
 
 	// Update state manager with club metrics
 	lm.stateManager.SetLastClubMetrics(clubMetrics)
+}
+
+// HandleStatusNotification handles device status notifications (format 11 03 {status}).
+func (lm *LaunchMonitor) HandleStatusNotification(bytesList []string) {
+	if len(bytesList) < 3 {
+		return
+	}
+
+	var status LaunchMonitorStatus
+	switch bytesList[2] {
+	case "00":
+		status = LaunchMonitorStatusNone
+	case "01":
+		status = LaunchMonitorStatusIdle
+	case "02":
+		status = LaunchMonitorStatusInit
+	case "03":
+		status = LaunchMonitorStatusDetect
+	case "04":
+		status = LaunchMonitorStatusReady
+	case "05":
+		status = LaunchMonitorStatusShot
+	case "06":
+		status = LaunchMonitorStatusDone
+	default:
+		return
+	}
+
+	lm.stateManager.SetLaunchMonitorStatus(status)
 }
 
 // SendCommand sends a command to the BLE device
@@ -332,11 +355,7 @@ func (lm *LaunchMonitor) startHeartbeatTask() {
 	lm.heartbeatCancelMu.Lock()
 	defer lm.heartbeatCancelMu.Unlock()
 
-	// Cancel any existing heartbeat task
-	if lm.heartbeatCancel != nil {
-		lm.heartbeatCancel()
-		lm.heartbeatCancel = nil
-	}
+	lm.stopHeartbeatTaskLocked()
 
 	// Create a new context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -352,17 +371,36 @@ func (lm *LaunchMonitor) startHeartbeatTask() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if lm.bluetoothClient != nil && lm.bluetoothClient.IsConnected() {
-					seq := lm.getNextSequence()
-					command := HeartbeatCommand(seq)
-					err := lm.SendCommand(command)
-					if err != nil {
-						log.Printf("Error sending heartbeat: %v", err)
-					}
-				}
+				lm.sendHeartbeatTick()
 			}
 		}
 	}()
+}
+
+func (lm *LaunchMonitor) sendHeartbeatTick() {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	seq := lm.getNextSequence()
+	command := HeartbeatCommand(seq)
+	err := lm.SendCommand(command)
+	if err != nil {
+		log.Printf("Error sending heartbeat: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) stopHeartbeatTaskLocked() {
+	if lm.heartbeatCancel != nil {
+		lm.heartbeatCancel()
+		lm.heartbeatCancel = nil
+	}
+}
+
+func (lm *LaunchMonitor) stopHeartbeatTask() {
+	lm.heartbeatCancelMu.Lock()
+	defer lm.heartbeatCancelMu.Unlock()
+	lm.stopHeartbeatTaskLocked()
 }
 
 // ManageHeartbeat initializes and manages the heartbeat communication with the device
@@ -375,11 +413,13 @@ func (lm *LaunchMonitor) ManageHeartbeat() error {
 	lm.startHeartbeatTask()
 
 	// Send initial heartbeat
-	seq := lm.getNextSequence()
-	heartbeatCommand := HeartbeatCommand(seq)
-	err := lm.SendCommand(heartbeatCommand)
-	if err != nil {
-		return fmt.Errorf("failed to send initial heartbeat: %w", err)
+	if lm.bluetoothClient != nil && lm.bluetoothClient.IsConnected() {
+		seq := lm.getNextSequence()
+		heartbeatCommand := HeartbeatCommand(seq)
+		err := lm.SendCommand(heartbeatCommand)
+		if err != nil {
+			return fmt.Errorf("failed to send initial heartbeat: %w", err)
+		}
 	}
 
 	return nil
@@ -410,10 +450,7 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 	// Register for connection status changes to handle disconnects and connection setup
 	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
 		if newValue == ConnectionStatusConnected && oldValue != ConnectionStatusConnected {
-			// Note: Firmware version is not available via BLE
-			// The device does not respond to the 0x92 command
-			// The Android app does not request it either
-			log.Println("LaunchMonitor: Device connected (firmware version not available via BLE)")
+			log.Println("LaunchMonitor: Device connected")
 		} else if newValue == ConnectionStatusDisconnected {
 			// When Bluetooth disconnects, reset ball detection state
 			lm.HandleBluetoothDisconnect()
@@ -432,14 +469,10 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	lm.stateManager.SetBallDetected(false)
 	lm.stateManager.SetBallReady(false)
 	lm.stateManager.SetBallPosition(nil)
+	lm.stateManager.SetLaunchMonitorStatus(LaunchMonitorStatusNone)
 
 	// Stop any heartbeat task
-	lm.heartbeatCancelMu.Lock()
-	if lm.heartbeatCancel != nil {
-		lm.heartbeatCancel()
-		lm.heartbeatCancel = nil
-	}
-	lm.heartbeatCancelMu.Unlock()
+	lm.stopHeartbeatTask()
 }
 
 // StartAlignment starts alignment mode

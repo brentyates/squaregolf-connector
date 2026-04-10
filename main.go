@@ -26,6 +26,7 @@ type AppConfig struct {
 	DeviceName           string
 	Headless             bool
 	WebMode              bool
+	ServerOnly           bool
 	WebPort              int
 	GSProIP              string
 	GSProPort            int
@@ -255,19 +256,6 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Start the web server in a goroutine
-	serverErr := make(chan error, 1)
-	go func() {
-		log.Printf("Starting web server on http://localhost:%d", config.WebPort)
-		if err := server.Start(config.WebPort); err != nil {
-			serverErr <- err
-		}
-	}()
-
-	// Give the server a moment to start up
-	time.Sleep(500 * time.Millisecond)
-
-	window := ui.NewDesktopWindow(fmt.Sprintf("http://localhost:%d", config.WebPort))
-
 	var stopOnce sync.Once
 	stopServer := func() {
 		stopOnce.Do(func() {
@@ -281,6 +269,31 @@ func startWebServer(config AppConfig, stateManager *core.StateManager, bluetooth
 			bluetoothManager.DisconnectBluetooth()
 		})
 	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		log.Printf("Starting web server on http://localhost:%d", config.WebPort)
+		if err := server.Start(config.WebPort); err != nil {
+			serverErr <- err
+		}
+	}()
+
+	// Give the server a moment to start up
+	time.Sleep(500 * time.Millisecond)
+
+	if config.ServerOnly {
+		select {
+		case <-sigChan:
+			log.Println("Shutting down web server...")
+			stopServer()
+		case err := <-serverErr:
+			stopServer()
+			log.Fatal(err)
+		}
+		return
+	}
+
+	window := ui.NewDesktopWindow(fmt.Sprintf("http://localhost:%d", config.WebPort))
 
 	exitErr := make(chan error, 1)
 	go func() {
@@ -312,6 +325,7 @@ func main() {
 	useMock := flag.String("mock", "", "Mock mode: 'stub' for basic mock, 'simulate' for simulated device with realistic behavior, or empty for real hardware")
 	deviceName := flag.String("device", "", "Name of the Bluetooth device to connect to")
 	headless := flag.Bool("headless", false, "Run in headless CLI mode without UI")
+	serverOnly := flag.Bool("server-only", false, "Run the web server without opening the desktop window")
 	webPort := flag.Int("web-port", 8080, "Port for web server")
 	gsproIP := flag.String("gspro-ip", "127.0.0.1", "IP address of GSPro server")
 	gsproPort := flag.Int("gspro-port", 921, "Port of GSPro server")
@@ -349,6 +363,7 @@ func main() {
 		DeviceName:           *deviceName,
 		Headless:             *headless,
 		WebMode:              !*headless,
+		ServerOnly:           *serverOnly,
 		WebPort:              *webPort,
 		GSProIP:              *gsproIP,
 		GSProPort:            *gsproPort,

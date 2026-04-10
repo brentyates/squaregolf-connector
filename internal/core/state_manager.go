@@ -13,31 +13,32 @@ type BallPosition struct {
 
 // AppState represents the complete application state
 type AppState struct {
-	DeviceDisplayName *string
-	ConnectionStatus  ConnectionStatus
-	BatteryLevel      *int
-	BallDetected      bool
-	BallReady         bool
-	BallPosition      *BallPosition
-	LastBallMetrics   *BallMetrics
-	LastClubMetrics   *ClubMetrics
-	LastError         error
-	Club              *ClubType
-	ClubName          *string // Human-readable club name from GSPro (e.g., "Driver", "7-iron")
-	Handedness        *HandednessType
-	GSProStatus          GSProConnectionStatus
-	GSProError           error
-	InfiniteTeesStatus   InfiniteTeesConnectionStatus
-	InfiniteTeesError    error
-	SpinMode             *SpinMode
-	CameraURL         *string
-	CameraEnabled     bool
-	IsAligning        bool    // Whether alignment mode UI is active
-	AlignmentAngle    float64 // Current aim angle in degrees (left negative, right positive)
-	IsAligned         bool    // Whether device is currently aligned (within tolerance)
-	FirmwareVersion   *string // Device firmware version (e.g., "1.6.18")
-	LauncherVersion   *string // Launcher version
-	MMIVersion        *string // MMI version
+	DeviceDisplayName   *string
+	ConnectionStatus    ConnectionStatus
+	BatteryLevel        *int
+	BallDetected        bool
+	BallReady           bool
+	BallPosition        *BallPosition
+	LastBallMetrics     *BallMetrics
+	LastClubMetrics     *ClubMetrics
+	LaunchMonitorStatus LaunchMonitorStatus
+	LastError           error
+	Club                *ClubType
+	ClubName            *string // Human-readable club name from GSPro (e.g., "Driver", "7-iron")
+	Handedness          *HandednessType
+	GSProStatus         GSProConnectionStatus
+	GSProError          error
+	InfiniteTeesStatus  InfiniteTeesConnectionStatus
+	InfiniteTeesError   error
+	SpinMode            *SpinMode
+	CameraURL           *string
+	CameraEnabled       bool
+	IsAligning          bool    // Whether alignment mode UI is active
+	AlignmentAngle      float64 // Current aim angle in degrees (left negative, right positive)
+	IsAligned           bool    // Whether device is currently aligned (within tolerance)
+	FirmwareVersion     *string // Device firmware version (e.g., "1.6.18")
+	LauncherVersion     *string // Launcher version
+	MMIVersion          *string // MMI version
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -47,30 +48,31 @@ type StateCallback[T any] func(oldValue, newValue T)
 type StateManager struct {
 	state     AppState
 	callbacks struct {
-		DeviceDisplayName []StateCallback[*string]
-		ConnectionStatus  []StateCallback[ConnectionStatus]
-		BatteryLevel      []StateCallback[*int]
-		BallDetected      []StateCallback[bool]
-		BallReady         []StateCallback[bool]
-		BallPosition      []StateCallback[*BallPosition]
-		LastBallMetrics   []StateCallback[*BallMetrics]
-		LastClubMetrics   []StateCallback[*ClubMetrics]
-		LastError         []StateCallback[error]
-		Club              []StateCallback[*ClubType]
-		Handedness        []StateCallback[*HandednessType]
-		GSProStatus        []StateCallback[GSProConnectionStatus]
-		GSProError         []StateCallback[error]
-		InfiniteTeesStatus []StateCallback[InfiniteTeesConnectionStatus]
-		InfiniteTeesError  []StateCallback[error]
-		SpinMode           []StateCallback[*SpinMode]
-		CameraURL         []StateCallback[*string]
-		CameraEnabled     []StateCallback[bool]
-		IsAligning        []StateCallback[bool]
-		AlignmentAngle    []StateCallback[float64]
-		IsAligned         []StateCallback[bool]
-		FirmwareVersion   []StateCallback[*string]
-		LauncherVersion   []StateCallback[*string]
-		MMIVersion        []StateCallback[*string]
+		DeviceDisplayName   []StateCallback[*string]
+		ConnectionStatus    []StateCallback[ConnectionStatus]
+		BatteryLevel        []StateCallback[*int]
+		BallDetected        []StateCallback[bool]
+		BallReady           []StateCallback[bool]
+		BallPosition        []StateCallback[*BallPosition]
+		LastBallMetrics     []StateCallback[*BallMetrics]
+		LastClubMetrics     []StateCallback[*ClubMetrics]
+		LaunchMonitorStatus []StateCallback[LaunchMonitorStatus]
+		LastError           []StateCallback[error]
+		Club                []StateCallback[*ClubType]
+		Handedness          []StateCallback[*HandednessType]
+		GSProStatus         []StateCallback[GSProConnectionStatus]
+		GSProError          []StateCallback[error]
+		InfiniteTeesStatus  []StateCallback[InfiniteTeesConnectionStatus]
+		InfiniteTeesError   []StateCallback[error]
+		SpinMode            []StateCallback[*SpinMode]
+		CameraURL           []StateCallback[*string]
+		CameraEnabled       []StateCallback[bool]
+		IsAligning          []StateCallback[bool]
+		AlignmentAngle      []StateCallback[float64]
+		IsAligned           []StateCallback[bool]
+		FirmwareVersion     []StateCallback[*string]
+		LauncherVersion     []StateCallback[*string]
+		MMIVersion          []StateCallback[*string]
 	}
 	mu sync.RWMutex
 }
@@ -93,16 +95,17 @@ func GetInstance() *StateManager {
 func (sm *StateManager) initialize() {
 	defaultCameraURL := "http://localhost:5000"
 	sm.state = AppState{
-		ConnectionStatus:     ConnectionStatusDisconnected,
-		BallDetected:         false,
-		BallReady:            false,
-		GSProStatus:          GSProStatusDisconnected,
-		InfiniteTeesStatus:   InfiniteTeesStatusDisconnected,
-		CameraURL:            &defaultCameraURL,
-		CameraEnabled:        false,
-		IsAligning:           false,
-		AlignmentAngle:       0.0,
-		IsAligned:            false,
+		ConnectionStatus:    ConnectionStatusDisconnected,
+		BallDetected:        false,
+		BallReady:           false,
+		GSProStatus:         GSProStatusDisconnected,
+		InfiniteTeesStatus:  InfiniteTeesStatusDisconnected,
+		CameraURL:           &defaultCameraURL,
+		CameraEnabled:       false,
+		IsAligning:          false,
+		AlignmentAngle:      0.0,
+		IsAligned:           false,
+		LaunchMonitorStatus: LaunchMonitorStatusNone,
 	}
 }
 
@@ -266,6 +269,26 @@ func (sm *StateManager) SetLastClubMetrics(value *ClubMetrics) {
 	}
 }
 
+// GetLaunchMonitorStatus returns the current launch monitor status.
+func (sm *StateManager) GetLaunchMonitorStatus() LaunchMonitorStatus {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.LaunchMonitorStatus
+}
+
+// SetLaunchMonitorStatus sets the current launch monitor status.
+func (sm *StateManager) SetLaunchMonitorStatus(value LaunchMonitorStatus) {
+	sm.mu.Lock()
+	oldValue := sm.state.LaunchMonitorStatus
+	sm.state.LaunchMonitorStatus = value
+	callbacks := sm.callbacks.LaunchMonitorStatus
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
 // GetLastError returns the last error
 func (sm *StateManager) GetLastError() error {
 	sm.mu.RLock()
@@ -394,6 +417,13 @@ func (sm *StateManager) RegisterLastClubMetricsCallback(callback StateCallback[*
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.LastClubMetrics = append(sm.callbacks.LastClubMetrics, callback)
+}
+
+// RegisterLaunchMonitorStatusCallback registers a callback for launch monitor status changes.
+func (sm *StateManager) RegisterLaunchMonitorStatusCallback(callback StateCallback[LaunchMonitorStatus]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.LaunchMonitorStatus = append(sm.callbacks.LaunchMonitorStatus, callback)
 }
 
 // RegisterLastErrorCallback registers a callback for last error changes

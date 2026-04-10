@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"sync"
 	"testing"
-	"time"
 )
 
 func resetSingletonsForTest(t *testing.T) {
@@ -277,9 +276,9 @@ func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
 	mockClient.connected = true
 
 	// Test shot ball metrics notification
-	// Format: 11 02 37 (shot metrics - full shot)
+	// Format: 11 02 xx (shot metrics)
 	shotData := []byte{
-		0x11, 0x02, 0x37, // Header for full shot
+		0x11, 0x02, 0x37, // Header metadata byte
 		0x32, 0x00, // Ball speed (50 = 0.5 m/s)
 		0x14, 0x00, // Vertical angle (20 = 0.2 degrees)
 		0x0A, 0x00, // Horizontal angle (10 = 0.1 degrees)
@@ -297,9 +296,6 @@ func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
 		t.Fatal("Expected ball metrics to be set")
 	}
 
-	if metrics.ShotType != ShotTypeFull {
-		t.Error("Expected full shot type")
-	}
 	if metrics.BallSpeedMPS != 0.5 {
 		t.Errorf("Expected ball speed 0.5 m/s, got %v", metrics.BallSpeedMPS)
 	}
@@ -321,6 +317,9 @@ func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
 	if metrics.SidespinRPM != 30 {
 		t.Errorf("Expected side spin 30 rpm, got %v", metrics.SidespinRPM)
 	}
+	if !metrics.IsBallSpeedValid || !metrics.IsTotalSpinValid || !metrics.IsSpinAxisValid || !metrics.IsBackspinValid || !metrics.IsSidespinValid {
+		t.Error("Expected all ball metric validity flags to be true")
+	}
 
 	// Verify club metrics request was made
 	if !mockClient.writeCalled {
@@ -331,10 +330,9 @@ func TestNotificationHandler_ShotBallMetrics(t *testing.T) {
 func TestNotificationHandler_ShotClubMetrics(t *testing.T) {
 	sm, lm, _, _ := newTestLaunchMonitor(t)
 
-	// Test shot club metrics notification
-	// Format: 11 07 0f (club metrics)
+	// Test shot club metrics notification with a non-0f metadata byte.
 	clubData := []byte{
-		0x11, 0x07, 0x0f, // Header
+		0x11, 0x07, 0x0d, // Header
 		0x32, 0x00, // Path angle (50 = 0.5 degrees)
 		0x14, 0x00, // Face angle (20 = 0.2 degrees)
 		0x0A, 0x00, // Attack angle (10 = 0.1 degrees)
@@ -361,80 +359,69 @@ func TestNotificationHandler_ShotClubMetrics(t *testing.T) {
 	if metrics.DynamicLoftAngle != 0.4 {
 		t.Errorf("Expected dynamic loft angle 0.4, got %v", metrics.DynamicLoftAngle)
 	}
+	if !metrics.IsPathAngleValid || !metrics.IsFaceAngleValid || !metrics.IsAttackAngleValid || !metrics.IsDynamicLoftValid {
+		t.Error("Expected all club metric validity flags to be true")
+	}
 }
 
-func TestStartHeartbeatTask(t *testing.T) {
+func TestSendHeartbeatTick(t *testing.T) {
 	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true
 
-	// Set initial UUID to ensure we can detect the heartbeat
-	mockClient.lastWriteUUID = CommandCharUUID
-
-	// Start heartbeat task
-	lm.startHeartbeatTask()
-
-	// Wait for first heartbeat tick (5 seconds)
-	time.Sleep(5*time.Second + 100*time.Millisecond)
+	lm.sendHeartbeatTick()
 
 	// Verify heartbeat was sent
 	if !mockClient.writeCalled || mockClient.lastWriteUUID != CommandCharUUID {
 		t.Error("Expected heartbeat to be sent")
 	}
-
-	// Cancel heartbeat task
-	lm.heartbeatCancelMu.Lock()
-	if lm.heartbeatCancel != nil {
-		lm.heartbeatCancel()
-		lm.heartbeatCancel = nil
+	if mockClient.writeCount != 1 {
+		t.Errorf("Expected exactly one heartbeat write, got %d", mockClient.writeCount)
 	}
-	lm.heartbeatCancelMu.Unlock()
 }
 
-func TestStartHeartbeatTask_CancelAndRestart(t *testing.T) {
-	_, lm, mockClient, _ := newTestLaunchMonitor(t)
-	mockClient.connected = true
-
-	// Set initial UUID to ensure we can detect the heartbeat
-	mockClient.lastWriteUUID = CommandCharUUID
-
-	// Start first heartbeat task
-	lm.startHeartbeatTask()
-
-	// Wait for first heartbeat tick (5 seconds)
-	time.Sleep(5*time.Second + 100*time.Millisecond)
-
-	// Record write count before restart
-	writeCountBeforeRestart := mockClient.writeCount
-
-	// Start second heartbeat task (should cancel first)
-	lm.startHeartbeatTask()
-
-	// Wait for second heartbeat tick (5 seconds)
-	time.Sleep(5*time.Second + 100*time.Millisecond)
-
-	// Verify additional heartbeat was sent
-	if mockClient.writeCount <= writeCountBeforeRestart {
-		t.Error("Expected additional heartbeat after restart")
-	}
-
-	// Cancel heartbeat task
-	lm.heartbeatCancelMu.Lock()
-	if lm.heartbeatCancel != nil {
-		lm.heartbeatCancel()
-		lm.heartbeatCancel = nil
-	}
-	lm.heartbeatCancelMu.Unlock()
-}
-
-func TestNotificationHandler_Heartbeat(t *testing.T) {
+func TestStopHeartbeatTask(t *testing.T) {
 	_, lm, _, _ := newTestLaunchMonitor(t)
 
-	// Test heartbeat notification
-	// Format: 11 03 (heartbeat)
-	heartbeatData := []byte{0x11, 0x03}
+	lm.startHeartbeatTask()
+	firstCancel := lm.heartbeatCancel
+	if firstCancel == nil {
+		t.Fatal("Expected heartbeat cancel function to be set")
+	}
 
-	// Verify heartbeat is handled without error
-	lm.NotificationHandler("", heartbeatData)
+	lm.stopHeartbeatTask()
+	if lm.heartbeatCancel != nil {
+		t.Fatal("Expected heartbeat cancel function to be cleared")
+	}
+}
+
+func TestStartHeartbeatTask_ReplacesCancelFunc(t *testing.T) {
+	_, lm, _, _ := newTestLaunchMonitor(t)
+
+	lm.startHeartbeatTask()
+	if lm.heartbeatCancel == nil {
+		t.Fatal("Expected first heartbeat cancel function to be set")
+	}
+
+	lm.startHeartbeatTask()
+	if lm.heartbeatCancel == nil {
+		t.Fatal("Expected second heartbeat cancel function to be set")
+	}
+
+	lm.stopHeartbeatTask()
+	if lm.heartbeatCancel != nil {
+		t.Fatal("Expected heartbeat cancel function to be cleared after stop")
+	}
+}
+
+func TestNotificationHandler_Status(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+
+	statusData := []byte{0x11, 0x03, 0x04}
+	lm.NotificationHandler("", statusData)
+
+	if sm.GetLaunchMonitorStatus() != LaunchMonitorStatusReady {
+		t.Fatalf("Expected launch monitor status %q, got %q", LaunchMonitorStatusReady, sm.GetLaunchMonitorStatus())
+	}
 }
 
 func TestSetupNotifications(t *testing.T) {
