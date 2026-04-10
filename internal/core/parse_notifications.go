@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 )
 
 // SensorData represents data from the sensor
@@ -36,15 +37,23 @@ type BallMetrics struct {
 
 // ClubMetrics represents club metrics from a shot
 type ClubMetrics struct {
-	RawData            []string `json:"rawData,omitempty"`
-	PathAngle          float64  `json:"path"`
-	FaceAngle          float64  `json:"angle"`
-	AttackAngle        float64  `json:"attackAngle"`
-	DynamicLoftAngle   float64  `json:"dynamicLoft"`
-	IsPathAngleValid   bool     `json:"isPathValid"`
-	IsFaceAngleValid   bool     `json:"isFaceAngleValid"`
-	IsAttackAngleValid bool     `json:"isAttackAngleValid"`
-	IsDynamicLoftValid bool     `json:"isDynamicLoftValid"`
+	RawData                 []string `json:"rawData,omitempty"`
+	PathAngle               float64  `json:"path"`
+	FaceAngle               float64  `json:"angle"`
+	AttackAngle             float64  `json:"attackAngle"`
+	DynamicLoftAngle        float64  `json:"dynamicLoft"`
+	ImpactHorizontal        float64  `json:"impactHorizontal"`
+	ImpactVertical          float64  `json:"impactVertical"`
+	ClubSpeed               float64  `json:"clubSpeed"`
+	SmashFactor             float64  `json:"smashFactor"`
+	IsPathAngleValid        bool     `json:"isPathValid"`
+	IsFaceAngleValid        bool     `json:"isFaceAngleValid"`
+	IsAttackAngleValid      bool     `json:"isAttackAngleValid"`
+	IsDynamicLoftValid      bool     `json:"isDynamicLoftValid"`
+	IsImpactHorizontalValid bool     `json:"isImpactHorizontalValid"`
+	IsImpactVerticalValid   bool     `json:"isImpactVerticalValid"`
+	IsClubSpeedValid        bool     `json:"isClubSpeedValid"`
+	IsSmashFactorValid      bool     `json:"isSmashFactorValid"`
 }
 
 // AlignmentData represents device alignment/aim information
@@ -197,6 +206,51 @@ func ParseShotClubMetrics(bytesList []string) (*ClubMetrics, error) {
 		metrics.IsDynamicLoftValid = valid
 	} else {
 		metrics.IsDynamicLoftValid = false
+	}
+
+	return metrics, nil
+}
+
+// ParseOmniShotClubMetrics parses club metrics from an Omni device (8 fields with validity bitmask)
+func ParseOmniShotClubMetrics(bytesList []string) (*ClubMetrics, error) {
+	if len(bytesList) < 19 {
+		return nil, fmt.Errorf("insufficient data for parsing Omni club metrics (need 19, got %d)", len(bytesList))
+	}
+
+	validityByte, err := strconv.ParseUint(bytesList[2], 16, 8)
+	if err != nil {
+		validityByte = 0
+	}
+	validity := byte(validityByte)
+
+	metrics := &ClubMetrics{
+		RawData: bytesList,
+	}
+
+	type fieldDef struct {
+		lowIdx, highIdx int
+		target          *float64
+		validTarget     *bool
+		bit             uint
+	}
+
+	fields := []fieldDef{
+		{3, 4, &metrics.PathAngle, &metrics.IsPathAngleValid, 0},
+		{5, 6, &metrics.FaceAngle, &metrics.IsFaceAngleValid, 1},
+		{7, 8, &metrics.AttackAngle, &metrics.IsAttackAngleValid, 2},
+		{9, 10, &metrics.DynamicLoftAngle, &metrics.IsDynamicLoftValid, 3},
+		{11, 12, &metrics.ImpactHorizontal, &metrics.IsImpactHorizontalValid, 4},
+		{13, 14, &metrics.ImpactVertical, &metrics.IsImpactVerticalValid, 5},
+		{15, 16, &metrics.ClubSpeed, &metrics.IsClubSpeedValid, 6},
+		{17, 18, &metrics.SmashFactor, &metrics.IsSmashFactorValid, 7},
+	}
+
+	for _, f := range fields {
+		bitmaskValid := (validity & (1 << f.bit)) != 0
+		if val, sentinelValid, ok := parseScaledInt16Metric(bytesList[f.lowIdx], bytesList[f.highIdx], 100.0); ok {
+			*f.target = val
+			*f.validTarget = bitmaskValid && sentinelValid
+		}
 	}
 
 	return metrics, nil

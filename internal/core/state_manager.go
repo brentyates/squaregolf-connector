@@ -39,6 +39,7 @@ type AppState struct {
 	FirmwareVersion     *string // Device firmware version (e.g., "1.6.18")
 	LauncherVersion     *string // Launcher version
 	MMIVersion          *string // MMI version
+	DeviceType          DeviceType
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -73,6 +74,7 @@ type StateManager struct {
 		FirmwareVersion     []StateCallback[*string]
 		LauncherVersion     []StateCallback[*string]
 		MMIVersion          []StateCallback[*string]
+		DeviceType          []StateCallback[DeviceType]
 	}
 	mu sync.RWMutex
 }
@@ -106,6 +108,7 @@ func (sm *StateManager) initialize() {
 		AlignmentAngle:      0.0,
 		IsAligned:           false,
 		LaunchMonitorStatus: LaunchMonitorStatusNone,
+		DeviceType:          DeviceTypeUnknown,
 	}
 }
 
@@ -796,4 +799,28 @@ func (sm *StateManager) RegisterMMIVersionCallback(callback StateCallback[*strin
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.MMIVersion = append(sm.callbacks.MMIVersion, callback)
+}
+
+func (sm *StateManager) GetDeviceType() DeviceType {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.DeviceType
+}
+
+func (sm *StateManager) SetDeviceType(value DeviceType) {
+	sm.mu.Lock()
+	oldValue := sm.state.DeviceType
+	sm.state.DeviceType = value
+	callbacks := sm.callbacks.DeviceType
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterDeviceTypeCallback(callback StateCallback[DeviceType]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.DeviceType = append(sm.callbacks.DeviceType, callback)
 }

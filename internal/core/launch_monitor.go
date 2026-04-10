@@ -184,13 +184,20 @@ func (lm *LaunchMonitor) HandleShotBallMetrics(bytesList []string) {
 
 // HandleShotClubMetrics handles shot club metrics notifications (format 11 07).
 func (lm *LaunchMonitor) HandleShotClubMetrics(bytesList []string) {
-	clubMetrics, err := ParseShotClubMetrics(bytesList)
+	var clubMetrics *ClubMetrics
+	var err error
+
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni && len(bytesList) >= 19 {
+		clubMetrics, err = ParseOmniShotClubMetrics(bytesList)
+	} else {
+		clubMetrics, err = ParseShotClubMetrics(bytesList)
+	}
+
 	if err != nil {
 		log.Printf("Failed to parse club metrics data: %v", err)
 		return
 	}
 
-	// Update state manager with club metrics
 	lm.stateManager.SetLastClubMetrics(clubMetrics)
 }
 
@@ -451,6 +458,7 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
 		if newValue == ConnectionStatusConnected && oldValue != ConnectionStatusConnected {
 			log.Println("LaunchMonitor: Device connected")
+			go lm.sendOmniInitSequence()
 		} else if newValue == ConnectionStatusDisconnected {
 			// When Bluetooth disconnects, reset ball detection state
 			lm.HandleBluetoothDisconnect()
@@ -459,6 +467,51 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 
 	// Start the heartbeat task to maintain connection
 	lm.startHeartbeatTask()
+}
+
+// sendOmniInitSequence sends the Omni-specific configuration commands after connection.
+// The Omni requires SetUnits, SetCarryDistanceAdjustment, SetGreenSpeed, and SetHanded
+// to be sent after connection with delays between each command.
+func (lm *LaunchMonitor) sendOmniInitSequence() {
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	log.Println("LaunchMonitor: Sending Omni init sequence")
+
+	commands := []struct {
+		name string
+		cmd  string
+	}{
+		{"SetUnits", OmniSetUnitsCommand(lm.getNextSequence(), 0, 0)},
+		{"SetCarryDistanceAdjustment", OmniSetCarryDistanceAdjustmentCommand(lm.getNextSequence(), 0)},
+		{"SetGreenSpeed", OmniSetGreenSpeedCommand(lm.getNextSequence(), 2)},
+	}
+
+	handedness := lm.stateManager.GetHandedness()
+	if handedness != nil {
+		commands = append(commands, struct {
+			name string
+			cmd  string
+		}{"SetHanded", OmniSetHandedCommand(lm.getNextSequence(), *handedness)})
+	}
+
+	for _, c := range commands {
+		time.Sleep(500 * time.Millisecond)
+		if !lm.bluetoothClient.IsConnected() {
+			log.Println("LaunchMonitor: Device disconnected during Omni init, aborting")
+			return
+		}
+		err := lm.SendCommand(c.cmd)
+		if err != nil {
+			log.Printf("LaunchMonitor: Failed to send Omni %s: %v", c.name, err)
+		}
+	}
+
+	log.Println("LaunchMonitor: Omni init sequence complete")
 }
 
 // HandleBluetoothDisconnect handles cleanup when Bluetooth disconnects
@@ -470,6 +523,7 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	lm.stateManager.SetBallReady(false)
 	lm.stateManager.SetBallPosition(nil)
 	lm.stateManager.SetLaunchMonitorStatus(LaunchMonitorStatusNone)
+	lm.stateManager.SetDeviceType(DeviceTypeUnknown)
 
 	// Stop any heartbeat task
 	lm.stopHeartbeatTask()

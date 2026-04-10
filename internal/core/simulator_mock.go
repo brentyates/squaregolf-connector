@@ -42,6 +42,7 @@ type SimulatorConfig struct {
 	BatteryDrainRate    float64
 	ErrorRate           float64
 	ResponseDelay       time.Duration
+	SimulateOmni        bool
 }
 
 // NewSimulatorBluetoothClient creates a new simulator Bluetooth client
@@ -297,6 +298,13 @@ func (s *SimulatorBluetoothClient) GetConnectedDeviceName() string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.deviceName
+}
+
+func (s *SimulatorBluetoothClient) GetConnectedDeviceManufacturerData() string {
+	if s.config.SimulateOmni {
+		return OmniManufacturerDataHex
+	}
+	return ""
 }
 
 // Private helper methods
@@ -759,17 +767,16 @@ func (s *SimulatorBluetoothClient) sendClubMetrics(handler func([]byte)) {
 
 	log.Println("Simulator: Sending club metrics")
 
-	// Generate realistic club metrics values with a partial/variant header and one invalid field.
-	// Path angle between -5 and 5 degrees
+	if s.config.SimulateOmni {
+		s.sendOmniClubMetrics(handler)
+		return
+	}
+
 	pathAngle := int16(s.rand.Intn(1000) - 500)
-	// Face angle between -5 and 5 degrees
 	faceAngle := int16(s.rand.Intn(1000) - 500)
-	// Attack angle intentionally invalid for telemetry visibility.
 	attackAngle := int16(-32768)
-	// Dynamic loft angle between 5 and 20 degrees
 	loftAngle := int16(500 + s.rand.Intn(1500))
 
-	// Use a non-0f metadata byte to prove the parser accepts variant club packets.
 	clubData := []byte{
 		0x11, 0x07, 0x0d,
 		byte(pathAngle & 0xFF), byte((pathAngle >> 8) & 0xFF),
@@ -778,7 +785,39 @@ func (s *SimulatorBluetoothClient) sendClubMetrics(handler func([]byte)) {
 		byte(loftAngle & 0xFF), byte((loftAngle >> 8) & 0xFF),
 	}
 
-	// Send the club metrics
+	handler(clubData)
+}
+
+func (s *SimulatorBluetoothClient) sendOmniClubMetrics(handler func([]byte)) {
+	int16LE := func(v int16) (byte, byte) { return byte(v & 0xFF), byte((v >> 8) & 0xFF) }
+
+	pathAngle := int16(s.rand.Intn(1000) - 500)
+	faceAngle := int16(s.rand.Intn(1000) - 500)
+	attackAngle := int16(-300 + s.rand.Intn(600))
+	loftAngle := int16(500 + s.rand.Intn(1500))
+	impactH := int16(s.rand.Intn(200) - 100)
+	impactV := int16(s.rand.Intn(200) - 100)
+	clubSpeed := int16(3000 + s.rand.Intn(2000))
+	smashFactor := int16(-32768) // intentionally invalid
+
+	// All valid except smash factor (bit 7 = 0)
+	validityByte := byte(0x7F)
+
+	p0, p1 := int16LE(pathAngle)
+	f0, f1 := int16LE(faceAngle)
+	a0, a1 := int16LE(attackAngle)
+	l0, l1 := int16LE(loftAngle)
+	ih0, ih1 := int16LE(impactH)
+	iv0, iv1 := int16LE(impactV)
+	cs0, cs1 := int16LE(clubSpeed)
+	sf0, sf1 := int16LE(smashFactor)
+
+	clubData := []byte{
+		0x11, 0x07, validityByte,
+		p0, p1, f0, f1, a0, a1, l0, l1,
+		ih0, ih1, iv0, iv1, cs0, cs1, sf0, sf1,
+	}
+
 	handler(clubData)
 }
 

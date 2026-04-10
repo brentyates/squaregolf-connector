@@ -843,3 +843,117 @@ func TestParseShotClubMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestParseOmniShotClubMetrics(t *testing.T) {
+	tests := []struct {
+		name    string
+		bytes   []string
+		want    *ClubMetrics
+		wantErr bool
+	}{
+		{
+			name:    "Insufficient data",
+			bytes:   []string{"11", "07", "ff", "00", "01", "00", "02"},
+			wantErr: true,
+		},
+		{
+			name: "All fields valid with bitmask 0xFF",
+			bytes: []string{
+				"11", "07", "ff",
+				"d8", "fe", // path = -296 -> -2.96
+				"90", "01", // face = 400 -> 4.00
+				"38", "ff", // attack = -200 -> -2.00
+				"d0", "07", // loft = 2000 -> 20.00
+				"64", "00", // impactH = 100 -> 1.00
+				"c8", "ff", // impactV = -56 -> -0.56
+				"b8", "0b", // clubSpeed = 3000 -> 30.00
+				"82", "00", // smash = 130 -> 1.30
+			},
+			want: &ClubMetrics{
+				RawData: []string{
+					"11", "07", "ff",
+					"d8", "fe", "90", "01", "38", "ff", "d0", "07",
+					"64", "00", "c8", "ff", "b8", "0b", "82", "00",
+				},
+				PathAngle: -2.96, FaceAngle: 4.00, AttackAngle: -2.00, DynamicLoftAngle: 20.00,
+				ImpactHorizontal: 1.00, ImpactVertical: -0.56, ClubSpeed: 30.00, SmashFactor: 1.30,
+				IsPathAngleValid: true, IsFaceAngleValid: true, IsAttackAngleValid: true, IsDynamicLoftValid: true,
+				IsImpactHorizontalValid: true, IsImpactVerticalValid: true, IsClubSpeedValid: true, IsSmashFactorValid: true,
+			},
+		},
+		{
+			name: "Partial bitmask 0x0F (first 4 valid, last 4 invalid)",
+			bytes: []string{
+				"11", "07", "0f",
+				"d8", "fe", "90", "01", "38", "ff", "d0", "07",
+				"64", "00", "c8", "ff", "b8", "0b", "82", "00",
+			},
+			want: &ClubMetrics{
+				RawData: []string{
+					"11", "07", "0f",
+					"d8", "fe", "90", "01", "38", "ff", "d0", "07",
+					"64", "00", "c8", "ff", "b8", "0b", "82", "00",
+				},
+				PathAngle: -2.96, FaceAngle: 4.00, AttackAngle: -2.00, DynamicLoftAngle: 20.00,
+				ImpactHorizontal: 1.00, ImpactVertical: -0.56, ClubSpeed: 30.00, SmashFactor: 1.30,
+				IsPathAngleValid: true, IsFaceAngleValid: true, IsAttackAngleValid: true, IsDynamicLoftValid: true,
+				IsImpactHorizontalValid: false, IsImpactVerticalValid: false, IsClubSpeedValid: false, IsSmashFactorValid: false,
+			},
+		},
+		{
+			name: "Sentinel value overrides bitmask",
+			bytes: []string{
+				"11", "07", "ff",
+				"00", "80", // path = -32768 sentinel
+				"90", "01", "38", "ff", "d0", "07",
+				"64", "00", "c8", "ff", "b8", "0b", "82", "00",
+			},
+			want: &ClubMetrics{
+				RawData: []string{
+					"11", "07", "ff",
+					"00", "80", "90", "01", "38", "ff", "d0", "07",
+					"64", "00", "c8", "ff", "b8", "0b", "82", "00",
+				},
+				PathAngle: 0, FaceAngle: 4.00, AttackAngle: -2.00, DynamicLoftAngle: 20.00,
+				ImpactHorizontal: 1.00, ImpactVertical: -0.56, ClubSpeed: 30.00, SmashFactor: 1.30,
+				IsPathAngleValid: false, IsFaceAngleValid: true, IsAttackAngleValid: true, IsDynamicLoftValid: true,
+				IsImpactHorizontalValid: true, IsImpactVerticalValid: true, IsClubSpeedValid: true, IsSmashFactorValid: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseOmniShotClubMetrics(tt.bytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseOmniShotClubMetrics() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseOmniShotClubMetrics() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectDeviceType(t *testing.T) {
+	tests := []struct {
+		name       string
+		mfgDataHex string
+		want       DeviceType
+	}{
+		{"Empty data returns Home", "", DeviceTypeHome},
+		{"Non-matching data returns Home", "aabbccddee", DeviceTypeHome},
+		{"Omni identifier returns Omni", "some3033303041data", DeviceTypeOmni},
+		{"Exact Omni identifier", OmniManufacturerDataHex, DeviceTypeOmni},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectDeviceType(tt.mfgDataHex)
+			if got != tt.want {
+				t.Errorf("DetectDeviceType(%q) = %v, want %v", tt.mfgDataHex, got, tt.want)
+			}
+		})
+	}
+}

@@ -17,6 +17,7 @@ import (
 func main() {
 	mockMode := flag.String("mock", "simulate", "Mock mode to use for the browser harness")
 	port := flag.Int("port", 8091, "Port for the browser harness web server")
+	omni := flag.Bool("omni", false, "Simulate an Omni device instead of Home")
 	flag.Parse()
 
 	log.Printf("Browser harness starting with mock mode %q on port %d", *mockMode, *port)
@@ -33,6 +34,7 @@ func main() {
 		bleClient = core.NewSimulatorBluetoothClient(core.SimulatorConfig{
 			BatteryDrainRate: 1,
 			ResponseDelay:    100 * time.Millisecond,
+			SimulateOmni:     *omni,
 		})
 	default:
 		log.Fatalf("unsupported mock mode for browser harness: %q", *mockMode)

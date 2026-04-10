@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -87,6 +88,7 @@ type TinyGoBluetoothClient struct {
 	characteristics      map[string]*bluetooth.DeviceCharacteristic
 	notificationHandlers map[string]func([]byte)
 	connectedDeviceName  string // Store the name of the connected device
+	connectedScanResult  *bluetooth.ScanResult
 	onPhaseChange        func(ConnectionPhase)
 
 	// New fields for scan management
@@ -297,7 +299,8 @@ func (t *TinyGoBluetoothClient) Connect(targetName, targetAddress string) error 
 	}
 	log.Println("Successfully connected to device")
 	t.device = &device
-	t.connectedDeviceName = deviceToConnect.LocalName() // Store the connected device name
+	t.connectedDeviceName = deviceToConnect.LocalName()
+	t.connectedScanResult = &deviceToConnect
 
 	// Discover services and characteristics
 	log.Println("Discovering services...")
@@ -499,4 +502,17 @@ func (t *TinyGoBluetoothClient) GetDiscoveredDevices() []string {
 	}
 
 	return devices
+}
+
+func (t *TinyGoBluetoothClient) GetConnectedDeviceManufacturerData() string {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if t.connectedScanResult == nil {
+		return ""
+	}
+	mfgData := t.connectedScanResult.ManufacturerData()
+	if len(mfgData) == 0 {
+		return ""
+	}
+	return hex.EncodeToString(mfgData[0].Data)
 }

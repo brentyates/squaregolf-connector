@@ -18,6 +18,7 @@ type BluetoothClient interface {
 	StopScan() error
 	GetDiscoveredDevices() []string
 	GetConnectedDeviceName() string
+	GetConnectedDeviceManufacturerData() string
 }
 
 // WriteHistory represents a single write operation with its metadata
@@ -151,4 +152,8 @@ func (m *MockBluetoothClient) GetDiscoveredDevices() []string {
 // GetConnectedDeviceName returns the name of the currently connected device
 func (m *MockBluetoothClient) GetConnectedDeviceName() string {
 	return m.deviceName
+}
+
+func (m *MockBluetoothClient) GetConnectedDeviceManufacturerData() string {
+	return ""
 }

@@ -62,6 +62,7 @@ type DeviceStatus struct {
 	IsAligning          bool                     `json:"isAligning"`
 	AlignmentAngle      float64                  `json:"alignmentAngle"`
 	IsAligned           bool                     `json:"isAligned"`
+	DeviceType          core.DeviceType          `json:"deviceType"`
 }
 
 type GSProStatus struct {
@@ -209,6 +210,10 @@ func (s *Server) setupCallbacks() {
 		s.broadcastDeviceStatus()
 	})
 
+	s.stateManager.RegisterDeviceTypeCallback(func(oldValue, newValue core.DeviceType) {
+		s.broadcastDeviceStatus()
+	})
+
 	s.stateManager.RegisterGSProStatusCallback(func(oldValue, newValue core.GSProConnectionStatus) {
 		s.broadcastGSProStatus()
 	})
@@ -345,6 +350,7 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 		IsAligning:          s.stateManager.GetIsAligning(),
 		AlignmentAngle:      s.stateManager.GetAlignmentAngle(),
 		IsAligned:           s.stateManager.GetIsAligned(),
+		DeviceType:          s.stateManager.GetDeviceType(),
 	}
 }
 

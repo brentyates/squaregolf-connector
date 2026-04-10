@@ -905,6 +905,102 @@ func TestRequestClubMetricsCommand_ExactBytes(t *testing.T) {
 	}
 }
 
+func TestNotificationHandler_ShotClubMetrics_HomeDevice(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeHome)
+
+	clubData := []byte{
+		0x11, 0x07, 0x0d,
+		0x32, 0x00, // Path 0.5
+		0x14, 0x00, // Face 0.2
+		0x0A, 0x00, // Attack 0.1
+		0x28, 0x00, // DynLoft 0.4
+	}
+
+	lm.NotificationHandler("", clubData)
+
+	metrics := sm.GetLastClubMetrics()
+	if metrics == nil {
+		t.Fatal("Expected club metrics to be set")
+	}
+	if metrics.PathAngle != 0.5 {
+		t.Errorf("Expected path angle 0.5, got %v", metrics.PathAngle)
+	}
+	if metrics.ImpactHorizontal != 0 || metrics.ImpactVertical != 0 || metrics.ClubSpeed != 0 || metrics.SmashFactor != 0 {
+		t.Error("Expected Omni-only fields to be zero for Home device")
+	}
+}
+
+func TestNotificationHandler_ShotClubMetrics_OmniDevice(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	clubData := []byte{
+		0x11, 0x07,
+		0xFF,       // validity bitmask: all 8 valid
+		0x32, 0x00, // Path 0.5
+		0x14, 0x00, // Face 0.2
+		0x0A, 0x00, // Attack 0.1
+		0x28, 0x00, // DynLoft 0.4
+		0xE8, 0x03, // ImpactH 10.0 (1000/100)
+		0xD0, 0x07, // ImpactV 20.0 (2000/100)
+		0x10, 0x27, // ClubSpeed 100.0 (10000/100)
+		0xC8, 0x00, // SmashFactor 2.0 (200/100)
+	}
+
+	lm.NotificationHandler("", clubData)
+
+	metrics := sm.GetLastClubMetrics()
+	if metrics == nil {
+		t.Fatal("Expected club metrics to be set")
+	}
+	if metrics.PathAngle != 0.5 {
+		t.Errorf("Expected path angle 0.5, got %v", metrics.PathAngle)
+	}
+	if metrics.ImpactHorizontal != 10.0 {
+		t.Errorf("Expected impact horizontal 10.0, got %v", metrics.ImpactHorizontal)
+	}
+	if metrics.ImpactVertical != 20.0 {
+		t.Errorf("Expected impact vertical 20.0, got %v", metrics.ImpactVertical)
+	}
+	if metrics.ClubSpeed != 100.0 {
+		t.Errorf("Expected club speed 100.0, got %v", metrics.ClubSpeed)
+	}
+	if metrics.SmashFactor != 2.0 {
+		t.Errorf("Expected smash factor 2.0, got %v", metrics.SmashFactor)
+	}
+	if !metrics.IsImpactHorizontalValid || !metrics.IsImpactVerticalValid || !metrics.IsClubSpeedValid || !metrics.IsSmashFactorValid {
+		t.Error("Expected all Omni validity flags to be true")
+	}
+}
+
+func TestNotificationHandler_ShotClubMetrics_OmniShortPacketFallback(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	// Only 11 bytes — too short for Omni parser, should fall back to Home parser
+	clubData := []byte{
+		0x11, 0x07, 0x0d,
+		0x32, 0x00,
+		0x14, 0x00,
+		0x0A, 0x00,
+		0x28, 0x00,
+	}
+
+	lm.NotificationHandler("", clubData)
+
+	metrics := sm.GetLastClubMetrics()
+	if metrics == nil {
+		t.Fatal("Expected club metrics to be set via Home fallback")
+	}
+	if metrics.PathAngle != 0.5 {
+		t.Errorf("Expected path angle 0.5, got %v", metrics.PathAngle)
+	}
+	if metrics.ImpactHorizontal != 0 {
+		t.Error("Expected Omni-only fields to be zero when falling back to Home parser")
+	}
+}
+
 func TestHeartbeatCommand_ExactBytes(t *testing.T) {
 	_, lm, mockClient, _ := newTestLaunchMonitor(t)
 	mockClient.connected = true

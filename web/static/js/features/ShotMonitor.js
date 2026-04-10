@@ -149,15 +149,29 @@ export class ShotMonitor {
             rawData: status.lastBallMetrics?.rawData,
             waitingText: 'Waiting for shot'
         });
+        const isOmni = status.deviceType === 'omni';
+        document.querySelectorAll('.omni-only').forEach(el => {
+            el.style.display = isOmni ? '' : 'none';
+        });
+
+        const clubMetrics = [
+            { id: 'telemetryAttackAngle', value: status.lastClubMetrics?.attackAngle, unit: 'deg', valid: status.lastClubMetrics?.isAttackAngleValid, label: 'Attack angle' },
+            { id: 'telemetryClubPath', value: status.lastClubMetrics?.path, unit: 'deg', valid: status.lastClubMetrics?.isPathValid, label: 'Club path' },
+            { id: 'telemetryFaceAngle', value: status.lastClubMetrics?.angle, unit: 'deg', valid: status.lastClubMetrics?.isFaceAngleValid, label: 'Face angle' },
+            { id: 'telemetryDynamicLoft', value: status.lastClubMetrics?.dynamicLoft, unit: 'deg', valid: status.lastClubMetrics?.isDynamicLoftValid, label: 'Dynamic loft' },
+        ];
+        if (isOmni) {
+            clubMetrics.push(
+                { id: 'telemetryImpactH', value: status.lastClubMetrics?.impactHorizontal, unit: 'deg', valid: status.lastClubMetrics?.isImpactHorizontalValid, label: 'Impact horizontal' },
+                { id: 'telemetryImpactV', value: status.lastClubMetrics?.impactVertical, unit: 'deg', valid: status.lastClubMetrics?.isImpactVerticalValid, label: 'Impact vertical' },
+                { id: 'telemetryClubSpeed', value: status.lastClubMetrics?.clubSpeed, unit: '', valid: status.lastClubMetrics?.isClubSpeedValid, label: 'Club speed' },
+                { id: 'telemetrySmashFactor', value: status.lastClubMetrics?.smashFactor, unit: '', valid: status.lastClubMetrics?.isSmashFactorValid, label: 'Smash factor' },
+            );
+        }
         this.updateTelemetrySection({
             summaryId: 'clubTelemetrySummary',
             rawId: 'telemetryClubRaw',
-            metrics: [
-                { id: 'telemetryAttackAngle', value: status.lastClubMetrics?.attackAngle, unit: 'deg', valid: status.lastClubMetrics?.isAttackAngleValid, label: 'Attack angle' },
-                { id: 'telemetryClubPath', value: status.lastClubMetrics?.path, unit: 'deg', valid: status.lastClubMetrics?.isPathValid, label: 'Club path' },
-                { id: 'telemetryFaceAngle', value: status.lastClubMetrics?.angle, unit: 'deg', valid: status.lastClubMetrics?.isFaceAngleValid, label: 'Face angle' },
-                { id: 'telemetryDynamicLoft', value: status.lastClubMetrics?.dynamicLoft, unit: 'deg', valid: status.lastClubMetrics?.isDynamicLoftValid, label: 'Dynamic loft' },
-            ],
+            metrics: clubMetrics,
             rawData: status.lastClubMetrics?.rawData,
             waitingText: 'Waiting for club data'
         });

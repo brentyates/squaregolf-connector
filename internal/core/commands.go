@@ -70,3 +70,34 @@ func RequestClubMetricsCommand(sequence int) string {
 func GetOSVersionCommand(sequence int) string {
 	return fmt.Sprintf("1192%02x0000000000", sequence)
 }
+
+// OmniSetUnitsCommand configures the Omni's speed and distance units (command 0x88).
+// speedUnit: 0 = m/s, 1 = mph
+// distanceUnit: 0 = meters, 1 = yards/feet, 2 = yards/yards
+func OmniSetUnitsCommand(sequence int, speedUnit int, distanceUnit int) string {
+	distMarker := 0
+	distSub := 0
+	if distanceUnit > 0 {
+		distMarker = 1
+		distSub = distanceUnit
+	}
+	return fmt.Sprintf("1188%02x%02x%02x%02x0000", sequence, speedUnit, distMarker, distSub)
+}
+
+// OmniSetGreenSpeedCommand configures the Omni's green speed (command 0x89).
+// greenSpeed: 0=8, 1=9, 2=10, 3=11, 4=12, 5=13
+func OmniSetGreenSpeedCommand(sequence int, greenSpeed int) string {
+	return fmt.Sprintf("1189%02x%02x00000000", sequence, greenSpeed)
+}
+
+// OmniSetCarryDistanceAdjustmentCommand configures carry distance adjustment (command 0x8a).
+// adjustment is offset by +100 for encoding (e.g. 0 → 100, -5 → 95, +5 → 105).
+func OmniSetCarryDistanceAdjustmentCommand(sequence int, adjustment int) string {
+	encoded := byte(adjustment + 100)
+	return fmt.Sprintf("118a%02x%02x00000000", sequence, encoded)
+}
+
+// OmniSetHandedCommand sends handedness to the Omni using clubSel=99 (command 0x82).
+func OmniSetHandedCommand(sequence int, handedness HandednessType) string {
+	return fmt.Sprintf("1182%02x0063%02x000000", sequence, handedness)
+}

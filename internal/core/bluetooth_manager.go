@@ -330,6 +330,11 @@ func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, devic
 	bm.stateManager.SetConnectionStatus(ConnectionStatusConnected)
 	bm.stateManager.SetDeviceDisplayName(&connectedDeviceName)
 
+	mfgData := bm.bluetoothClient.GetConnectedDeviceManufacturerData()
+	deviceType := DetectDeviceType(mfgData)
+	bm.stateManager.SetDeviceType(deviceType)
+	log.Printf("BluetoothManager: Detected device type: %s", deviceType)
+
 	// Read battery level
 	batteryLevel, err := bm.ReadBatteryLevel()
 	if err != nil {

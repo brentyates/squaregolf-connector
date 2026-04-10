@@ -1,5 +1,7 @@
 package core
 
+import "strings"
+
 // ConnectionStatus represents the current state of the Bluetooth connection
 type ConnectionStatus string
 
@@ -137,6 +139,24 @@ const (
 	LaunchMonitorStatusShot   LaunchMonitorStatus = "shot"
 	LaunchMonitorStatusDone   LaunchMonitorStatus = "done"
 )
+
+// DeviceType represents the type of Square Golf launch monitor
+type DeviceType string
+
+const (
+	DeviceTypeUnknown DeviceType = "unknown"
+	DeviceTypeHome    DeviceType = "home"
+	DeviceTypeOmni    DeviceType = "omni"
+)
+
+const OmniManufacturerDataHex = "3033303041"
+
+func DetectDeviceType(mfgDataHex string) DeviceType {
+	if len(mfgDataHex) > 0 && strings.Contains(strings.ToUpper(mfgDataHex), strings.ToUpper(OmniManufacturerDataHex)) {
+		return DeviceTypeOmni
+	}
+	return DeviceTypeHome
+}
 
 // BLE Characteristic UUIDs
 const (
