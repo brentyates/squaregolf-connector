@@ -30,13 +30,20 @@ if ! command -v windres >/dev/null 2>&1; then
     exit 1
 fi
 
-windres \
-    -DAPP_VERSION_COMMA="$COMMA_VERSION" \
-    -DAPP_VERSION_STRING="\"$VERSION\"" \
-    -I "$ROOT_DIR/windows" \
-    "$ROOT_DIR/windows/app.rc" \
-    -O coff \
-    -o "$SYSO_PATH"
+RC_STAGE_DIR="$BUILD_DIR/rc-stage"
+rm -rf "$RC_STAGE_DIR"
+mkdir -p "$RC_STAGE_DIR"
+
+sed \
+    -e "s|@APP_VERSION_COMMA@|${COMMA_VERSION}|g" \
+    -e "s|@APP_VERSION_STRING@|${VERSION}|g" \
+    "$ROOT_DIR/windows/app.rc" > "$RC_STAGE_DIR/app.rc"
+
+cp "$ROOT_DIR/windows/icon.ico" "$RC_STAGE_DIR/icon.ico"
+
+(cd "$RC_STAGE_DIR" && windres app.rc -O coff -o "$SYSO_PATH")
+
+rm -rf "$RC_STAGE_DIR"
 
 export GOOS=windows
 export GOARCH=amd64
