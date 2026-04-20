@@ -12,6 +12,17 @@ An unofficial launch monitor connector for SquareGolf devices with GSPro integra
 
 When the app is running, it opens its own desktop window. Closing the window shuts the app down.
 
+## Download And Run (Windows)
+
+1. Open the [latest release](https://github.com/brentyates/squaregolf-connector/releases/latest).
+2. Download the Windows zip file: `SquareGolf-Connector-<version>-Windows.zip`.
+3. Unzip it. You will get a `SquareGolf Connector` folder with the app executable and a `web` folder next to it. Keep them together.
+4. Open the folder and double-click `SquareGolf Connector.exe`.
+
+Windows 10 or 11 is required. The app uses the built-in Microsoft Edge WebView2 runtime, which ships with recent versions of Windows. If the window does not open, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+The first time you launch, Windows SmartScreen may warn that the app is from an unidentified developer. Click `More info`, then `Run anyway`.
+
 ## First Launch On macOS
 
 Because this app is not signed with a paid Apple Developer ID, macOS may block it the first time you open it.
@@ -56,11 +67,9 @@ SquareGolf Connector connects to SquareGolf Bluetooth launch monitors and provid
 
 ## Requirements
 
-- **macOS** for the ready-to-download app release
+- **macOS** or **Windows 10/11** for the ready-to-download app releases
 - Bluetooth adapter
 - A SquareGolf launch monitor for normal use
-
-Windows is still a supported development target in the codebase, but the automated downloadable release currently targets macOS.
 
 ## Quick Start
 

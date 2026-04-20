@@ -8,4 +8,6 @@ build/
 dist/
 *.app/
 squaregolf-connector
+squaregolf-connector.exe
+*.syso
 tmp/

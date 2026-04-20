@@ -1,0 +1,88 @@
+name: Release Windows App
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag or release version to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            zip
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Resolve release tag
+        id: release
+        run: |
+          TAG="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          if [[ -z "$TAG" ]]; then
+            echo "Release tag is required" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+
+      - name: Build Windows release archive
+        id: package
+        run: |
+          ARCHIVE_PATH="$(./scripts/package-windows-release.sh "${{ steps.release.outputs.tag }}" | tail -n 1)"
+          echo "archive=$ARCHIVE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          ARCHIVE_PATH: ${{ steps.package.outputs.archive }}
+        run: |
+          RELEASE_FLAGS=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            RELEASE_FLAGS+=(--prerelease)
+          fi
+
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              "${RELEASE_FLAGS[@]}" \
+              --generate-notes \
+              --title "$RELEASE_TAG"
+          fi
+
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            gh release edit "$RELEASE_TAG" --prerelease
+          fi
+
+          gh release upload "$RELEASE_TAG" "$ARCHIVE_PATH" --clobber
