@@ -31,6 +31,10 @@ type AppState struct {
 	InfiniteTeesStatus  InfiniteTeesConnectionStatus
 	InfiniteTeesError   error
 	SpinMode            *SpinMode
+	OmniSpeedUnit       *string
+	OmniDistanceUnit    *string
+	OmniGreenSpeed      *int
+	OmniCarryAdjustment *int
 	CameraURL           *string
 	CameraEnabled       bool
 	IsAligning          bool    // Whether alignment mode UI is active
@@ -40,6 +44,12 @@ type AppState struct {
 	LauncherVersion     *string // Launcher version
 	MMIVersion          *string // MMI version
 	DeviceType          DeviceType
+	OmniHomeGolfStatus  *int
+	OmniStatus          *int
+	OmniClubSelection   *int
+	OmniSensorStatus    *int
+	CapacitorReady      bool
+	BatteryCharging     *int
 }
 
 // StateCallback is a generic type for state change callbacks
@@ -66,6 +76,10 @@ type StateManager struct {
 		InfiniteTeesStatus  []StateCallback[InfiniteTeesConnectionStatus]
 		InfiniteTeesError   []StateCallback[error]
 		SpinMode            []StateCallback[*SpinMode]
+		OmniSpeedUnit       []StateCallback[*string]
+		OmniDistanceUnit    []StateCallback[*string]
+		OmniGreenSpeed      []StateCallback[*int]
+		OmniCarryAdjustment []StateCallback[*int]
 		CameraURL           []StateCallback[*string]
 		CameraEnabled       []StateCallback[bool]
 		IsAligning          []StateCallback[bool]
@@ -75,6 +89,12 @@ type StateManager struct {
 		LauncherVersion     []StateCallback[*string]
 		MMIVersion          []StateCallback[*string]
 		DeviceType          []StateCallback[DeviceType]
+		OmniHomeGolfStatus  []StateCallback[*int]
+		OmniStatus          []StateCallback[*int]
+		OmniClubSelection   []StateCallback[*int]
+		OmniSensorStatus    []StateCallback[*int]
+		CapacitorReady      []StateCallback[bool]
+		BatteryCharging     []StateCallback[*int]
 	}
 	mu sync.RWMutex
 }
@@ -585,6 +605,102 @@ func (sm *StateManager) RegisterSpinModeCallback(callback StateCallback[*SpinMod
 	sm.callbacks.SpinMode = append(sm.callbacks.SpinMode, callback)
 }
 
+func (sm *StateManager) GetOmniSpeedUnit() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniSpeedUnit
+}
+
+func (sm *StateManager) SetOmniSpeedUnit(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniSpeedUnit
+	sm.state.OmniSpeedUnit = value
+	callbacks := sm.callbacks.OmniSpeedUnit
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniSpeedUnitCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniSpeedUnit = append(sm.callbacks.OmniSpeedUnit, callback)
+}
+
+func (sm *StateManager) GetOmniDistanceUnit() *string {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniDistanceUnit
+}
+
+func (sm *StateManager) SetOmniDistanceUnit(value *string) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniDistanceUnit
+	sm.state.OmniDistanceUnit = value
+	callbacks := sm.callbacks.OmniDistanceUnit
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniDistanceUnitCallback(callback StateCallback[*string]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniDistanceUnit = append(sm.callbacks.OmniDistanceUnit, callback)
+}
+
+func (sm *StateManager) GetOmniGreenSpeed() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniGreenSpeed
+}
+
+func (sm *StateManager) SetOmniGreenSpeed(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniGreenSpeed
+	sm.state.OmniGreenSpeed = value
+	callbacks := sm.callbacks.OmniGreenSpeed
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniGreenSpeedCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniGreenSpeed = append(sm.callbacks.OmniGreenSpeed, callback)
+}
+
+func (sm *StateManager) GetOmniCarryAdjustment() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniCarryAdjustment
+}
+
+func (sm *StateManager) SetOmniCarryAdjustment(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniCarryAdjustment
+	sm.state.OmniCarryAdjustment = value
+	callbacks := sm.callbacks.OmniCarryAdjustment
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniCarryAdjustmentCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniCarryAdjustment = append(sm.callbacks.OmniCarryAdjustment, callback)
+}
+
 // GetCameraURL returns the camera URL
 func (sm *StateManager) GetCameraURL() *string {
 	sm.mu.RLock()
@@ -823,4 +939,148 @@ func (sm *StateManager) RegisterDeviceTypeCallback(callback StateCallback[Device
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.callbacks.DeviceType = append(sm.callbacks.DeviceType, callback)
+}
+
+func (sm *StateManager) GetOmniHomeGolfStatus() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniHomeGolfStatus
+}
+
+func (sm *StateManager) SetOmniHomeGolfStatus(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniHomeGolfStatus
+	sm.state.OmniHomeGolfStatus = value
+	callbacks := sm.callbacks.OmniHomeGolfStatus
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniHomeGolfStatusCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniHomeGolfStatus = append(sm.callbacks.OmniHomeGolfStatus, callback)
+}
+
+func (sm *StateManager) GetOmniStatus() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniStatus
+}
+
+func (sm *StateManager) SetOmniStatus(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniStatus
+	sm.state.OmniStatus = value
+	callbacks := sm.callbacks.OmniStatus
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniStatusCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniStatus = append(sm.callbacks.OmniStatus, callback)
+}
+
+func (sm *StateManager) GetOmniClubSelection() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniClubSelection
+}
+
+func (sm *StateManager) SetOmniClubSelection(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniClubSelection
+	sm.state.OmniClubSelection = value
+	callbacks := sm.callbacks.OmniClubSelection
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniClubSelectionCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniClubSelection = append(sm.callbacks.OmniClubSelection, callback)
+}
+
+func (sm *StateManager) GetOmniSensorStatus() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.OmniSensorStatus
+}
+
+func (sm *StateManager) SetOmniSensorStatus(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.OmniSensorStatus
+	sm.state.OmniSensorStatus = value
+	callbacks := sm.callbacks.OmniSensorStatus
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterOmniSensorStatusCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.OmniSensorStatus = append(sm.callbacks.OmniSensorStatus, callback)
+}
+
+func (sm *StateManager) GetCapacitorReady() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.CapacitorReady
+}
+
+func (sm *StateManager) SetCapacitorReady(value bool) {
+	sm.mu.Lock()
+	oldValue := sm.state.CapacitorReady
+	sm.state.CapacitorReady = value
+	callbacks := sm.callbacks.CapacitorReady
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterCapacitorReadyCallback(callback StateCallback[bool]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.CapacitorReady = append(sm.callbacks.CapacitorReady, callback)
+}
+
+func (sm *StateManager) GetBatteryCharging() *int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.state.BatteryCharging
+}
+
+func (sm *StateManager) SetBatteryCharging(value *int) {
+	sm.mu.Lock()
+	oldValue := sm.state.BatteryCharging
+	sm.state.BatteryCharging = value
+	callbacks := sm.callbacks.BatteryCharging
+	sm.mu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldValue, value)
+	}
+}
+
+func (sm *StateManager) RegisterBatteryChargingCallback(callback StateCallback[*int]) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.callbacks.BatteryCharging = append(sm.callbacks.BatteryCharging, callback)
 }

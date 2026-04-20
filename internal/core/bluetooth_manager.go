@@ -270,6 +270,27 @@ func (bm *BluetoothManager) ReadBatteryLevel() (int, error) {
 	return batteryLevel, nil
 }
 
+// ReadSerialNumber reads the device serial number with up to 5 retries
+func (bm *BluetoothManager) ReadSerialNumber() (string, error) {
+	if bm.bluetoothClient == nil || !bm.bluetoothClient.IsConnected() {
+		return "", fmt.Errorf("not connected to device")
+	}
+
+	for attempt := 0; attempt < 5; attempt++ {
+		serialBytes, err := bm.bluetoothClient.ReadCharacteristic(SerialNumberCharUUID)
+		if err == nil && len(serialBytes) > 0 {
+			serial := string(serialBytes)
+			log.Printf("BluetoothManager: Serial number: %s (attempt %d)", serial, attempt+1)
+			return serial, nil
+		}
+		if attempt < 4 {
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	return "", fmt.Errorf("failed to read serial number after 5 attempts")
+}
+
 // ReadFirmwareVersion reads the firmware version from the device
 func (bm *BluetoothManager) ReadFirmwareVersion() (string, error) {
 	if bm.bluetoothClient == nil || !bm.bluetoothClient.IsConnected() {
@@ -327,13 +348,20 @@ func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, devic
 	log.Printf("BluetoothManager: Successfully connected to device: %s", connectedDeviceName)
 
 	// Update state with device name
-	bm.stateManager.SetConnectionStatus(ConnectionStatusConnected)
 	bm.stateManager.SetDeviceDisplayName(&connectedDeviceName)
 
 	mfgData := bm.bluetoothClient.GetConnectedDeviceManufacturerData()
 	deviceType := DetectDeviceType(mfgData)
 	bm.stateManager.SetDeviceType(deviceType)
 	log.Printf("BluetoothManager: Detected device type: %s", deviceType)
+
+	// Read serial number
+	serial, err := bm.ReadSerialNumber()
+	if err != nil {
+		log.Printf("BluetoothManager: Could not read serial number: %v", err)
+	} else {
+		log.Printf("BluetoothManager: Device serial: %s", serial)
+	}
 
 	// Read battery level
 	batteryLevel, err := bm.ReadBatteryLevel()
@@ -358,6 +386,8 @@ func (bm *BluetoothManager) connectDevice(ctx context.Context, deviceName, devic
 		log.Printf("BluetoothManager: Failed to enable notifications: %v", err)
 		return fmt.Errorf("failed to enable notifications: %w", err)
 	}
+
+	bm.stateManager.SetConnectionStatus(ConnectionStatusConnected)
 
 	log.Printf("BluetoothManager: Successfully enabled notifications")
 	return nil

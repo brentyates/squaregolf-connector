@@ -63,6 +63,12 @@ type DeviceStatus struct {
 	AlignmentAngle      float64                  `json:"alignmentAngle"`
 	IsAligned           bool                     `json:"isAligned"`
 	DeviceType          core.DeviceType          `json:"deviceType"`
+	OmniHomeGolfStatus  *int                     `json:"omniHomeGolfStatus"`
+	OmniStatus          *int                     `json:"omniStatus"`
+	OmniClubSelection   *int                     `json:"omniClubSelection"`
+	OmniSensorStatus    *int                     `json:"omniSensorStatus"`
+	CapacitorReady      bool                     `json:"capacitorReady"`
+	BatteryCharging     *int                     `json:"batteryCharging"`
 }
 
 type GSProStatus struct {
@@ -89,6 +95,10 @@ type CameraConfig struct {
 type AppSettings struct {
 	DeviceName              string `json:"deviceName"`
 	SpinMode                string `json:"spinMode"`
+	OmniSpeedUnit           string `json:"omniSpeedUnit"`
+	OmniDistanceUnit        string `json:"omniDistanceUnit"`
+	OmniGreenSpeed          int    `json:"omniGreenSpeed"`
+	OmniCarryAdjustment     int    `json:"omniCarryAdjustment"`
 	GSProIP                 string `json:"gsproIP"`
 	GSProPort               int    `json:"gsproPort"`
 	GSProAutoConnect        bool   `json:"gsproAutoConnect"`
@@ -211,6 +221,30 @@ func (s *Server) setupCallbacks() {
 	})
 
 	s.stateManager.RegisterDeviceTypeCallback(func(oldValue, newValue core.DeviceType) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterOmniHomeGolfStatusCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterOmniStatusCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterOmniClubSelectionCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterOmniSensorStatusCallback(func(oldValue, newValue *int) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterCapacitorReadyCallback(func(oldValue, newValue bool) {
+		s.broadcastDeviceStatus()
+	})
+
+	s.stateManager.RegisterBatteryChargingCallback(func(oldValue, newValue *int) {
 		s.broadcastDeviceStatus()
 	})
 
@@ -351,6 +385,12 @@ func (s *Server) getDeviceStatus() DeviceStatus {
 		AlignmentAngle:      s.stateManager.GetAlignmentAngle(),
 		IsAligned:           s.stateManager.GetIsAligned(),
 		DeviceType:          s.stateManager.GetDeviceType(),
+		OmniHomeGolfStatus:  s.stateManager.GetOmniHomeGolfStatus(),
+		OmniStatus:          s.stateManager.GetOmniStatus(),
+		OmniClubSelection:   s.stateManager.GetOmniClubSelection(),
+		OmniSensorStatus:    s.stateManager.GetOmniSensorStatus(),
+		CapacitorReady:      s.stateManager.GetCapacitorReady(),
+		BatteryCharging:     s.stateManager.GetBatteryCharging(),
 	}
 }
 
@@ -735,6 +775,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		appSettings := AppSettings{
 			DeviceName:              settings.DeviceName,
 			SpinMode:                settings.SpinMode,
+			OmniSpeedUnit:           settings.OmniSpeedUnit,
+			OmniDistanceUnit:        settings.OmniDistanceUnit,
+			OmniGreenSpeed:          settings.OmniGreenSpeed,
+			OmniCarryAdjustment:     settings.OmniCarryAdjustment,
 			GSProIP:                 settings.GSProIP,
 			GSProPort:               settings.GSProPort,
 			GSProAutoConnect:        settings.GSProAutoConnect,
@@ -777,6 +821,62 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 				spinMode = core.Advanced
 			}
 			s.stateManager.SetSpinMode(&spinMode)
+		}
+
+		if rawValue, ok := rawSettings["omniSpeedUnit"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid omniSpeedUnit", http.StatusBadRequest)
+				return
+			}
+			if value != "mps" && value != "mph" {
+				http.Error(w, "Invalid omniSpeedUnit value", http.StatusBadRequest)
+				return
+			}
+			cfg.SetOmniSpeedUnit(value)
+			s.stateManager.SetOmniSpeedUnit(&value)
+		}
+
+		if rawValue, ok := rawSettings["omniDistanceUnit"]; ok {
+			var value string
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid omniDistanceUnit", http.StatusBadRequest)
+				return
+			}
+			if value != "meters" && value != "mixed" && value != "yards" {
+				http.Error(w, "Invalid omniDistanceUnit value", http.StatusBadRequest)
+				return
+			}
+			cfg.SetOmniDistanceUnit(value)
+			s.stateManager.SetOmniDistanceUnit(&value)
+		}
+
+		if rawValue, ok := rawSettings["omniGreenSpeed"]; ok {
+			var value int
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid omniGreenSpeed", http.StatusBadRequest)
+				return
+			}
+			if value < 8 || value > 13 {
+				http.Error(w, "Invalid omniGreenSpeed value", http.StatusBadRequest)
+				return
+			}
+			cfg.SetOmniGreenSpeed(value)
+			s.stateManager.SetOmniGreenSpeed(&value)
+		}
+
+		if rawValue, ok := rawSettings["omniCarryAdjustment"]; ok {
+			var value int
+			if err := json.Unmarshal(rawValue, &value); err != nil {
+				http.Error(w, "Invalid omniCarryAdjustment", http.StatusBadRequest)
+				return
+			}
+			if value < -99 || value > 99 {
+				http.Error(w, "Invalid omniCarryAdjustment value", http.StatusBadRequest)
+				return
+			}
+			cfg.SetOmniCarryAdjustment(value)
+			s.stateManager.SetOmniCarryAdjustment(&value)
 		}
 
 		if rawValue, ok := rawSettings["gsproIP"]; ok {

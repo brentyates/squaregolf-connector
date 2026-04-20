@@ -164,6 +164,7 @@ const (
 	NotificationCharUUID    = "86602102-6b7e-439a-bdd1-489a3213e9bb"
 	BatteryLevelCharUUID    = "00002a19-0000-1000-8000-00805f9b34fb"
 	FirmwareVersionCharUUID = "86602003-6b7e-439a-bdd1-489a3213e9bb"
+	SerialNumberCharUUID    = "86602001-6b7e-439a-bdd1-489a3213e9bb"
 )
 
 const (

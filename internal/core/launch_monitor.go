@@ -33,6 +33,11 @@ func NewLaunchMonitor(sm *StateManager, btManager *BluetoothManager) *LaunchMoni
 	return GetLaunchMonitorInstance(sm, btManager)
 }
 
+type cmdEntry struct {
+	hexCmd string
+	errCh  chan error
+}
+
 // LaunchMonitor encapsulates the launch monitor functionality
 type LaunchMonitor struct {
 	stateManager      *StateManager
@@ -41,6 +46,20 @@ type LaunchMonitor struct {
 	heartbeatCancel   context.CancelFunc
 	heartbeatCancelMu sync.Mutex
 	bluetoothClient   BluetoothClient
+	omniClubRetryMu   sync.Mutex
+	omniClubRetryGen  int
+	omniClubRetried   bool
+	detectStateMu     sync.Mutex
+	detectModeActive  bool
+	omniIdleCount     int
+	cmdQueue          chan cmdEntry
+	cmdQueueCtx       context.Context
+	cmdQueueStop      context.CancelFunc
+	cmdQueueOnce      sync.Once
+	chargeCancel      context.CancelFunc
+	chargeCancelMu    sync.Mutex
+	capacitorReady    bool
+	capacitorReadyMu  sync.Mutex
 }
 
 // UpdateBluetoothClient updates the bluetooth client reference
@@ -57,7 +76,7 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 
 	hexData := hex.EncodeToString(data)
 
-	// Handle battery level notification
+	// Handle battery level notification (separate characteristic, not deduplicated)
 	if uuid == BatteryLevelCharUUID {
 		batteryLevel := int(data[0])
 		lm.stateManager.SetBatteryLevel(&batteryLevel)
@@ -70,6 +89,12 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 		if i+2 <= len(hexData) {
 			bytesList = append(bytesList, hexData[i:i+2])
 		}
+	}
+
+	// Battery message on main characteristic (type 0x91 = 145)
+	if len(bytesList) >= 2 && bytesList[0] == "91" {
+		lm.HandleBatteryMessage(bytesList)
+		return
 	}
 
 	// Process by byte patterns
@@ -92,6 +117,11 @@ func (lm *LaunchMonitor) NotificationHandler(uuid string, data []byte) {
 			}
 			if bytesList[0] == "11" && bytesList[1] == "03" {
 				lm.HandleStatusNotification(bytesList)
+				return
+			}
+			// Capacitor charge status (format 11 06)
+			if bytesList[0] == "11" && bytesList[1] == "06" {
+				lm.HandleChargeNotification(bytesList)
 				return
 			}
 			// OS Version response (format 11 10)
@@ -148,6 +178,11 @@ func (lm *LaunchMonitor) HandleShotBallMetrics(bytesList []string) {
 		return
 	}
 
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni {
+		ApplyOmniBallValidityBitmask(shotMetrics)
+		lm.applyOmniPutterBallValidityFilter(shotMetrics)
+	}
+
 	// Update state manager with ball metrics
 	lastBallMetrics := lm.stateManager.GetLastBallMetrics()
 
@@ -171,6 +206,10 @@ func (lm *LaunchMonitor) HandleShotBallMetrics(bytesList []string) {
 
 		// Automatically request club metrics after receiving shot metrics
 		if lm.bluetoothClient != nil && lm.bluetoothClient.IsConnected() {
+			if lm.stateManager.GetDeviceType() == DeviceTypeOmni {
+				lm.startOmniClubMetricsRequest()
+			}
+
 			seq := lm.getNextSequence()
 			clubMetricsCommand := RequestClubMetricsCommand(seq)
 
@@ -187,10 +226,17 @@ func (lm *LaunchMonitor) HandleShotClubMetrics(bytesList []string) {
 	var clubMetrics *ClubMetrics
 	var err error
 
-	if lm.stateManager.GetDeviceType() == DeviceTypeOmni && len(bytesList) >= 19 {
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni {
+		if len(bytesList) < 19 {
+			log.Printf("Ignoring short Omni club metrics packet (got %d bytes, need 19)", len(bytesList))
+			return
+		}
 		clubMetrics, err = ParseOmniShotClubMetrics(bytesList)
+		lm.completeOmniClubMetricsRequest()
+		lm.applyOmniPutterValidityFilter(clubMetrics)
 	} else {
 		clubMetrics, err = ParseShotClubMetrics(bytesList)
+		lm.applyPutterClubFilter(clubMetrics)
 	}
 
 	if err != nil {
@@ -207,8 +253,32 @@ func (lm *LaunchMonitor) HandleStatusNotification(bytesList []string) {
 		return
 	}
 
+	statusIndex := 2
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni {
+		if len(bytesList) < 4 {
+			return
+		}
+		if omniHomeGolfStatus, ok := parseHexByteToInt(bytesList[2]); ok {
+			lm.stateManager.SetOmniHomeGolfStatus(&omniHomeGolfStatus)
+		}
+		if omniStatus, ok := parseHexByteToInt(bytesList[3]); ok {
+			lm.stateManager.SetOmniStatus(&omniStatus)
+		}
+		if len(bytesList) >= 5 {
+			if omniClubSelection, ok := parseHexByteToInt(bytesList[4]); ok {
+				lm.stateManager.SetOmniClubSelection(&omniClubSelection)
+			}
+		}
+		if len(bytesList) >= 8 {
+			if omniSensorStatus, ok := parseHexByteToInt(bytesList[7]); ok {
+				lm.stateManager.SetOmniSensorStatus(&omniSensorStatus)
+			}
+		}
+		statusIndex = 3
+	}
+
 	var status LaunchMonitorStatus
-	switch bytesList[2] {
+	switch bytesList[statusIndex] {
 	case "00":
 		status = LaunchMonitorStatusNone
 	case "01":
@@ -228,10 +298,310 @@ func (lm *LaunchMonitor) HandleStatusNotification(bytesList []string) {
 	}
 
 	lm.stateManager.SetLaunchMonitorStatus(status)
+	lm.handleOmniStatusRecovery(status)
+
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni && len(bytesList) >= 7 {
+		switch bytesList[6] {
+		case "00":
+			handedness := RightHanded
+			currentHandedness := lm.stateManager.GetHandedness()
+			if currentHandedness == nil || *currentHandedness != handedness {
+				lm.stateManager.SetHandedness(&handedness)
+			}
+		case "01":
+			handedness := LeftHanded
+			currentHandedness := lm.stateManager.GetHandedness()
+			if currentHandedness == nil || *currentHandedness != handedness {
+				lm.stateManager.SetHandedness(&handedness)
+			}
+		}
+	}
 }
 
-// SendCommand sends a command to the BLE device
-func (lm *LaunchMonitor) SendCommand(commandHex string) error {
+func (lm *LaunchMonitor) handleOmniStatusRecovery(status LaunchMonitorStatus) {
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+
+	lm.detectStateMu.Lock()
+	defer lm.detectStateMu.Unlock()
+
+	if !lm.detectModeActive {
+		lm.omniIdleCount = 0
+		return
+	}
+
+	if status == LaunchMonitorStatusNone || status == LaunchMonitorStatusIdle {
+		lm.omniIdleCount++
+		if lm.omniIdleCount <= 1 {
+			return
+		}
+		lm.omniIdleCount = 0
+	} else {
+		lm.omniIdleCount = 0
+		return
+	}
+
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	spinMode := lm.stateManager.GetSpinMode()
+	if spinMode == nil {
+		defaultSpinMode := Advanced
+		spinMode = &defaultSpinMode
+	}
+
+	seq := lm.getNextSequence()
+	detectCommand := DetectBallCommand(seq, Activate, *spinMode)
+	if err := lm.SendCommand(detectCommand); err != nil {
+		log.Printf("LaunchMonitor: Failed to re-arm Omni detect mode after idle status: %v", err)
+		return
+	}
+
+	log.Println("LaunchMonitor: Re-armed Omni detect mode after repeated idle status")
+}
+
+func parseHexByteToInt(value string) (int, bool) {
+	parsed, err := strconv.ParseUint(value, 16, 8)
+	if err != nil {
+		return 0, false
+	}
+
+	return int(parsed), true
+}
+
+func (lm *LaunchMonitor) startOmniClubMetricsRequest() {
+	lm.omniClubRetryMu.Lock()
+	lm.omniClubRetryGen++
+	gen := lm.omniClubRetryGen
+	lm.omniClubRetried = false
+	lm.omniClubRetryMu.Unlock()
+
+	time.AfterFunc(1*time.Second, func() {
+		lm.handleOmniClubMetricsTimeout(gen)
+	})
+}
+
+func (lm *LaunchMonitor) completeOmniClubMetricsRequest() {
+	lm.omniClubRetryMu.Lock()
+	lm.omniClubRetryGen++
+	lm.omniClubRetried = false
+	lm.omniClubRetryMu.Unlock()
+}
+
+func (lm *LaunchMonitor) handleOmniClubMetricsTimeout(gen int) {
+	lm.omniClubRetryMu.Lock()
+	if gen != lm.omniClubRetryGen {
+		lm.omniClubRetryMu.Unlock()
+		return
+	}
+
+	if !lm.omniClubRetried {
+		lm.omniClubRetried = true
+		lm.omniClubRetryMu.Unlock()
+
+		if lm.bluetoothClient != nil && lm.bluetoothClient.IsConnected() {
+			seq := lm.getNextSequence()
+			clubMetricsCommand := RequestClubMetricsCommand(seq)
+			if err := lm.SendCommand(clubMetricsCommand); err != nil {
+				log.Printf("Failed to retry Omni club metrics request: %v", err)
+			}
+		}
+
+		time.AfterFunc(1*time.Second, func() {
+			lm.handleOmniClubMetricsTimeout(gen)
+		})
+		return
+	}
+
+	lm.omniClubRetryGen++
+	lm.omniClubRetried = false
+	lm.omniClubRetryMu.Unlock()
+
+	log.Printf("Omni club metrics request timed out twice, applying invalid fallback")
+	lm.stateManager.SetLastClubMetrics(&ClubMetrics{})
+}
+
+func (lm *LaunchMonitor) applyPutterClubFilter(clubMetrics *ClubMetrics) {
+	if clubMetrics == nil {
+		return
+	}
+
+	club := lm.stateManager.GetClub()
+	if club == nil || *club != ClubPutter {
+		return
+	}
+
+	clubMetrics.IsPathAngleValid = false
+	clubMetrics.IsFaceAngleValid = false
+	clubMetrics.IsAttackAngleValid = false
+	clubMetrics.IsDynamicLoftValid = false
+}
+
+func (lm *LaunchMonitor) applyOmniPutterValidityFilter(clubMetrics *ClubMetrics) {
+	if clubMetrics == nil {
+		return
+	}
+
+	club := lm.stateManager.GetClub()
+	if club == nil || *club != ClubPutter {
+		return
+	}
+
+	clubMetrics.IsPathAngleValid = false
+	clubMetrics.IsFaceAngleValid = false
+	clubMetrics.IsAttackAngleValid = false
+	clubMetrics.IsDynamicLoftValid = false
+	clubMetrics.IsImpactHorizontalValid = false
+	clubMetrics.IsImpactVerticalValid = false
+	clubMetrics.IsClubSpeedValid = false
+	clubMetrics.IsSmashFactorValid = false
+}
+
+func (lm *LaunchMonitor) applyOmniPutterBallValidityFilter(ballMetrics *BallMetrics) {
+	if ballMetrics == nil {
+		return
+	}
+
+	club := lm.stateManager.GetClub()
+	if club == nil || *club != ClubPutter {
+		return
+	}
+
+	ballMetrics.IsTotalSpinValid = false
+	ballMetrics.IsSpinAxisValid = false
+	ballMetrics.IsBackspinValid = false
+	ballMetrics.IsSidespinValid = false
+}
+
+func (lm *LaunchMonitor) syncOmniHandedness(handedness *HandednessType) {
+	if handedness == nil {
+		return
+	}
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	command := OmniSetHandedCommand(lm.getNextSequence(), *handedness)
+	if err := lm.SendCommand(command); err != nil {
+		log.Printf("LaunchMonitor: Failed to send Omni handedness update: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) omniUnitsFromState() (int, int) {
+	speedUnit := 0
+	if configuredSpeedUnit := lm.stateManager.GetOmniSpeedUnit(); configuredSpeedUnit != nil && *configuredSpeedUnit == "mph" {
+		speedUnit = 1
+	}
+
+	distanceUnit := 0
+	if configuredDistanceUnit := lm.stateManager.GetOmniDistanceUnit(); configuredDistanceUnit != nil {
+		switch *configuredDistanceUnit {
+		case "mixed":
+			distanceUnit = 1
+		case "yards":
+			distanceUnit = 2
+		}
+	}
+
+	return speedUnit, distanceUnit
+}
+
+func (lm *LaunchMonitor) omniGreenSpeedFromState() int {
+	if configuredGreenSpeed := lm.stateManager.GetOmniGreenSpeed(); configuredGreenSpeed != nil {
+		if *configuredGreenSpeed < 8 {
+			return 0
+		}
+		if *configuredGreenSpeed > 13 {
+			return 5
+		}
+		return *configuredGreenSpeed - 8
+	}
+
+	return 2
+}
+
+func (lm *LaunchMonitor) omniCarryAdjustmentFromState() int {
+	if configuredCarryAdjustment := lm.stateManager.GetOmniCarryAdjustment(); configuredCarryAdjustment != nil {
+		return *configuredCarryAdjustment
+	}
+
+	return 0
+}
+
+func (lm *LaunchMonitor) syncOmniUnits() {
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	speedUnit, distanceUnit := lm.omniUnitsFromState()
+	command := OmniSetUnitsCommand(lm.getNextSequence(), speedUnit, distanceUnit)
+	if err := lm.SendCommand(command); err != nil {
+		log.Printf("LaunchMonitor: Failed to send Omni units update: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) syncOmniGreenSpeed() {
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	command := OmniSetGreenSpeedCommand(lm.getNextSequence(), lm.omniGreenSpeedFromState())
+	if err := lm.SendCommand(command); err != nil {
+		log.Printf("LaunchMonitor: Failed to send Omni green speed update: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) syncOmniCarryAdjustment() {
+	if lm.stateManager.GetDeviceType() != DeviceTypeOmni {
+		return
+	}
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+
+	command := OmniSetCarryDistanceAdjustmentCommand(lm.getNextSequence(), lm.omniCarryAdjustmentFromState())
+	if err := lm.SendCommand(command); err != nil {
+		log.Printf("LaunchMonitor: Failed to send Omni carry adjustment update: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) ensureCommandQueue() {
+	lm.cmdQueueOnce.Do(func() {
+		lm.cmdQueue = make(chan cmdEntry, 32)
+		lm.cmdQueueCtx, lm.cmdQueueStop = context.WithCancel(context.Background())
+		go lm.drainCommandQueue()
+	})
+}
+
+func (lm *LaunchMonitor) drainCommandQueue() {
+	for {
+		select {
+		case <-lm.cmdQueueCtx.Done():
+			return
+		case entry := <-lm.cmdQueue:
+			err := lm.writeCommand(entry.hexCmd)
+			entry.errCh <- err
+			select {
+			case <-lm.cmdQueueCtx.Done():
+				return
+			case <-time.After(150 * time.Millisecond):
+			}
+		}
+	}
+}
+
+func (lm *LaunchMonitor) writeCommand(commandHex string) error {
 	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
 		return fmt.Errorf("not connected to device")
 	}
@@ -241,12 +611,36 @@ func (lm *LaunchMonitor) SendCommand(commandHex string) error {
 		return fmt.Errorf("invalid hex command: %w", err)
 	}
 
-	err = lm.bluetoothClient.WriteCharacteristic(CommandCharUUID, commandBytes)
-	if err != nil {
-		return fmt.Errorf("error sending command: %w", err)
+	return lm.bluetoothClient.WriteCharacteristic(CommandCharUUID, commandBytes)
+}
+
+func (lm *LaunchMonitor) stopCommandQueue() {
+	if lm.cmdQueueStop != nil {
+		lm.cmdQueueStop()
+	}
+}
+
+// SendCommand sends a command to the BLE device via the rate-limited queue
+func (lm *LaunchMonitor) SendCommand(commandHex string) error {
+	lm.ensureCommandQueue()
+
+	entry := cmdEntry{
+		hexCmd: commandHex,
+		errCh:  make(chan error, 1),
 	}
 
-	return nil
+	select {
+	case lm.cmdQueue <- entry:
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("command queue full")
+	}
+
+	select {
+	case err := <-entry.errCh:
+		return err
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("command execution timed out")
+	}
 }
 
 // ReadBatteryLevel reads the battery level from the device
@@ -297,9 +691,14 @@ func (lm *LaunchMonitor) ActivateBallDetection() error {
 		spinMode = &defaultSpinMode
 	}
 
-	// Send club command
+	// Send club command (Omni uses adjusted clubSel encoding)
 	seq := lm.getNextSequence()
-	clubCommand := ClubCommand(seq, *club, *handedness)
+	var clubCommand string
+	if lm.stateManager.GetDeviceType() == DeviceTypeOmni {
+		clubCommand = OmniClubCommand(seq, *club, *handedness)
+	} else {
+		clubCommand = ClubCommand(seq, *club, *handedness)
+	}
 
 	err := lm.SendCommand(clubCommand)
 	if err != nil {
@@ -314,6 +713,11 @@ func (lm *LaunchMonitor) ActivateBallDetection() error {
 	if err != nil {
 		return fmt.Errorf("failed to send detect ball command: %w", err)
 	}
+
+	lm.detectStateMu.Lock()
+	lm.detectModeActive = true
+	lm.omniIdleCount = 0
+	lm.detectStateMu.Unlock()
 
 	return nil
 }
@@ -338,6 +742,11 @@ func (lm *LaunchMonitor) DeactivateBallDetection() error {
 	if err != nil {
 		return fmt.Errorf("failed to send detect ball command: %w", err)
 	}
+
+	lm.detectStateMu.Lock()
+	lm.detectModeActive = false
+	lm.omniIdleCount = 0
+	lm.detectStateMu.Unlock()
 
 	return nil
 }
@@ -458,11 +867,63 @@ func (lm *LaunchMonitor) SetupNotifications(btManager *BluetoothManager) {
 	lm.stateManager.RegisterConnectionStatusCallback(func(oldValue, newValue ConnectionStatus) {
 		if newValue == ConnectionStatusConnected && oldValue != ConnectionStatusConnected {
 			log.Println("LaunchMonitor: Device connected")
+			lm.setCapacitorReady(false)
+			lm.startChargePolling()
 			go lm.sendOmniInitSequence()
 		} else if newValue == ConnectionStatusDisconnected {
 			// When Bluetooth disconnects, reset ball detection state
 			lm.HandleBluetoothDisconnect()
 		}
+	})
+
+	lm.stateManager.RegisterHandednessCallback(func(oldValue, newValue *HandednessType) {
+		if newValue == nil {
+			return
+		}
+		if oldValue != nil && *oldValue == *newValue {
+			return
+		}
+		lm.syncOmniHandedness(newValue)
+	})
+
+	lm.stateManager.RegisterOmniSpeedUnitCallback(func(oldValue, newValue *string) {
+		if newValue == nil {
+			return
+		}
+		if oldValue != nil && *oldValue == *newValue {
+			return
+		}
+		lm.syncOmniUnits()
+	})
+
+	lm.stateManager.RegisterOmniDistanceUnitCallback(func(oldValue, newValue *string) {
+		if newValue == nil {
+			return
+		}
+		if oldValue != nil && *oldValue == *newValue {
+			return
+		}
+		lm.syncOmniUnits()
+	})
+
+	lm.stateManager.RegisterOmniGreenSpeedCallback(func(oldValue, newValue *int) {
+		if newValue == nil {
+			return
+		}
+		if oldValue != nil && *oldValue == *newValue {
+			return
+		}
+		lm.syncOmniGreenSpeed()
+	})
+
+	lm.stateManager.RegisterOmniCarryAdjustmentCallback(func(oldValue, newValue *int) {
+		if newValue == nil {
+			return
+		}
+		if oldValue != nil && *oldValue == *newValue {
+			return
+		}
+		lm.syncOmniCarryAdjustment()
 	})
 
 	// Start the heartbeat task to maintain connection
@@ -481,26 +942,9 @@ func (lm *LaunchMonitor) sendOmniInitSequence() {
 	}
 
 	log.Println("LaunchMonitor: Sending Omni init sequence")
-
-	commands := []struct {
-		name string
-		cmd  string
-	}{
-		{"SetUnits", OmniSetUnitsCommand(lm.getNextSequence(), 0, 0)},
-		{"SetCarryDistanceAdjustment", OmniSetCarryDistanceAdjustmentCommand(lm.getNextSequence(), 0)},
-		{"SetGreenSpeed", OmniSetGreenSpeedCommand(lm.getNextSequence(), 2)},
-	}
-
-	handedness := lm.stateManager.GetHandedness()
-	if handedness != nil {
-		commands = append(commands, struct {
-			name string
-			cmd  string
-		}{"SetHanded", OmniSetHandedCommand(lm.getNextSequence(), *handedness)})
-	}
+	commands := lm.buildOmniInitCommands()
 
 	for _, c := range commands {
-		time.Sleep(500 * time.Millisecond)
 		if !lm.bluetoothClient.IsConnected() {
 			log.Println("LaunchMonitor: Device disconnected during Omni init, aborting")
 			return
@@ -514,6 +958,123 @@ func (lm *LaunchMonitor) sendOmniInitSequence() {
 	log.Println("LaunchMonitor: Omni init sequence complete")
 }
 
+func (lm *LaunchMonitor) buildOmniInitCommands() []struct {
+	name string
+	cmd  string
+} {
+	speedUnit, distanceUnit := lm.omniUnitsFromState()
+
+	commands := []struct {
+		name string
+		cmd  string
+	}{
+		{"SetUnits", OmniSetUnitsCommand(lm.getNextSequence(), speedUnit, distanceUnit)},
+		{"SetCarryDistanceAdjustment", OmniSetCarryDistanceAdjustmentCommand(lm.getNextSequence(), lm.omniCarryAdjustmentFromState())},
+		{"SetGreenSpeed", OmniSetGreenSpeedCommand(lm.getNextSequence(), lm.omniGreenSpeedFromState())},
+	}
+
+	handedness := lm.stateManager.GetHandedness()
+	if handedness != nil {
+		commands = append(commands, struct {
+			name string
+			cmd  string
+		}{"SetHanded", OmniSetHandedCommand(lm.getNextSequence(), *handedness)})
+	}
+
+	return commands
+}
+
+func (lm *LaunchMonitor) HandleBatteryMessage(bytesList []string) {
+	if len(bytesList) < 2 {
+		return
+	}
+	if level, ok := parseHexByteToInt(bytesList[1]); ok {
+		lm.stateManager.SetBatteryLevel(&level)
+	}
+	if len(bytesList) >= 3 {
+		if chargingStatus, ok := parseHexByteToInt(bytesList[2]); ok {
+			lm.stateManager.SetBatteryCharging(&chargingStatus)
+		}
+	}
+}
+
+func (lm *LaunchMonitor) HandleChargeNotification(bytesList []string) {
+	if len(bytesList) < 4 {
+		return
+	}
+	lm.setCapacitorReady(bytesList[3] == "01")
+}
+
+func (lm *LaunchMonitor) setCapacitorReady(ready bool) {
+	lm.capacitorReadyMu.Lock()
+	lm.capacitorReady = ready
+	lm.capacitorReadyMu.Unlock()
+
+	if ready {
+		lm.stopChargePolling()
+	}
+
+	lm.stateManager.SetCapacitorReady(ready)
+}
+
+func (lm *LaunchMonitor) GetCapacitorReady() bool {
+	lm.capacitorReadyMu.Lock()
+	defer lm.capacitorReadyMu.Unlock()
+	return lm.capacitorReady
+}
+
+func (lm *LaunchMonitor) startChargePolling() {
+	lm.chargeCancelMu.Lock()
+	defer lm.chargeCancelMu.Unlock()
+
+	lm.stopChargePollingLocked()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	lm.chargeCancel = cancel
+
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+
+		lm.sendChargeCommand()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if lm.GetCapacitorReady() {
+					return
+				}
+				lm.sendChargeCommand()
+			}
+		}
+	}()
+}
+
+func (lm *LaunchMonitor) sendChargeCommand() {
+	if lm.bluetoothClient == nil || !lm.bluetoothClient.IsConnected() {
+		return
+	}
+	seq := lm.getNextSequence()
+	if err := lm.SendCommand(GetChargeCommand(seq)); err != nil {
+		log.Printf("LaunchMonitor: Failed to send GetCharge: %v", err)
+	}
+}
+
+func (lm *LaunchMonitor) stopChargePolling() {
+	lm.chargeCancelMu.Lock()
+	defer lm.chargeCancelMu.Unlock()
+	lm.stopChargePollingLocked()
+}
+
+func (lm *LaunchMonitor) stopChargePollingLocked() {
+	if lm.chargeCancel != nil {
+		lm.chargeCancel()
+		lm.chargeCancel = nil
+	}
+}
+
 // HandleBluetoothDisconnect handles cleanup when Bluetooth disconnects
 func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	log.Println("LaunchMonitor: Bluetooth disconnected - resetting ball detection state")
@@ -524,9 +1085,23 @@ func (lm *LaunchMonitor) HandleBluetoothDisconnect() {
 	lm.stateManager.SetBallPosition(nil)
 	lm.stateManager.SetLaunchMonitorStatus(LaunchMonitorStatusNone)
 	lm.stateManager.SetDeviceType(DeviceTypeUnknown)
+	lm.stateManager.SetOmniHomeGolfStatus(nil)
+	lm.stateManager.SetOmniStatus(nil)
+	lm.stateManager.SetOmniClubSelection(nil)
+	lm.stateManager.SetOmniSensorStatus(nil)
+	lm.detectStateMu.Lock()
+	lm.detectModeActive = false
+	lm.omniIdleCount = 0
+	lm.detectStateMu.Unlock()
+
+	lm.setCapacitorReady(false)
+	lm.stopChargePolling()
 
 	// Stop any heartbeat task
 	lm.stopHeartbeatTask()
+
+	lm.stopCommandQueue()
+	lm.cmdQueueOnce = sync.Once{}
 }
 
 // StartAlignment starts alignment mode

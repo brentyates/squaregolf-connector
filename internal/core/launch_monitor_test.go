@@ -424,6 +424,43 @@ func TestNotificationHandler_Status(t *testing.T) {
 	}
 }
 
+func TestNotificationHandler_Status_OmniUsesOmniStatusByte(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	statusData := []byte{0x11, 0x03, 0x01, 0x04, 0x07, 0x00, 0x01, 0x02}
+	lm.NotificationHandler("", statusData)
+
+	if sm.GetLaunchMonitorStatus() != LaunchMonitorStatusReady {
+		t.Fatalf("Expected Omni launch monitor status %q, got %q", LaunchMonitorStatusReady, sm.GetLaunchMonitorStatus())
+	}
+
+	handedness := sm.GetHandedness()
+	if handedness == nil || *handedness != LeftHanded {
+		t.Fatalf("Expected handedness to update to %q, got %v", LeftHanded, handedness)
+	}
+
+	omniHomeGolfStatus := sm.GetOmniHomeGolfStatus()
+	if omniHomeGolfStatus == nil || *omniHomeGolfStatus != 1 {
+		t.Fatalf("Expected Omni HomeGolf status 1, got %v", omniHomeGolfStatus)
+	}
+
+	omniStatus := sm.GetOmniStatus()
+	if omniStatus == nil || *omniStatus != 4 {
+		t.Fatalf("Expected Omni status 4, got %v", omniStatus)
+	}
+
+	omniClubSelection := sm.GetOmniClubSelection()
+	if omniClubSelection == nil || *omniClubSelection != 7 {
+		t.Fatalf("Expected Omni club selection 7, got %v", omniClubSelection)
+	}
+
+	omniSensorStatus := sm.GetOmniSensorStatus()
+	if omniSensorStatus == nil || *omniSensorStatus != 2 {
+		t.Fatalf("Expected Omni sensor status 2, got %v", omniSensorStatus)
+	}
+}
+
 func TestSetupNotifications(t *testing.T) {
 	sm, lm, mockClient, btManager := newTestLaunchMonitor(t)
 	mockClient.connected = true
@@ -974,11 +1011,62 @@ func TestNotificationHandler_ShotClubMetrics_OmniDevice(t *testing.T) {
 	}
 }
 
-func TestNotificationHandler_ShotClubMetrics_OmniShortPacketFallback(t *testing.T) {
+func TestNotificationHandler_ShotClubMetrics_OmniPutterInvalidatesClubMetrics(t *testing.T) {
 	sm, lm, _, _ := newTestLaunchMonitor(t)
 	sm.SetDeviceType(DeviceTypeOmni)
+	club := ClubPutter
+	sm.SetClub(&club)
 
-	// Only 11 bytes — too short for Omni parser, should fall back to Home parser
+	clubData := []byte{
+		0x11, 0x07,
+		0xFF,
+		0x32, 0x00,
+		0x14, 0x00,
+		0x0A, 0x00,
+		0x28, 0x00,
+		0xE8, 0x03,
+		0xD0, 0x07,
+		0x10, 0x27,
+		0xC8, 0x00,
+	}
+
+	lm.NotificationHandler("", clubData)
+
+	metrics := sm.GetLastClubMetrics()
+	if metrics == nil {
+		t.Fatal("Expected club metrics to be set")
+	}
+	if metrics.IsPathAngleValid || metrics.IsFaceAngleValid || metrics.IsAttackAngleValid || metrics.IsDynamicLoftValid {
+		t.Fatalf("Expected putter Omni face/path validity to be false, got %+v", metrics)
+	}
+	if metrics.IsImpactHorizontalValid || metrics.IsImpactVerticalValid || metrics.IsClubSpeedValid || metrics.IsSmashFactorValid {
+		t.Fatalf("Expected putter Omni impact/speed validity to be false, got %+v", metrics)
+	}
+}
+
+func TestNotificationHandler_ShotClubMetrics_OmniShortPacketRetriesThenInvalidates(t *testing.T) {
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeOmni)
+	mockClient.connected = true
+
+	shotData := []byte{
+		0x11, 0x02, 0x37,
+		0x32, 0x00,
+		0x14, 0x00,
+		0x0A, 0x00,
+		0x28, 0x00,
+		0x1E, 0x00,
+		0x32, 0x00,
+		0x1E, 0x00,
+	}
+
+	lm.NotificationHandler("", shotData)
+	if len(mockClient.GetWriteHistory()) != 1 {
+		t.Fatalf("Expected initial club metrics request after Omni shot, got %d writes", len(mockClient.GetWriteHistory()))
+	}
+
+	gen := lm.omniClubRetryGen
+
 	clubData := []byte{
 		0x11, 0x07, 0x0d,
 		0x32, 0x00,
@@ -989,15 +1077,228 @@ func TestNotificationHandler_ShotClubMetrics_OmniShortPacketFallback(t *testing.
 
 	lm.NotificationHandler("", clubData)
 
+	if metrics := sm.GetLastClubMetrics(); metrics != nil {
+		t.Fatalf("Expected short Omni club packet to be ignored, got %+v", metrics)
+	}
+
+	lm.handleOmniClubMetricsTimeout(gen)
+
+	if len(mockClient.GetWriteHistory()) != 2 {
+		t.Fatalf("Expected retry club metrics request after first Omni timeout, got %d writes", len(mockClient.GetWriteHistory()))
+	}
+
+	if metrics := sm.GetLastClubMetrics(); metrics != nil {
+		t.Fatalf("Expected no fallback metrics after first Omni timeout, got %+v", metrics)
+	}
+
+	lm.handleOmniClubMetricsTimeout(gen)
+
 	metrics := sm.GetLastClubMetrics()
 	if metrics == nil {
-		t.Fatal("Expected club metrics to be set via Home fallback")
+		t.Fatal("Expected invalid fallback club metrics after second Omni timeout")
 	}
-	if metrics.PathAngle != 0.5 {
-		t.Errorf("Expected path angle 0.5, got %v", metrics.PathAngle)
+	if metrics.PathAngle != 0 || metrics.FaceAngle != 0 || metrics.AttackAngle != 0 || metrics.DynamicLoftAngle != 0 {
+		t.Fatalf("Expected zeroed fallback club metrics, got %+v", metrics)
 	}
-	if metrics.ImpactHorizontal != 0 {
-		t.Error("Expected Omni-only fields to be zero when falling back to Home parser")
+	if metrics.IsPathAngleValid || metrics.IsFaceAngleValid || metrics.IsAttackAngleValid || metrics.IsDynamicLoftValid {
+		t.Fatalf("Expected fallback club validity flags to remain false, got %+v", metrics)
+	}
+}
+
+func TestSetupNotifications_OmniHandednessChangeSendsCommand(t *testing.T) {
+	sm, lm, mockClient, btManager := newTestLaunchMonitor(t)
+	mockClient.connected = true
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	lm.SetupNotifications(btManager)
+	mockClient.ClearWriteHistory()
+
+	handedness := LeftHanded
+	sm.SetHandedness(&handedness)
+
+	writeHistory := mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected 1 Omni handedness write, got %d", len(writeHistory))
+	}
+
+	expected := []byte{0x11, 0x82, 0x00, 0x00, 0x63, 0x01, 0x00, 0x00, 0x00}
+	if !bytes.Equal(writeHistory[0].Data, expected) {
+		t.Fatalf("Expected Omni handedness command %x, got %x", expected, writeHistory[0].Data)
+	}
+}
+
+func TestNotificationHandler_Status_OmniRepeatedIdleRearmsDetectMode(t *testing.T) {
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
+	mockClient.connected = true
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	err := lm.ActivateBallDetection()
+	if err != nil {
+		t.Fatalf("Expected ball detection activation to succeed, got %v", err)
+	}
+
+	mockClient.ClearWriteHistory()
+
+	statusData1 := []byte{0x11, 0x03, 0x01, 0x01, 0x07, 0x00, 0x00, 0x02}
+	lm.NotificationHandler(NotificationCharUUID, statusData1)
+	if len(mockClient.GetWriteHistory()) != 0 {
+		t.Fatalf("Expected no Omni re-arm after first idle status, got %d writes", len(mockClient.GetWriteHistory()))
+	}
+
+	statusData2 := []byte{0x11, 0x03, 0x02, 0x01, 0x07, 0x00, 0x00, 0x02}
+	lm.NotificationHandler(NotificationCharUUID, statusData2)
+	writeHistory := mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected Omni detect re-arm after second idle status, got %d writes", len(writeHistory))
+	}
+
+	data := writeHistory[0].Data
+	if len(data) < 5 || data[0] != 0x11 || data[1] != 0x81 || data[3] != 0x01 || data[4] != 0x11 {
+		t.Fatalf("Expected Omni detect re-arm command 1181xx011100000000, got %x", data)
+	}
+}
+
+func TestNotificationHandler_Status_OmniRepeatedIdenticalIdleRearmsDetectMode(t *testing.T) {
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
+	mockClient.connected = true
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	lm.detectStateMu.Lock()
+	lm.detectModeActive = true
+	lm.omniIdleCount = 0
+	lm.detectStateMu.Unlock()
+
+	mockClient.ClearWriteHistory()
+
+	statusData := []byte{0x11, 0x03, 0x01, 0x01, 0x07, 0x00, 0x00, 0x02}
+	lm.NotificationHandler(NotificationCharUUID, statusData)
+	lm.NotificationHandler(NotificationCharUUID, statusData)
+
+	writeHistory := mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected Omni detect re-arm after identical idle status packets, got %d writes", len(writeHistory))
+	}
+
+	data := writeHistory[0].Data
+	if len(data) < 5 || data[0] != 0x11 || data[1] != 0x81 || data[3] != 0x01 || data[4] != 0x11 {
+		t.Fatalf("Expected Omni detect re-arm command 1181xx011100000000, got %x", data)
+	}
+}
+
+func TestNotificationHandler_ShotBallMetrics_OmniPutterInvalidatesSpinValidity(t *testing.T) {
+	sm, lm, mockClient, _ := newTestLaunchMonitor(t)
+	mockClient.connected = true
+	sm.SetDeviceType(DeviceTypeOmni)
+	club := ClubPutter
+	sm.SetClub(&club)
+
+	shotData := []byte{
+		0x11, 0x02, 0x37,
+		0x32, 0x00,
+		0x14, 0x00,
+		0x0A, 0x00,
+		0x28, 0x00,
+		0x1E, 0x00,
+		0x32, 0x00,
+		0x1E, 0x00,
+	}
+
+	lm.NotificationHandler("", shotData)
+
+	metrics := sm.GetLastBallMetrics()
+	if metrics == nil {
+		t.Fatal("Expected ball metrics to be set")
+	}
+	if !metrics.IsBallSpeedValid {
+		t.Fatal("Expected ball speed to remain valid for Omni putter shot")
+	}
+	if metrics.IsTotalSpinValid || metrics.IsSpinAxisValid || metrics.IsBackspinValid || metrics.IsSidespinValid {
+		t.Fatalf("Expected Omni putter shot spin validity to be false, got %+v", metrics)
+	}
+}
+
+func TestSetupNotifications_OmniSettingChangesSendCommands(t *testing.T) {
+	sm, lm, mockClient, btManager := newTestLaunchMonitor(t)
+	mockClient.connected = true
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	lm.SetupNotifications(btManager)
+
+	speedUnit := "mph"
+	sm.SetOmniSpeedUnit(&speedUnit)
+	writeHistory := mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected 1 Omni units write after speed unit change, got %d", len(writeHistory))
+	}
+	if !bytes.Equal(writeHistory[0].Data, []byte{0x11, 0x88, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}) {
+		t.Fatalf("Expected Omni speed unit command, got %x", writeHistory[0].Data)
+	}
+
+	mockClient.ClearWriteHistory()
+	distanceUnit := "yards"
+	sm.SetOmniDistanceUnit(&distanceUnit)
+	writeHistory = mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected 1 Omni units write after distance unit change, got %d", len(writeHistory))
+	}
+	if !bytes.Equal(writeHistory[0].Data, []byte{0x11, 0x88, 0x01, 0x01, 0x01, 0x02, 0x00, 0x00}) {
+		t.Fatalf("Expected Omni distance unit command, got %x", writeHistory[0].Data)
+	}
+
+	mockClient.ClearWriteHistory()
+	greenSpeed := 12
+	sm.SetOmniGreenSpeed(&greenSpeed)
+	writeHistory = mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected 1 Omni green speed write, got %d", len(writeHistory))
+	}
+	if !bytes.Equal(writeHistory[0].Data, []byte{0x11, 0x89, 0x02, 0x04, 0x00, 0x00, 0x00, 0x00}) {
+		t.Fatalf("Expected Omni green speed command, got %x", writeHistory[0].Data)
+	}
+
+	mockClient.ClearWriteHistory()
+	carryAdjustment := -5
+	sm.SetOmniCarryAdjustment(&carryAdjustment)
+	writeHistory = mockClient.GetWriteHistory()
+	if len(writeHistory) != 1 {
+		t.Fatalf("Expected 1 Omni carry adjustment write, got %d", len(writeHistory))
+	}
+	if !bytes.Equal(writeHistory[0].Data, []byte{0x11, 0x8a, 0x03, 0x5f, 0x00, 0x00, 0x00, 0x00}) {
+		t.Fatalf("Expected Omni carry adjustment command, got %x", writeHistory[0].Data)
+	}
+}
+
+func TestBuildOmniInitCommands_UsesConfiguredState(t *testing.T) {
+	sm, lm, _, _ := newTestLaunchMonitor(t)
+	sm.SetDeviceType(DeviceTypeOmni)
+
+	speedUnit := "mph"
+	distanceUnit := "yards"
+	greenSpeed := 12
+	carryAdjustment := -5
+	handedness := LeftHanded
+	sm.SetOmniSpeedUnit(&speedUnit)
+	sm.SetOmniDistanceUnit(&distanceUnit)
+	sm.SetOmniGreenSpeed(&greenSpeed)
+	sm.SetOmniCarryAdjustment(&carryAdjustment)
+	sm.SetHandedness(&handedness)
+
+	commands := lm.buildOmniInitCommands()
+	if len(commands) != 4 {
+		t.Fatalf("Expected 4 Omni init commands, got %d", len(commands))
+	}
+
+	expectedCommands := []string{
+		"1188000101020000",
+		"118a015f00000000",
+		"1189020400000000",
+		"118203006301000000",
+	}
+
+	for i, expected := range expectedCommands {
+		if commands[i].cmd != expected {
+			t.Fatalf("Expected Omni init command %d to be %s, got %s", i, expected, commands[i].cmd)
+		}
 	}
 }
 

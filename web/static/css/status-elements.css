@@ -123,6 +123,32 @@
     50% { opacity: 0.5; }
 }
 
+.battery-charging {
+    color: var(--color-success);
+    animation: battery-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes battery-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+.capacitor-status {
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.capacitor-ready {
+    color: var(--color-success);
+}
+
+.capacitor-charging {
+    color: var(--color-warning);
+    animation: battery-pulse 1.5s ease-in-out infinite;
+}
+
 /* Empty state */
 .empty-state {
     text-align: center;

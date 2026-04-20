@@ -246,6 +246,10 @@ export class SquareGolfApp {
         this.$$('input[name="spinMode"]').forEach((radio) => {
             radio.addEventListener('change', () => this.saveSettings());
         });
+        this.bind('omniSpeedUnit', 'change', () => this.saveSettings());
+        this.bind('omniDistanceUnit', 'change', () => this.saveSettings());
+        this.bind('omniGreenSpeed', 'change', () => this.saveSettings());
+        this.bind('omniCarryAdjustment', 'change', () => this.saveSettings());
     }
 
     async handleHandednessChange(handedness) {
@@ -470,7 +474,7 @@ export class SquareGolfApp {
         }
     }
 
-    updateBatteryDisplay(level) {
+    updateBatteryDisplay(level, chargingStatus) {
         const batteryElement = this.$('batteryLevel');
         const batteryIconElement = this.$('batteryIcon');
         if (!batteryElement || !batteryIconElement) return;
@@ -478,8 +482,28 @@ export class SquareGolfApp {
         if (typeof level !== 'number') {
             batteryIconElement.textContent = 'battery_unknown';
             batteryElement.textContent = '—';
+            batteryIconElement.classList.remove('battery-low', 'battery-charging');
             return;
         }
+
+        // chargingStatus: 0=not charging, 1=discharging, 2=charging, 3=full, 5=AC powered
+        if (chargingStatus === 5) {
+            batteryIconElement.textContent = 'power';
+            batteryElement.textContent = 'AC';
+            batteryIconElement.classList.remove('battery-low');
+            batteryIconElement.classList.remove('battery-charging');
+            return;
+        }
+
+        if (chargingStatus === 2) {
+            batteryIconElement.textContent = 'battery_charging_full';
+            batteryElement.textContent = `${level}%`;
+            batteryIconElement.classList.remove('battery-low');
+            batteryIconElement.classList.add('battery-charging');
+            return;
+        }
+
+        batteryIconElement.classList.remove('battery-charging');
 
         if (level >= 80) {
             batteryIconElement.textContent = 'battery_full';
@@ -491,7 +515,29 @@ export class SquareGolfApp {
             batteryIconElement.textContent = 'battery_1_bar';
         }
 
-        batteryElement.textContent = `${level}%`;
+        batteryIconElement.classList.toggle('battery-low', level <= 5);
+        batteryElement.textContent = level <= 5 ? 'Low' : `${level}%`;
+    }
+
+    updateCapacitorDisplay(ready, connectionStatus) {
+        const el = this.$('capacitorStatus');
+        if (!el) return;
+
+        if (connectionStatus !== 'connected') {
+            el.textContent = '';
+            el.classList.remove('capacitor-charging', 'capacitor-ready');
+            return;
+        }
+
+        if (ready) {
+            el.textContent = 'Ready';
+            el.classList.remove('capacitor-charging');
+            el.classList.add('capacitor-ready');
+        } else {
+            el.textContent = 'Charging...';
+            el.classList.add('capacitor-charging');
+            el.classList.remove('capacitor-ready');
+        }
     }
 
     updateVersionDisplay(status) {
@@ -501,6 +547,21 @@ export class SquareGolfApp {
         this.setTextContent('launcherVersion', status.launcherVersion !== null ? status.launcherVersion : null);
         this.setTextContent('mmiVersion', status.mmiVersion !== null ? status.mmiVersion : null);
         this.setTextContent('launchMonitorStatus', status.launchMonitorStatus ? `${status.launchMonitorStatus}` : null);
+    }
+
+    formatOmniStatus(value) {
+        const names = {
+            0: 'None',
+            1: 'Idle',
+            2: 'Init',
+            3: 'Detect',
+            4: 'Ready',
+            5: 'Shot',
+            6: 'Done'
+        };
+
+        if (typeof value !== 'number') return null;
+        return names[value] ? `${value}:${names[value]}` : `${value}`;
     }
 
     updateDeviceStatus(status) {
@@ -555,7 +616,8 @@ export class SquareGolfApp {
                 break;
         }
 
-        this.updateBatteryDisplay(status.batteryLevel);
+        this.updateBatteryDisplay(status.batteryLevel, status.batteryCharging);
+        this.updateCapacitorDisplay(status.capacitorReady, status.connectionStatus);
         this.updateVersionDisplay(status);
         this.updateOptionalDeviceInfo({
             itemId: 'clubItem',
@@ -570,6 +632,37 @@ export class SquareGolfApp {
             valueId: 'handednessValue',
             value: handedness
         });
+
+        this.updateOptionalDeviceInfo({
+            itemId: 'omniStatusItem',
+            valueId: 'omniStatusValue',
+            value: status.deviceType === 'omni' ? status.omniStatus : null,
+            formatter: (value) => this.formatOmniStatus(value)
+        });
+
+        this.updateOptionalDeviceInfo({
+            itemId: 'omniHomeStatusItem',
+            valueId: 'omniHomeStatusValue',
+            value: status.deviceType === 'omni' ? status.omniHomeGolfStatus : null,
+            formatter: (value) => this.formatOmniStatus(value)
+        });
+
+        this.updateOptionalDeviceInfo({
+            itemId: 'omniClubSelectionItem',
+            valueId: 'omniClubSelectionValue',
+            value: status.deviceType === 'omni' ? status.omniClubSelection : null
+        });
+
+        this.updateOptionalDeviceInfo({
+            itemId: 'omniSensorStatusItem',
+            valueId: 'omniSensorStatusValue',
+            value: status.deviceType === 'omni' ? status.omniSensorStatus : null
+        });
+
+        const omniSettings = this.$('omniSettingsGroup');
+        if (omniSettings) {
+            omniSettings.classList.toggle('hidden', status.deviceType !== 'omni');
+        }
 
         if (handedness) {
             this.currentHandedness = handedness.toLowerCase();
@@ -919,13 +1012,30 @@ export class SquareGolfApp {
         if (itIP) itIP.value = settings.infiniteTeesIP || '127.0.0.1';
         if (itPort) itPort.value = settings.infiniteTeesPort || 999;
         if (itAutoConnect) itAutoConnect.checked = settings.infiniteTeesAutoConnect || false;
+
+        const omniSpeedUnit = this.$('omniSpeedUnit');
+        const omniDistanceUnit = this.$('omniDistanceUnit');
+        const omniGreenSpeed = this.$('omniGreenSpeed');
+        const omniCarryAdjustment = this.$('omniCarryAdjustment');
+        if (omniSpeedUnit) omniSpeedUnit.value = settings.omniSpeedUnit || 'mps';
+        if (omniDistanceUnit) omniDistanceUnit.value = settings.omniDistanceUnit || 'meters';
+        if (omniGreenSpeed) omniGreenSpeed.value = String(settings.omniGreenSpeed || 10);
+        if (omniCarryAdjustment) omniCarryAdjustment.value = settings.omniCarryAdjustment ?? 0;
     }
 
     async saveSettings() {
         const spinMode = document.querySelector('input[name="spinMode"]:checked')?.value;
+        const omniSpeedUnit = this.$('omniSpeedUnit')?.value || 'mps';
+        const omniDistanceUnit = this.$('omniDistanceUnit')?.value || 'meters';
+        const omniGreenSpeed = parseInt(this.$('omniGreenSpeed')?.value || '10', 10);
+        const omniCarryAdjustment = parseInt(this.$('omniCarryAdjustment')?.value || '0', 10);
         await this.settingsManager.save({
             ...this.settingsManager.getAll(),
-            spinMode
+            spinMode,
+            omniSpeedUnit,
+            omniDistanceUnit,
+            omniGreenSpeed,
+            omniCarryAdjustment
         });
     }
 }

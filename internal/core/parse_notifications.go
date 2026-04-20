@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -33,6 +34,7 @@ type BallMetrics struct {
 	IsBackspinValid  bool     `json:"isBackSpinValid"`
 	IsSidespinValid  bool     `json:"isSideSpinValid"`
 	ShotType         ShotType `json:"shotType"`
+	validityBitmask  string
 }
 
 // ClubMetrics represents club metrics from a shot
@@ -109,6 +111,11 @@ func ParseShotBallMetrics(bytesList []string) (*BallMetrics, error) {
 		IsSidespinValid:  true,
 	}
 
+	// Store raw validity bitmask byte for Omni processing
+	if len(bytesList) >= 3 {
+		metrics.validityBitmask = bytesList[2]
+	}
+
 	// Parse ball speed
 	if ballSpeed, valid, ok := parseScaledInt16Metric(bytesList[3], bytesList[4], 100.0); ok {
 		metrics.BallSpeedMPS = ballSpeed
@@ -159,7 +166,39 @@ func ParseShotBallMetrics(bytesList []string) (*BallMetrics, error) {
 		metrics.IsSidespinValid = false
 	}
 
+	if metrics.BackspinRPM < 0 {
+		metrics.TotalspinRPM = -metrics.TotalspinRPM
+	}
+
+	// Decompose total spin into backspin/sidespin when components are missing
+	if metrics.IsTotalSpinValid && metrics.IsSpinAxisValid {
+		spinAxisRad := float64(metrics.SpinAxis) * math.Pi / 180.0
+		if !metrics.IsBackspinValid {
+			metrics.BackspinRPM = int16(float64(metrics.TotalspinRPM) * math.Cos(spinAxisRad))
+		}
+		if !metrics.IsSidespinValid {
+			metrics.SidespinRPM = int16(float64(metrics.TotalspinRPM) * math.Sin(spinAxisRad))
+		}
+	}
+
 	return metrics, nil
+}
+
+// ApplyOmniBallValidityBitmask applies the Omni's validity bitmask to ball metrics.
+// The Omni sends a bitmask byte at bytesList[2] with per-field validity bits.
+func ApplyOmniBallValidityBitmask(metrics *BallMetrics) {
+	if metrics.validityBitmask == "" {
+		return
+	}
+	bitmask, err := strconv.ParseUint(metrics.validityBitmask, 16, 8)
+	if err != nil {
+		return
+	}
+	metrics.IsBallSpeedValid = metrics.IsBallSpeedValid && (bitmask&0x01 != 0)
+	metrics.IsTotalSpinValid = metrics.IsTotalSpinValid && (bitmask&0x02 != 0)
+	metrics.IsSpinAxisValid = metrics.IsSpinAxisValid && (bitmask&0x04 != 0)
+	metrics.IsBackspinValid = metrics.IsBackspinValid && (bitmask&0x10 != 0)
+	metrics.IsSidespinValid = metrics.IsSidespinValid && (bitmask&0x20 != 0)
 }
 
 // ParseShotClubMetrics parses club metrics from shot data

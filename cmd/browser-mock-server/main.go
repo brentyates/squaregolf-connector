@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -20,16 +21,17 @@ type wsMessage struct {
 }
 
 type app struct {
-	mu       sync.Mutex
-	status   map[string]interface{}
-	gspro    map[string]interface{}
-	it       map[string]interface{}
-	camera   map[string]interface{}
-	settings map[string]interface{}
-	features map[string]interface{}
-	clients  map[*websocket.Conn]struct{}
-	upgrader websocket.Upgrader
-	webRoot  string
+	mu        sync.Mutex
+	status    map[string]interface{}
+	gspro     map[string]interface{}
+	it        map[string]interface{}
+	camera    map[string]interface{}
+	settings  map[string]interface{}
+	features  map[string]interface{}
+	clients   map[*websocket.Conn]struct{}
+	upgrader  websocket.Upgrader
+	webRoot   string
+	shotCount int
 }
 
 func main() {
@@ -41,6 +43,9 @@ func main() {
 			"connectionStatus":    "disconnected",
 			"deviceName":          nil,
 			"batteryLevel":        nil,
+			"batteryCharging":     nil,
+			"capacitorReady":      false,
+			"deviceType":          "omni",
 			"firmwareVersion":     "1.9.27",
 			"launcherVersion":     "1.0.0",
 			"mmiVersion":          "1.2.0",
@@ -149,8 +154,11 @@ func (a *app) handleCamera(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleConnect(w http.ResponseWriter, r *http.Request) {
 	a.mu.Lock()
 	a.status["connectionStatus"] = "connected"
-	a.status["deviceName"] = "SquareGolf Simulator"
+	a.status["deviceName"] = "SquareGolf Omni"
+	a.status["deviceType"] = "omni"
 	a.status["batteryLevel"] = 80
+	a.status["batteryCharging"] = 0
+	a.status["capacitorReady"] = true
 	a.status["launchMonitorStatus"] = "idle"
 	a.mu.Unlock()
 	a.broadcast("deviceStatus", a.snapshotStatus())
@@ -183,6 +191,15 @@ func (a *app) handlePractice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) runShotSequence() {
+	a.mu.Lock()
+	n := a.shotCount
+	a.shotCount++
+	a.mu.Unlock()
+
+	vary := func(base, spread float64) float64 {
+		return base + spread*math.Sin(float64(n)*1.7)
+	}
+
 	stages := []struct {
 		delay  time.Duration
 		update func(map[string]interface{})
@@ -206,21 +223,22 @@ func (a *app) runShotSequence() {
 		{
 			delay: 1100 * time.Millisecond,
 			update: func(status map[string]interface{}) {
+				spinAxis := vary(5, 15)
+				totalSpin := vary(2800, 800)
 				status["launchMonitorStatus"] = "shot"
 				status["lastBallMetrics"] = map[string]interface{}{
-					"rawData":          []string{"11", "02", "37", "84", "0B", "F0", "03", "14", "00", "96", "00", "C2", "01", "6E", "00", "00", "80"},
-					"speed":            29.48,
-					"launchAngle":      10.08,
-					"horizontalAngle":  0.20,
-					"totalSpin":        150,
-					"spinAxis":         4.50,
-					"backSpin":         110,
-					"sideSpin":         0,
+					"speed":            vary(65, 10),
+					"launchAngle":      vary(14, 8),
+					"horizontalAngle":  vary(1, 4),
+					"totalSpin":        totalSpin,
+					"spinAxis":         spinAxis,
+					"backSpin":         totalSpin * math.Cos(spinAxis*math.Pi/180),
+					"sideSpin":         totalSpin * math.Sin(spinAxis*math.Pi/180),
 					"isBallSpeedValid": true,
 					"isTotalSpinValid": true,
 					"isSpinAxisValid":  true,
 					"isBackSpinValid":  true,
-					"isSideSpinValid":  false,
+					"isSideSpinValid":  true,
 				}
 			},
 		},
@@ -229,15 +247,22 @@ func (a *app) runShotSequence() {
 			update: func(status map[string]interface{}) {
 				status["launchMonitorStatus"] = "done"
 				status["lastClubMetrics"] = map[string]interface{}{
-					"rawData":            []string{"11", "07", "0D", "D4", "FE", "90", "01", "00", "80", "D0", "07"},
-					"path":               -3.00,
-					"angle":              4.00,
-					"attackAngle":        0,
-					"dynamicLoft":        20.00,
-					"isPathValid":        true,
-					"isFaceAngleValid":   true,
-					"isAttackAngleValid": false,
-					"isDynamicLoftValid": true,
+					"path":                    vary(-2, 6),
+					"angle":                   vary(1, 5),
+					"attackAngle":             vary(-3, 4),
+					"dynamicLoft":             vary(16, 5),
+					"clubSpeed":               vary(45, 5),
+					"smashFactor":             vary(1.45, 0.1),
+					"impactHorizontal":        vary(2, 10),
+					"impactVertical":          vary(-1, 8),
+					"isPathValid":             true,
+					"isFaceAngleValid":        true,
+					"isAttackAngleValid":      true,
+					"isDynamicLoftValid":      true,
+					"isClubSpeedValid":        true,
+					"isSmashFactorValid":      true,
+					"isImpactHorizontalValid": true,
+					"isImpactVerticalValid":   true,
 				}
 			},
 		},

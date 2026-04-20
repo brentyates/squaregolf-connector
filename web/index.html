@@ -127,12 +127,29 @@
                             <span class="detail-chip-label">LM Status</span>
                             <span class="detail-chip-value" id="launchMonitorStatus">-</span>
                         </div>
+                        <div class="detail-chip hidden" id="omniStatusItem">
+                            <span class="detail-chip-label">Omni</span>
+                            <span class="detail-chip-value" id="omniStatusValue">-</span>
+                        </div>
+                        <div class="detail-chip hidden" id="omniHomeStatusItem">
+                            <span class="detail-chip-label">HG Raw</span>
+                            <span class="detail-chip-value" id="omniHomeStatusValue">-</span>
+                        </div>
+                        <div class="detail-chip hidden" id="omniClubSelectionItem">
+                            <span class="detail-chip-label">ClubSel</span>
+                            <span class="detail-chip-value" id="omniClubSelectionValue">-</span>
+                        </div>
+                        <div class="detail-chip hidden" id="omniSensorStatusItem">
+                            <span class="detail-chip-label">Sensor</span>
+                            <span class="detail-chip-value" id="omniSensorStatusValue">-</span>
+                        </div>
                     </div>
                     <div class="connection-actions">
                         <span class="battery hidden" id="batteryInline">
                             <span class="material-icons" id="batteryIcon">battery_full</span>
                             <span id="batteryLevel">-</span>
                         </span>
+                        <span id="capacitorStatus" class="capacitor-status"></span>
                         <button class="btn btn-secondary" id="connectDisconnectBtn">Connect</button>
                         <button class="btn-icon hidden" id="calibrateBtn" title="Calibrate Alignment">
                             <span class="material-icons">tune</span>
@@ -160,8 +177,15 @@
                                 <svg viewBox="0 0 200 200" id="clubPathSvg">
                                     <!-- Target line (straight ahead) -->
                                     <line x1="100" y1="190" x2="100" y2="10" stroke="var(--gray-300)" stroke-width="1" stroke-dasharray="4 4"/>
+                                    <!-- Shot dispersion dots -->
+                                    <g id="dispersionDots"></g>
+                                    <!-- Sector arcs showing angle magnitude -->
+                                    <path id="clubPathArc" d="" fill="rgba(95,141,78,0.15)" stroke="none"/>
+                                    <path id="clubFaceArc" d="" fill="rgba(59,130,246,0.12)" stroke="none"/>
                                     <!-- Club path line -->
                                     <line id="clubPathLine" x1="100" y1="170" x2="100" y2="30" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+                                    <!-- Club path arrow -->
+                                    <polygon id="clubPathArrow" points="" fill="var(--text-muted)"/>
                                     <!-- Club face indicator (short line perpendicular to path at impact) -->
                                     <line id="clubFaceLine" x1="80" y1="100" x2="120" y2="100" stroke="var(--text-muted)" stroke-width="4" stroke-linecap="round"/>
                                     <!-- Impact point -->
@@ -257,6 +281,9 @@
                             </div>
                             <div class="diag-svg-container">
                                 <svg viewBox="0 0 200 200" id="spinAxisSvg">
+                                    <defs>
+                                        <clipPath id="spinBallClip"><circle cx="100" cy="100" r="38"/></clipPath>
+                                    </defs>
                                     <!-- Outer circle -->
                                     <circle cx="100" cy="100" r="80" fill="none" stroke="var(--gray-300)" stroke-width="1"/>
                                     <!-- Inner circle -->
@@ -268,6 +295,12 @@
                                     <text x="96" y="14" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">0°</text>
                                     <text x="185" y="104" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">R</text>
                                     <text x="5" y="104" font-size="9" fill="var(--gray-400)" font-family="var(--font-family-mono)">L</text>
+                                    <!-- Ball with tilt shading -->
+                                    <circle cx="100" cy="100" r="38" fill="rgba(148,163,184,0.06)" stroke="var(--gray-300)" stroke-width="0.5"/>
+                                    <rect id="spinBallShade" x="100" y="62" width="40" height="76" fill="rgba(199,104,52,0.12)" clip-path="url(#spinBallClip)"/>
+                                    <!-- Curve direction arrow -->
+                                    <path id="spinCurveArrow" d="" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round"/>
+                                    <polygon id="spinCurveHead" points="" fill="var(--text-muted)"/>
                                     <!-- Spin axis tilt line -->
                                     <line id="spinAxisLine" x1="100" y1="20" x2="100" y2="180" stroke="var(--text-muted)" stroke-width="3" stroke-linecap="round"/>
                                     <!-- Center dot -->
@@ -307,6 +340,8 @@
                                     <line x1="30" y1="80" x2="170" y2="80" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="3 3"/>
                                     <!-- Sweet spot zone -->
                                     <ellipse cx="100" cy="75" rx="30" ry="25" fill="none" stroke="var(--gray-300)" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.6"/>
+                                    <!-- Impact dot history -->
+                                    <g id="impactDotHistory"></g>
                                     <!-- Impact dot -->
                                     <circle id="impactDot" cx="100" cy="80" r="7" fill="var(--text-muted)" opacity="0.8"/>
                                     <!-- Impact ring -->
@@ -492,6 +527,43 @@
                                         <p class="helper-text">Use with specially marked/dotted golf balls for accurate spin data through camera tracking.</p>
                                     </div>
                                 </label>
+                            </div>
+                        </div>
+
+                        <div id="omniSettingsGroup" class="hidden">
+                            <div class="form-group">
+                                <label for="omniSpeedUnit">Omni Speed Unit:</label>
+                                <select id="omniSpeedUnit" class="input-field">
+                                    <option value="mps">Meters per second</option>
+                                    <option value="mph">Miles per hour</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="omniDistanceUnit">Omni Distance Unit:</label>
+                                <select id="omniDistanceUnit" class="input-field">
+                                    <option value="meters">Meters</option>
+                                    <option value="mixed">Feet on green / yards off green</option>
+                                    <option value="yards">Yards everywhere</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="omniGreenSpeed">Omni Green Speed:</label>
+                                <select id="omniGreenSpeed" class="input-field">
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                    <option value="13">13</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="omniCarryAdjustment">Omni Carry Adjustment:</label>
+                                <input type="number" id="omniCarryAdjustment" class="input-field" min="-99" max="99" step="1" value="0">
+                                <p class="helper-text">Percentage offset applied to carry distance. 0 uses the device default.</p>
                             </div>
                         </div>
                     </div>

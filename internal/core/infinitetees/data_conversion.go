@@ -34,7 +34,7 @@ func (it *Integration) convertToShotFormat(ballMetrics core.BallMetrics, increme
 
 func (it *Integration) convertClubData(clubMetrics core.ClubMetrics) *ClubData {
 	return &ClubData{
-		Speed:                clubMetrics.ClubSpeed,
+		Speed:                clubMetrics.ClubSpeed * 2.23694,
 		AngleOfAttack:        clubMetrics.AttackAngle,
 		FaceToTarget:         clubMetrics.FaceAngle,
 		Lie:                  0,

@@ -144,6 +144,73 @@ func TestRequestClubMetricsCommand(t *testing.T) {
 	}
 }
 
+func TestOmniSetUnitsCommand(t *testing.T) {
+	tests := []struct {
+		name         string
+		sequence     int
+		speedUnit    int
+		distanceUnit int
+		expected     string
+	}{
+		{"Meters", 0, 0, 0, "1188000000000000"},
+		{"Mixed", 1, 0, 1, "1188010001010000"},
+		{"YardsMph", 255, 1, 2, "1188ff0101020000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := OmniSetUnitsCommand(tt.sequence, tt.speedUnit, tt.distanceUnit)
+			if result != tt.expected {
+				t.Errorf("OmniSetUnitsCommand(%d, %d, %d) = %s, want %s", tt.sequence, tt.speedUnit, tt.distanceUnit, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestOmniSetGreenSpeedCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		sequence int
+		green    int
+		expected string
+	}{
+		{"Speed8", 0, 0, "1189000000000000"},
+		{"Speed10", 2, 2, "1189020200000000"},
+		{"Speed13", 255, 5, "1189ff0500000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := OmniSetGreenSpeedCommand(tt.sequence, tt.green)
+			if result != tt.expected {
+				t.Errorf("OmniSetGreenSpeedCommand(%d, %d) = %s, want %s", tt.sequence, tt.green, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestOmniSetCarryDistanceAdjustmentCommand(t *testing.T) {
+	tests := []struct {
+		name       string
+		sequence   int
+		adjustment int
+		expected   string
+	}{
+		{"Minus5", 0, -5, "118a005f00000000"},
+		{"Zero", 1, 0, "118a016400000000"},
+		{"Plus7", 255, 7, "118aff6b00000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := OmniSetCarryDistanceAdjustmentCommand(tt.sequence, tt.adjustment)
+			if result != tt.expected {
+				t.Errorf("OmniSetCarryDistanceAdjustmentCommand(%d, %d) = %s, want %s", tt.sequence, tt.adjustment, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestHandednessTypeString(t *testing.T) {
 	tests := []struct {
 		handedness HandednessType

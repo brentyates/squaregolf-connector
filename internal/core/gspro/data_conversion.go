@@ -37,7 +37,7 @@ func (g *Integration) convertToGSProShotFormat(ballMetrics core.BallMetrics, inc
 // convertClubDataToGSPro converts internal club data format to GSPro format
 func (g *Integration) convertClubDataToGSPro(clubMetrics core.ClubMetrics) *ClubData {
 	return &ClubData{
-		Speed:                clubMetrics.ClubSpeed,
+		Speed:                clubMetrics.ClubSpeed * 2.23694,
 		AngleOfAttack:        clubMetrics.AttackAngle,
 		FaceToTarget:         clubMetrics.FaceAngle,
 		Lie:                  0,

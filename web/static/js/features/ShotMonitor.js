@@ -3,6 +3,8 @@ export class ShotMonitor {
     constructor(apiClient, eventBus) {
         this.api = apiClient;
         this.eventBus = eventBus;
+        this._shotHistory = [];
+        this._maxHistory = 20;
     }
 
     updateBinaryIndicator(elementId, isConnected) {
@@ -88,25 +90,27 @@ export class ShotMonitor {
     }
 
     updateCurrentShot(ballData, clubData) {
-        const ballSpeedMPH = typeof ballData?.speed === 'number' ? ballData.speed * 2.237 : null;
+        const ballSpeedMPH = typeof ballData?.speed === 'number' ? ballData.speed * 2.23694 : null;
         this.updateMetricValue('metricBallSpeed', ballSpeedMPH, 'mph', false, ballData?.isBallSpeedValid, 'metricItemBallSpeed');
         this.updateMetricValue('metricLaunchAngle', ballData?.launchAngle, '°', false, true, 'metricItemLaunchAngle');
-        this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', true, true, 'metricItemDirection');
-        this.updateMetricValue('metricBackSpin', ballData?.backSpin, 'rpm', false, ballData?.isBackSpinValid, 'metricItemBackSpin');
-        this.updateMetricValue('metricSideSpin', ballData?.sideSpin, 'rpm', true, ballData?.isSideSpinValid, 'metricItemSideSpin');
-        this.updateMetricValue('metricTotalSpin', ballData?.totalSpin, 'rpm', false, ballData?.isTotalSpinValid, 'metricItemTotalSpin');
+        this.updateMetricValue('metricDirection', ballData?.horizontalAngle, '°', 'lr', true, 'metricItemDirection');
+        const isTopspin = typeof ballData?.backSpin === 'number' && ballData.backSpin < 0;
+        this.updateMetricValue('metricBackSpin', ballData?.backSpin, 'rpm', isTopspin ? 'topspin' : null, ballData?.isBackSpinValid, 'metricItemBackSpin');
+        this.updateMetricValue('metricSideSpin', ballData?.sideSpin, 'rpm', 'spin', ballData?.isSideSpinValid, 'metricItemSideSpin');
+        this.updateMetricValue('metricTotalSpin', ballData?.totalSpin, 'rpm', isTopspin ? 'topspin' : null, ballData?.isTotalSpinValid, 'metricItemTotalSpin');
         this.updateMetricValue('metricSpinAxis', ballData?.spinAxis, '°', false, ballData?.isSpinAxisValid, 'metricItemSpinAxis');
 
-        this.updateMetricValue('metricAttackAngle', clubData?.attackAngle, '°', true, clubData?.isAttackAngleValid, 'metricItemAttackAngle');
-        this.updateMetricValue('metricClubPath', clubData?.path, '°', true, clubData?.isPathValid, 'metricItemClubPath');
-        this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', true, clubData?.isFaceAngleValid, 'metricItemFaceAngle');
+        this.updateMetricValue('metricAttackAngle', clubData?.attackAngle, '°', 'attack', clubData?.isAttackAngleValid, 'metricItemAttackAngle');
+        this.updateMetricValue('metricClubPath', clubData?.path, '°', 'path', clubData?.isPathValid, 'metricItemClubPath');
+        this.updateMetricValue('metricFaceAngle', clubData?.angle, '°', 'face', clubData?.isFaceAngleValid, 'metricItemFaceAngle');
         this.updateMetricValue('metricDynamicLoft', clubData?.dynamicLoft, '°', false, clubData?.isDynamicLoftValid, 'metricItemDynamicLoft');
-        this.updateMetricValue('metricClubSpeed', clubData?.clubSpeed, '', false, clubData?.isClubSpeedValid, 'metricItemClubSpeed');
+        const clubSpeedMPH = typeof clubData?.clubSpeed === 'number' ? clubData.clubSpeed * 2.23694 : null;
+        this.updateMetricValue('metricClubSpeed', clubSpeedMPH, 'mph', false, clubData?.isClubSpeedValid, 'metricItemClubSpeed');
         this.updateMetricValue('metricSmashFactor', clubData?.smashFactor, '', false, clubData?.isSmashFactorValid, 'metricItemSmashFactor');
-        this.updateMetricValue('metricImpactH', clubData?.impactHorizontal, '°', true, clubData?.isImpactHorizontalValid, 'metricItemImpactH');
+        this.updateMetricValue('metricImpactH', clubData?.impactHorizontal, 'mm', 'impact', clubData?.isImpactHorizontalValid, 'metricItemImpactH');
     }
 
-    updateMetricValue(elementId, value, unit, showSign = false, isValid = true, containerId = null) {
+    updateMetricValue(elementId, value, unit, labelFormat = null, isValid = true, containerId = null) {
         const element = document.getElementById(elementId);
         const container = containerId ? document.getElementById(containerId) : null;
         if (!element) return;
@@ -120,11 +124,14 @@ export class ShotMonitor {
             return;
         }
 
-        let displayValue = typeof value === 'number' ? value.toFixed(1) : value;
+        const decimals = (unit === 'rpm') ? 0 : 1;
+        let displayValue = typeof value === 'number' ? value.toFixed(decimals) : value;
 
-        if (showSign && typeof value === 'number' && value !== 0) {
-            const prefix = value > 0 ? 'R' : 'L';
-            displayValue = `${prefix}${Math.abs(value).toFixed(1)}`;
+        if (labelFormat && typeof value === 'number' && value !== 0) {
+            const label = this.metricLabel(value, labelFormat);
+            if (label) {
+                displayValue = `${label} ${Math.abs(value).toFixed(decimals)}`;
+            }
         }
 
         element.textContent = displayValue;
@@ -141,6 +148,17 @@ export class ShotMonitor {
     }
 
     updateDiagrams(ballData, clubData) {
+        const shotEntry = { ballData, clubData };
+        const lastEntry = this._shotHistory[this._shotHistory.length - 1];
+        const isDuplicate = lastEntry &&
+            lastEntry.ballData?.speed === ballData?.speed &&
+            lastEntry.ballData?.launchAngle === ballData?.launchAngle &&
+            lastEntry.ballData?.totalSpin === ballData?.totalSpin;
+        if (!isDuplicate) {
+            this._shotHistory.push(shotEntry);
+            if (this._shotHistory.length > this._maxHistory) this._shotHistory.shift();
+        }
+
         this.updateClubPathDiagram(clubData);
         this.updateLaunchDiagram(ballData, clubData);
         this.updateSpinDiagram(ballData);
@@ -148,7 +166,7 @@ export class ShotMonitor {
         this.updateEfficiency(ballData, clubData);
     }
 
-    setDiagValue(id, value, unit, showSign, isValid) {
+    setDiagValue(id, value, unit, labelFormat, isValid) {
         const el = document.getElementById(id);
         if (!el) return;
 
@@ -159,9 +177,11 @@ export class ShotMonitor {
         }
 
         let display = typeof value === 'number' ? value.toFixed(1) : value;
-        if (showSign && typeof value === 'number' && value !== 0) {
-            const prefix = value > 0 ? 'R' : 'L';
-            display = `${prefix}${Math.abs(value).toFixed(1)}`;
+        if (labelFormat && typeof value === 'number' && value !== 0) {
+            const label = this.metricLabel(value, labelFormat);
+            if (label) {
+                display = `${label} ${Math.abs(value).toFixed(1)}`;
+            }
         }
         if (unit) display += unit;
 
@@ -192,9 +212,45 @@ export class ShotMonitor {
         return 'var(--text-muted)';
     }
 
+    metricLabel(value, format) {
+        if (!format || value === 0) return null;
+        switch (format) {
+            case 'lr': return value > 0 ? 'R' : 'L';
+            case 'spin': return value > 0 ? 'L' : 'R';
+            case 'path': {
+                const inOut = this._isLeftHanded ? (value < 0) : (value > 0);
+                return inOut ? 'In-Out' : 'Out-In';
+            }
+            case 'face': {
+                const open = this._isLeftHanded ? (value < 0) : (value > 0);
+                return open ? 'Open' : 'Closed';
+            }
+            case 'attack': return value > 0 ? 'Up' : 'Down';
+            case 'impact': return value > 0 ? 'Toe' : 'Heel';
+            case 'topspin': return 'T';
+            default: return null;
+        }
+    }
+
+    sectorArc(cx, cy, radius, startAngleDeg, endAngleDeg) {
+        const toRad = d => (d * Math.PI) / 180;
+        const s = toRad(startAngleDeg - 90);
+        const e = toRad(endAngleDeg - 90);
+        const x1 = cx + Math.cos(s) * radius;
+        const y1 = cy + Math.sin(s) * radius;
+        const x2 = cx + Math.cos(e) * radius;
+        const y2 = cy + Math.sin(e) * radius;
+        const largeArc = Math.abs(endAngleDeg - startAngleDeg) > 180 ? 1 : 0;
+        const sweep = endAngleDeg > startAngleDeg ? 1 : 0;
+        return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${x2} ${y2} Z`;
+    }
+
     updateClubPathDiagram(clubData) {
         const pathLine = document.getElementById('clubPathLine');
         const faceLine = document.getElementById('clubFaceLine');
+        const pathArc = document.getElementById('clubPathArc');
+        const faceArc = document.getElementById('clubFaceArc');
+        const pathArrow = document.getElementById('clubPathArrow');
         if (!pathLine || !faceLine) return;
 
         const hasPath = typeof clubData?.path === 'number';
@@ -207,6 +263,10 @@ export class ShotMonitor {
             this.setDiagValue('diagFaceToPath', null);
             pathLine.setAttribute('stroke', 'var(--text-muted)');
             faceLine.setAttribute('stroke', 'var(--text-muted)');
+            if (pathArc) pathArc.setAttribute('d', '');
+            if (faceArc) faceArc.setAttribute('d', '');
+            if (pathArrow) pathArrow.setAttribute('points', '');
+            this.updateDispersionDots();
             return;
         }
 
@@ -214,17 +274,45 @@ export class ShotMonitor {
         const faceValid = clubData?.isFaceAngleValid !== false;
         this.setBadge('clubDiagBadge', pathValid && faceValid);
 
-        // Club path: rotate from center, clamped to ±20° visual
         const pathAngle = hasPath ? this.clamp(clubData.path, -20, 20) : 0;
         const pathRad = (pathAngle * Math.PI) / 180;
         const len = 70;
-        pathLine.setAttribute('x1', 100 - Math.sin(pathRad) * len);
-        pathLine.setAttribute('y1', 100 + Math.cos(pathRad) * len);
-        pathLine.setAttribute('x2', 100 + Math.sin(pathRad) * len);
-        pathLine.setAttribute('y2', 100 - Math.cos(pathRad) * len);
-        pathLine.setAttribute('stroke', this.svgColor(hasPath ? clubData.isPathValid : null));
+        const x1 = 100 - Math.sin(pathRad) * len;
+        const y1 = 100 + Math.cos(pathRad) * len;
+        const x2 = 100 + Math.sin(pathRad) * len;
+        const y2 = 100 - Math.cos(pathRad) * len;
+        pathLine.setAttribute('x1', x1);
+        pathLine.setAttribute('y1', y1);
+        pathLine.setAttribute('x2', x2);
+        pathLine.setAttribute('y2', y2);
+        const pathColor = this.svgColor(hasPath ? clubData.isPathValid : null);
+        pathLine.setAttribute('stroke', pathColor);
 
-        // Face angle: short line perpendicular to face direction
+        if (pathArc && hasPath && Math.abs(pathAngle) > 0.5) {
+            const arcRadius = 55;
+            const start = Math.min(0, pathAngle);
+            const end = Math.max(0, pathAngle);
+            pathArc.setAttribute('d', this.sectorArc(100, 100, arcRadius, start, end));
+            pathArc.setAttribute('fill', pathValid ? 'rgba(95,141,78,0.15)' : 'rgba(199,104,52,0.10)');
+        } else if (pathArc) {
+            pathArc.setAttribute('d', '');
+        }
+
+        if (pathArrow && hasPath) {
+            const arrowSize = 6;
+            const tipX = x2;
+            const tipY = y2;
+            const perpX = Math.cos(pathRad) * arrowSize;
+            const perpY = Math.sin(pathRad) * arrowSize;
+            const backX = Math.sin(pathRad) * arrowSize * 1.5;
+            const backY = -Math.cos(pathRad) * arrowSize * 1.5;
+            pathArrow.setAttribute('points',
+                `${tipX},${tipY} ${tipX - backX + perpX},${tipY - backY + perpY} ${tipX - backX - perpX},${tipY - backY - perpY}`);
+            pathArrow.setAttribute('fill', pathColor);
+        } else if (pathArrow) {
+            pathArrow.setAttribute('points', '');
+        }
+
         const faceAngle = hasFace ? this.clamp(clubData.angle, -20, 20) : 0;
         const faceRad = (faceAngle * Math.PI) / 180;
         const faceLen = 22;
@@ -234,12 +322,23 @@ export class ShotMonitor {
         faceLine.setAttribute('y2', 100 + Math.sin(faceRad) * faceLen);
         faceLine.setAttribute('stroke', this.svgColor(hasFace ? clubData.isFaceAngleValid : null));
 
-        this.setDiagValue('diagClubPath', clubData.path, '°', true, clubData.isPathValid);
-        this.setDiagValue('diagFaceAngle', clubData.angle, '°', true, clubData.isFaceAngleValid);
+        if (faceArc && hasFace && Math.abs(faceAngle) > 0.5) {
+            const arcRadius = 40;
+            const start = Math.min(0, faceAngle);
+            const end = Math.max(0, faceAngle);
+            faceArc.setAttribute('d', this.sectorArc(100, 100, arcRadius, start, end));
+            faceArc.setAttribute('fill', faceValid ? 'rgba(59,130,246,0.12)' : 'rgba(199,104,52,0.08)');
+        } else if (faceArc) {
+            faceArc.setAttribute('d', '');
+        }
+
+        this.setDiagValue('diagClubPath', clubData.path, '°', 'path', clubData.isPathValid);
+        this.setDiagValue('diagFaceAngle', clubData.angle, '°', 'face', clubData.isFaceAngleValid);
 
         if (hasPath && hasFace) {
             const ftp = clubData.angle - clubData.path;
-            const ftpLabel = Math.abs(ftp) < 0.1 ? 'Square' : (ftp > 0 ? 'Open' : 'Closed');
+            const isOpen = this._isLeftHanded ? (ftp < 0) : (ftp > 0);
+            const ftpLabel = Math.abs(ftp) < 0.1 ? 'Square' : (isOpen ? 'Open' : 'Closed');
             const el = document.getElementById('diagFaceToPath');
             if (el) {
                 el.textContent = `${Math.abs(ftp).toFixed(1)}° ${ftpLabel}`;
@@ -247,6 +346,37 @@ export class ShotMonitor {
             }
         } else {
             this.setDiagValue('diagFaceToPath', null);
+        }
+
+        this.updateDispersionDots();
+    }
+
+    updateDispersionDots() {
+        const container = document.getElementById('dispersionDots');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const history = this._shotHistory;
+        if (history.length < 2) return;
+
+        for (let i = 0; i < history.length; i++) {
+            const dir = history[i].ballData?.horizontalAngle;
+            if (typeof dir !== 'number') continue;
+
+            const isLatest = (i === history.length - 1);
+            const angle = this.clamp(dir, -20, 20);
+            const rad = (angle * Math.PI) / 180;
+            const dist = 50 + ((i * 17) % 30);
+            const dotX = 100 + Math.sin(rad) * dist;
+            const dotY = 100 - Math.cos(rad) * dist;
+
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', dotX);
+            circle.setAttribute('cy', dotY);
+            circle.setAttribute('r', isLatest ? '3' : '2');
+            circle.setAttribute('fill', isLatest ? '#ef4444' : 'rgba(255,255,255,0.5)');
+            circle.setAttribute('opacity', isLatest ? '0.9' : '0.4');
+            container.appendChild(circle);
         }
     }
 
@@ -276,30 +406,35 @@ export class ShotMonitor {
 
         const ox = 40, oy = 130;
 
-        // Launch angle line
         if (hasLaunch) {
             const la = this.clamp(ballData.launchAngle, 0, 45);
             const laRad = (la * Math.PI) / 180;
             const lineLen = 120;
-            launchLine.setAttribute('x2', ox + Math.cos(laRad) * lineLen);
-            launchLine.setAttribute('y2', oy - Math.sin(laRad) * lineLen);
+            const launchEndX = ox + Math.cos(laRad) * lineLen;
+            const launchEndY = oy - Math.sin(laRad) * lineLen;
+            launchLine.setAttribute('x2', launchEndX);
+            launchLine.setAttribute('y2', launchEndY);
             launchLine.setAttribute('stroke', '#5f8d4e');
 
-            // Trajectory arc
-            const peakX = ox + 140;
-            const peakY = oy - Math.sin(laRad) * 100;
-            const endX = ox + 240;
-            const endY = oy - 10;
-            trajectoryArc.setAttribute('d', `M ${ox} ${oy} Q ${peakX} ${peakY} ${endX} ${endY}`);
+            const peakHeight = Math.sin(laRad) * 110;
+            const peakX = ox + 130;
+            const peakY = oy - peakHeight;
+            const endX = 280;
+            const endY = oy - 5;
+            const cp1x = ox + 60;
+            const cp1y = oy - peakHeight * 1.1;
+            const cp2x = ox + 200;
+            const cp2y = oy - peakHeight * 0.7;
+            trajectoryArc.setAttribute('d', `M ${ox} ${oy} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${endX} ${endY}`);
             trajectoryArc.setAttribute('stroke', '#5f8d4e');
 
-            // Small arc to show the angle
             const arcR = 30;
             const arcEndX = ox + Math.cos(laRad) * arcR;
             const arcEndY = oy - Math.sin(laRad) * arcR;
             if (launchArc) {
-                launchArc.setAttribute('d', `M ${ox + arcR} ${oy} A ${arcR} ${arcR} 0 0 0 ${arcEndX} ${arcEndY}`);
+                launchArc.setAttribute('d', `M ${ox} ${oy} L ${ox + arcR} ${oy} A ${arcR} ${arcR} 0 0 0 ${arcEndX} ${arcEndY} Z`);
                 launchArc.setAttribute('stroke', '#5f8d4e');
+                launchArc.setAttribute('fill', 'rgba(95,141,78,0.1)');
             }
         }
 
@@ -316,12 +451,15 @@ export class ShotMonitor {
         }
 
         this.setDiagValue('diagLaunchAngle', ballData?.launchAngle, '°', false, true);
-        this.setDiagValue('diagAttackAngle', clubData?.attackAngle, '°', true, clubData?.isAttackAngleValid);
+        this.setDiagValue('diagAttackAngle', clubData?.attackAngle, '°', 'attack', clubData?.isAttackAngleValid);
         this.setDiagValue('diagDynamicLoft', clubData?.dynamicLoft, '°', false, clubData?.isDynamicLoftValid);
     }
 
     updateSpinDiagram(ballData) {
         const spinLine = document.getElementById('spinAxisLine');
+        const shade = document.getElementById('spinBallShade');
+        const curveArrow = document.getElementById('spinCurveArrow');
+        const curveHead = document.getElementById('spinCurveHead');
         if (!spinLine) return;
 
         const hasAxis = typeof ballData?.spinAxis === 'number';
@@ -333,6 +471,9 @@ export class ShotMonitor {
             this.setDiagValue('diagTotalSpin', null);
             this.setDiagValue('diagBackSideSpin', null);
             spinLine.setAttribute('stroke', 'var(--text-muted)');
+            if (shade) shade.setAttribute('transform', '');
+            if (curveArrow) curveArrow.setAttribute('d', '');
+            if (curveHead) curveHead.setAttribute('points', '');
             return;
         }
 
@@ -340,7 +481,6 @@ export class ShotMonitor {
         const spinValid = ballData?.isTotalSpinValid !== false;
         this.setBadge('spinDiagBadge', axisValid && spinValid);
 
-        // Rotate spin axis line - spin axis is in degrees, positive = right tilt
         if (hasAxis) {
             const angle = this.clamp(ballData.spinAxis, -45, 45);
             const rad = (angle * Math.PI) / 180;
@@ -350,9 +490,44 @@ export class ShotMonitor {
             spinLine.setAttribute('x2', 100 + Math.sin(rad) * len);
             spinLine.setAttribute('y2', 100 + Math.cos(rad) * len);
             spinLine.setAttribute('stroke', this.svgColor(ballData.isSpinAxisValid));
+
+            if (shade) {
+                shade.setAttribute('transform', `rotate(${angle} 100 100)`);
+                const color = angle > 0 ? 'rgba(59,130,246,0.12)' : 'rgba(199,104,52,0.12)';
+                shade.setAttribute('fill', Math.abs(angle) < 1 ? 'rgba(148,163,184,0.06)' : color);
+            }
+
+            if (curveArrow && curveHead && Math.abs(angle) > 2) {
+                const dir = angle > 0 ? 1 : -1;
+                const r = 52;
+                const startA = -30 * dir;
+                const endA = 30 * dir;
+                const s = ((startA - 90) * Math.PI) / 180;
+                const e = ((endA - 90) * Math.PI) / 180;
+                const sx = 100 + Math.cos(s) * r;
+                const sy = 100 + Math.sin(s) * r;
+                const ex = 100 + Math.cos(e) * r;
+                const ey = 100 + Math.sin(e) * r;
+                const sweep = dir > 0 ? 1 : 0;
+                curveArrow.setAttribute('d', `M ${sx} ${sy} A ${r} ${r} 0 0 ${sweep} ${ex} ${ey}`);
+                curveArrow.setAttribute('stroke', this.svgColor(ballData.isSpinAxisValid));
+
+                const tipX = ex;
+                const tipY = ey;
+                const tangentX = -Math.sin(e) * dir * 5;
+                const tangentY = Math.cos(e) * dir * 5;
+                const normalX = Math.cos(e) * 4;
+                const normalY = Math.sin(e) * 4;
+                curveHead.setAttribute('points',
+                    `${tipX},${tipY} ${tipX - tangentX + normalX},${tipY - tangentY + normalY} ${tipX - tangentX - normalX},${tipY - tangentY - normalY}`);
+                curveHead.setAttribute('fill', this.svgColor(ballData.isSpinAxisValid));
+            } else {
+                if (curveArrow) curveArrow.setAttribute('d', '');
+                if (curveHead) curveHead.setAttribute('points', '');
+            }
         }
 
-        this.setDiagValue('diagSpinAxis', ballData?.spinAxis, '°', true, ballData?.isSpinAxisValid);
+        this.setDiagValue('diagSpinAxis', ballData?.spinAxis, '°', 'spin', ballData?.isSpinAxisValid);
 
         if (hasSpin) {
             const el = document.getElementById('diagTotalSpin');
@@ -371,8 +546,10 @@ export class ShotMonitor {
         if (hasBack || hasSide) {
             const el = document.getElementById('diagBackSideSpin');
             if (el) {
-                const back = hasBack ? Math.round(ballData.backSpin) : '-';
-                const side = hasSide ? Math.round(ballData.sideSpin) : '-';
+                const isTopspin = hasBack && ballData.backSpin < 0;
+                const back = hasBack ? `${isTopspin ? 'T ' : ''}${Math.abs(Math.round(ballData.backSpin))}` : '-';
+                const sideVal = hasSide ? Math.round(ballData.sideSpin) : null;
+                const side = sideVal !== null ? `${sideVal > 0 ? 'L ' : sideVal < 0 ? 'R ' : ''}${Math.abs(sideVal)}` : '-';
                 el.textContent = `${back} / ${side}`;
                 el.className = 'diag-value-number';
             }
@@ -381,9 +558,17 @@ export class ShotMonitor {
         }
     }
 
+    impactMmToSvg(valueMm) {
+        const CLUB_SIZE_MM = 44.88;
+        const CLUB_PIXELS = 80;
+        const mmPerPixel = CLUB_SIZE_MM / CLUB_PIXELS;
+        return valueMm / mmPerPixel;
+    }
+
     updateImpactDiagram(clubData) {
         const dot = document.getElementById('impactDot');
         const ring = document.getElementById('impactRing');
+        const historyGroup = document.getElementById('impactDotHistory');
         if (!dot || !ring) return;
 
         const hasH = typeof clubData?.impactHorizontal === 'number';
@@ -406,24 +591,46 @@ export class ShotMonitor {
         const vValid = clubData?.isImpactVerticalValid !== false;
         this.setBadge('impactDiagBadge', hValid && vValid);
 
-        // Landscape face: x=20..180 (center 100), y=20..140 (center 80)
-        const hVal = hasH ? this.clamp(clubData.impactHorizontal, -20, 20) : 0;
-        const vVal = hasV ? this.clamp(clubData.impactVertical, -20, 20) : 0;
+        if (historyGroup) {
+            historyGroup.innerHTML = '';
+            const hSign = this._isLeftHanded ? -1 : 1;
+            for (let i = 0; i < this._shotHistory.length - 1; i++) {
+                const prev = this._shotHistory[i].clubData;
+                const pH = prev?.impactHorizontal;
+                const pV = prev?.impactVertical;
+                if (typeof pH !== 'number' || typeof pV !== 'number') continue;
 
-        // RH: heel on left, toe on right. LH: flipped.
+                const hClamped = this.clamp(pH, -22, 22);
+                const vClamped = this.clamp(pV, -22, 22);
+                const histCx = 100 + this.impactMmToSvg(hClamped) * hSign;
+                const histCy = 80 - this.impactMmToSvg(vClamped);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', histCx);
+                circle.setAttribute('cy', histCy);
+                circle.setAttribute('r', '4');
+                circle.setAttribute('fill', 'rgba(255,255,255,0.45)');
+                circle.setAttribute('stroke', 'rgba(255,255,255,0.2)');
+                circle.setAttribute('stroke-width', '1');
+                historyGroup.appendChild(circle);
+            }
+        }
+
+        const hMm = hasH ? this.clamp(clubData.impactHorizontal, -22, 22) : 0;
+        const vMm = hasV ? this.clamp(clubData.impactVertical, -22, 22) : 0;
+
         const hSign = this._isLeftHanded ? -1 : 1;
-        const cx = 100 + (hVal / 20) * 65 * hSign;
-        const cy = 80 - (vVal / 20) * 50;
+        const cx = 100 + this.impactMmToSvg(hMm) * hSign;
+        const cy = 80 - this.impactMmToSvg(vMm);
 
-        const color = this.svgColor(hValid && vValid);
         dot.setAttribute('cx', cx);
         dot.setAttribute('cy', cy);
-        dot.setAttribute('fill', color);
+        dot.setAttribute('fill', '#ef4444');
         ring.setAttribute('cx', cx);
         ring.setAttribute('cy', cy);
-        ring.setAttribute('stroke', color);
+        ring.setAttribute('stroke', '#ef4444');
+        ring.setAttribute('opacity', '0.5');
 
-        // Update toe/heel labels based on handedness
         const toeLabel = document.querySelector('#faceImpactSvg text:nth-of-type(1)');
         const heelLabel = document.querySelector('#faceImpactSvg text:nth-of-type(2)');
         if (toeLabel && heelLabel) {
@@ -436,8 +643,8 @@ export class ShotMonitor {
             }
         }
 
-        this.setDiagValue('diagImpactH', clubData.impactHorizontal, '°', true, clubData.isImpactHorizontalValid);
-        this.setDiagValue('diagImpactV', clubData.impactVertical, '°', false, clubData.isImpactVerticalValid);
+        this.setDiagValue('diagImpactH', clubData.impactHorizontal, 'mm', 'impact', clubData.isImpactHorizontalValid);
+        this.setDiagValue('diagImpactV', clubData.impactVertical, 'mm', false, clubData.isImpactVerticalValid);
     }
 
     updateEfficiency(ballData, clubData) {
@@ -453,13 +660,13 @@ export class ShotMonitor {
         const ballSpeedEl = document.getElementById('diagBallSpeed');
 
         if (clubSpeedEl) {
-            clubSpeedEl.textContent = hasClubSpeed ? `${clubData.clubSpeed.toFixed(1)}` : '-';
+            clubSpeedEl.textContent = hasClubSpeed ? `${(clubData.clubSpeed * 2.23694).toFixed(1)}` : '-';
         }
         if (smashEl) {
             smashEl.textContent = hasSmash ? `×${clubData.smashFactor.toFixed(2)}` : '-';
         }
         if (ballSpeedEl) {
-            const mph = hasBallSpeed ? (ballData.speed * 2.237).toFixed(1) : '-';
+            const mph = hasBallSpeed ? (ballData.speed * 2.23694).toFixed(1) : '-';
             ballSpeedEl.textContent = mph;
         }
     }

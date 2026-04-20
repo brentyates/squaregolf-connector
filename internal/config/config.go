@@ -13,6 +13,10 @@ import (
 type Settings struct {
 	DeviceName              string `json:"deviceName"`
 	SpinMode                string `json:"spinMode"`
+	OmniSpeedUnit           string `json:"omniSpeedUnit"`
+	OmniDistanceUnit        string `json:"omniDistanceUnit"`
+	OmniGreenSpeed          int    `json:"omniGreenSpeed"`
+	OmniCarryAdjustment     int    `json:"omniCarryAdjustment"`
 	GSProIP                 string `json:"gsproIP"`
 	GSProPort               int    `json:"gsproPort"`
 	GSProAutoConnect        bool   `json:"gsproAutoConnect"`
@@ -65,6 +69,10 @@ func (m *Manager) initialize() {
 	m.settings = Settings{
 		DeviceName:              "",
 		SpinMode:                "advanced",
+		OmniSpeedUnit:           "mps",
+		OmniDistanceUnit:        "meters",
+		OmniGreenSpeed:          10,
+		OmniCarryAdjustment:     0,
 		GSProIP:                 "127.0.0.1",
 		GSProPort:               921,
 		GSProAutoConnect:        false,
@@ -143,10 +151,37 @@ func (m *Manager) SetDeviceName(name string) error {
 	return m.Save()
 }
 
-
 func (m *Manager) SetSpinMode(spinMode string) error {
 	m.mu.Lock()
 	m.settings.SpinMode = spinMode
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetOmniSpeedUnit(speedUnit string) error {
+	m.mu.Lock()
+	m.settings.OmniSpeedUnit = speedUnit
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetOmniDistanceUnit(distanceUnit string) error {
+	m.mu.Lock()
+	m.settings.OmniDistanceUnit = distanceUnit
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetOmniGreenSpeed(greenSpeed int) error {
+	m.mu.Lock()
+	m.settings.OmniGreenSpeed = greenSpeed
+	m.mu.Unlock()
+	return m.Save()
+}
+
+func (m *Manager) SetOmniCarryAdjustment(adjustment int) error {
+	m.mu.Lock()
+	m.settings.OmniCarryAdjustment = adjustment
 	m.mu.Unlock()
 	return m.Save()
 }
@@ -220,6 +255,10 @@ func (m *Manager) ApplyToStateManager(stateManager *core.StateManager) {
 		spinMode = core.Advanced
 	}
 	stateManager.SetSpinMode(&spinMode)
+	stateManager.SetOmniSpeedUnit(&m.settings.OmniSpeedUnit)
+	stateManager.SetOmniDistanceUnit(&m.settings.OmniDistanceUnit)
+	stateManager.SetOmniGreenSpeed(&m.settings.OmniGreenSpeed)
+	stateManager.SetOmniCarryAdjustment(&m.settings.OmniCarryAdjustment)
 
 	// Apply camera settings
 	stateManager.SetCameraURL(&m.settings.CameraURL)
